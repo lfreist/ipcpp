@@ -1,0 +1,1 @@
+add_library(shm STATIC address_space.cpp error.cpp)
