@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include <ipcpp/shm/error.h>
+#include <ipcpp/types.h>
 
 namespace ipcpp::shm {
 
@@ -18,7 +19,14 @@ namespace ipcpp::shm {
  */
 class SharedAddressSpace {
  public:
-  ~SharedAddressSpace();
+  ~SharedAddressSpace() {
+    if (_start != nullptr) {
+      munmap(_start, _size);
+    }
+    if (_fd != -1) {
+      close(_fd);
+    }
+  }
   /// move constructor: needed for SharedAddressSpace::create to make an std::expected<SharedAddressSpace>.
   SharedAddressSpace(SharedAddressSpace&& other) noexcept;
 
@@ -42,15 +50,14 @@ class SharedAddressSpace {
       return std::unexpected(error::MemoryError::ALLOCATION_ERROR);
     }
 
-    void* start = mmap(nullptr, self._size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (start == MAP_FAILED) {
-      return std::unexpected(error::MemoryError::MAPPING_ERROR);
-    }
-
-    close(fd);
+    self._fd = fd;
 
     return self;
   }
+
+  [[nodiscard]] int fd() const { return _fd; }
+  [[nodiscard]] void* addr() const { return _start; }
+  [[nodiscard]] std::size_t size() const { return _size; }
 
  private:
   /// private constructor: only way to get a SharedAddressSpace is to use SharedAddressSpace::create.
@@ -58,6 +65,7 @@ class SharedAddressSpace {
 
  private:
   std::string _path;
+  int _fd = -1;
   void* _start = nullptr;
   std::size_t _size = 0U;
 };

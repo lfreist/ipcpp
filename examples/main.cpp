@@ -1,11 +1,29 @@
-#include <chrono>
-#include <iostream>
+#include <concepts>
+#include <expected>
+#include <string>
+#include <utility>
 
-#include <ipcpp/shm/data_view.h>
-#include <ipcpp/shm/address_space.h>
-#include <ipcpp/shm/memory_block.h>
+// Define the concept to check for create method
+template <typename T, typename E, typename... Args>
+concept HasCreate = requires(Args&&... args) {
+  { T::create(std::forward<Args>(args)...)} -> std::same_as<std::expected<T, E>>;
+};
+
+// Templated class
+template <typename N>
+class DomainSocketNotificationHandler {
+ public:
+  // Static member function create
+  static std::expected<DomainSocketNotificationHandler<N>, int> create(std::string socket_path) {
+    // Implementation here
+    return DomainSocketNotificationHandler<N>();
+  }
+};
+
+// Check if DomainSocketNotificationHandler meets the HasCreate concept
+
 
 int main() {
-  auto shm = ipcpp::shm::SharedAddressSpace::create<ipcpp::AccessMode::WRITE>("/my_memory", 2048);
+  static_assert(HasCreate<DomainSocketNotificationHandler<int>, int, std::string>); // Replace int with the actual type you want to test
 
 }

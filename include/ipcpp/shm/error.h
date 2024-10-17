@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <iostream>
+
 namespace ipcpp::shm::error {
 
 enum class AccessError {
