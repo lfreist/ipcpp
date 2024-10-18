@@ -4,6 +4,6 @@ add_executable(publisher publisher.cpp)
 add_executable(subscriber subscriber.cpp)
 
 add_executable(shm_publisher shm_publisher.cpp)
-target_link_libraries(shm_publisher PUBLIC ipcpp)
+target_link_libraries(shm_publisher PUBLIC ipcpp shm sock)
 add_executable(shm_subscriber shm_subscriber.cpp)
-target_link_libraries(shm_subscriber PUBLIC ipcpp)
+target_link_libraries(shm_subscriber PUBLIC ipcpp shm sock)

@@ -1,4 +1,4 @@
 add_subdirectory(shm)
+add_subdirectory(sock)
 
-add_library(ipcpp STATIC types.cpp)
-target_link_libraries(ipcpp PUBLIC shm)
+add_library(ipcpp STATIC types.cpp sock/error.cpp shm/address_space.cpp shm/error.cpp)

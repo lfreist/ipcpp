@@ -1,5 +1,5 @@
 #include <ipcpp/subscriber/subscriber.h>
-#include <ipcpp/subscriber/notification_handler.h>
+#include <ipcpp/notification/notification_handler.h>
 #include <ipcpp/types.h>
 
 #include <numeric>
@@ -13,7 +13,6 @@ struct Notification {
 
 int main() {
   using namespace ipcpp::subscriber;
-  static_assert(ipcpp::concepts::HasCreate<DomainSocketNotificationHandler<Notification>, int, std::string>); // Replace int with the actual type you want to test
 
   auto expected_subscriber = Subscriber<DomainSocketNotificationHandler, Notification>::create("/tmp/ipcpp.sock");
 

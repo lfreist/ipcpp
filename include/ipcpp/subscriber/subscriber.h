@@ -1,4 +1,4 @@
-#include <ipcpp/subscriber/notification_handler.h>
+#include <ipcpp/notification/notification_handler.h>
 
 
 #include <atomic>
@@ -10,19 +10,18 @@
 
 namespace ipcpp::subscriber {
 
-template <template <typename N> typename NotifierT, concepts::IsNotification N>
-requires concepts::IsNotificationHandler<NotifierT<N>, N>
+template <template <typename N> typename NotificationHandlerT, concepts::IsNotification NotificationT>
 class Subscriber {
  public:
   Subscriber(Subscriber&& other) noexcept : _notifier(std::move(other._notifier)) {}
 
   template <typename... Args>
-    requires concepts::HasCreate<NotifierT<N>, int, Args...>
-  static std::expected<Subscriber<NotifierT, N>, int> create(Args&&... args) {
-    std::expected<NotifierT<N>, int> notifier = NotifierT<N>::create(std::forward<Args&&...>(args...));
+  static std::expected<Subscriber<NotificationHandlerT, NotificationT>, typename NotificationHandlerT<NotificationT>::error> create(Args&&... args) {
+    std::expected<NotificationHandlerT<NotificationT>, typename NotificationHandlerT<NotificationT>::error> notifier =
+        NotificationHandlerT<NotificationT>::create(std::forward<Args&&...>(args...));
 
     if (notifier.has_value()) {
-      return Subscriber<NotifierT, N>(std::move(notifier.value()));
+      return Subscriber<NotificationHandlerT, NotificationT>(std::move(notifier.value()));
     }
 
     return std::unexpected(notifier.error());
@@ -31,15 +30,15 @@ class Subscriber {
   bool register_to_publisher() { return _notifier.register_to_publisher(); }
 
   template <typename F, typename Ret = bool>
-  requires concepts::IsCallable<F, Ret, N>
+  requires concepts::IsCallable<F, Ret, NotificationT>
   std::expected<Ret, int> receive_one(F&& callback) {
     return _notifier.template receive<F, Ret>(std::forward<F>(callback));
   }
 
  private:
-  explicit Subscriber(NotifierT<N>&& notifier) : _notifier(std::move(notifier)) {}
+  explicit Subscriber(NotificationHandlerT<NotificationT>&& notifier) : _notifier(std::move(notifier)) {}
 
-  NotifierT<N> _notifier;
+  NotificationHandlerT<NotificationT> _notifier;
 };
 
 }  // namespace ipcpp::subscriber

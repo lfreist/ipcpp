@@ -18,8 +18,8 @@ class Publisher {
   ~Publisher() = default;
 
   template <typename... Args>
-  static std::expected<Publisher<NotifierT, N>, int> create(Args&&... args) {
-    std::expected<NotifierT<N>, int> notifier = NotifierT<N>::create(std::forward<Args&&...>(args...));
+  static std::expected<Publisher<NotifierT, N>, typename NotifierT<N>::error> create(Args&&... args) {
+    std::expected<NotifierT<N>, typename NotifierT<N>::error> notifier = NotifierT<N>::create(std::forward<Args&&...>(args...));
 
     if (notifier.has_value()) {
       return Publisher<NotifierT, N>(std::move(notifier.value()));

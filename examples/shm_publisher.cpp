@@ -8,7 +8,7 @@
 #include <ipcpp/shm/publisher.h>
 #include <ipcpp/shm/mapped_memory.h>
 #include <ipcpp/shm/notification.h>
-#include <ipcpp/publisher/notifier.h>
+#include <ipcpp/notification/notifier.h>
 
 int main(int argc, char** argv) {
   using namespace ipcpp;

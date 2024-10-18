@@ -17,12 +17,16 @@
 #include <vector>
 
 #include <ipcpp/types.h>
+#include <ipcpp/sock/error.h>
 
 namespace ipcpp::publisher {
 
 
 template <typename N>
 class DomainSocketNotifier {
+ public:
+  typedef sock::domain::Error error;
+
  public:
   DomainSocketNotifier(DomainSocketNotifier&& other) noexcept {
     // mutex is not moved
@@ -41,11 +45,12 @@ class DomainSocketNotifier {
     }
   }
 
-  static std::expected<DomainSocketNotifier, int> create(std::string&& socket_path) {
+  static std::expected<DomainSocketNotifier, error> create(std::string&& socket_path) {
     DomainSocketNotifier self(std::move(socket_path));
 
-    if (!self.setup_socket()) {
-      return std::unexpected(0);
+    auto result = self.setup_socket();
+    if (!result.has_value()) {
+      return std::unexpected(result.error());
     }
 
     return self;
@@ -121,10 +126,10 @@ class DomainSocketNotifier {
  private:
   explicit DomainSocketNotifier(std::string&& socket_path) : _socket_path(std::move(socket_path)) {}
 
-  bool setup_socket() {
+  std::expected<void, error> setup_socket() {
     _socket = socket(AF_UNIX, SOCK_STREAM, 0);
     if (_socket == -1) {
-      return false;
+      return std::unexpected(error::CREATION_ERROR);
     }
 
     sockaddr_un server_addr{};
@@ -133,14 +138,14 @@ class DomainSocketNotifier {
     unlink(_socket_path.c_str());
 
     if (bind(_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
-      return false;
+      return std::unexpected(error::BIND_ERROR);
     }
 
     if (listen(_socket, _max_subscribers) == -1) {
-      return false;
+      return std::unexpected(error::LISTEN_ERROR);
     }
 
-    return true;
+    return {};
   }
 
   void handle_registration(int client_sock) {

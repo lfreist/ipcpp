@@ -1,5 +1,5 @@
 #include <ipcpp/publisher/publisher.h>
-#include <ipcpp/publisher/notifier.h>
+#include <ipcpp/notification//notifier.h>
 #include <ipcpp/types.h>
 
 #include <iostream>

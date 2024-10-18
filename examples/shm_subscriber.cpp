@@ -4,7 +4,7 @@
 
 #include <ipcpp/shm/subscriber.h>
 #include <ipcpp/shm/mapped_memory.h>
-#include <ipcpp/subscriber/notification_handler.h>
+#include <ipcpp/notification/notification_handler.h>
 
 int main(int argc, char** argv) {
   using namespace ipcpp;
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     std::cerr << expected_mapped_memory.error() << std::endl;
     return 1;
   }
-  shm::Subscriber subscriber(std::move(expected_mapped_memory.value()), std::move(expected_notification_handler.value()));
+  shm::Subscriber<subscriber::DomainSocketNotificationHandler> subscriber(std::move(expected_mapped_memory.value()), std::move(expected_notification_handler.value()));
   subscriber.run();
   return 0;
 }

@@ -72,12 +72,5 @@ concept IsCallable = requires {
   requires IsNotification<N>;
 };
 
-template <typename T, typename N>
-concept IsNotificationHandler = requires(T t) {
-  { std::declval<T&&>() };  // move constructible
-  { t.register_to_publisher() } -> std::same_as<bool>;
-  { t.template receive(std::declval<std::function<void(N)>>()) };
-};
-
 }  // namespace concepts
 }  // namespace ipcpp

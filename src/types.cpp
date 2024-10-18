@@ -22,6 +22,12 @@ std::ostream& operator<<(std::ostream& os, AccessMode am) {
   return os;
 }
 
+namespace sockets {
+
+
+
+}
+
 namespace notification {
 
 std::ostream& operator<<(std::ostream& os, NotificationType nt) {
