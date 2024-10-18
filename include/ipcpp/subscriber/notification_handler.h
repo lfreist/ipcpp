@@ -56,10 +56,6 @@ class DomainSocketNotificationHandler {
       return std::unexpected(0);
     }
 
-    if (notification.exit) {
-      return std::unexpected(-1);
-    }
-
     return callback(notification);
   }
 

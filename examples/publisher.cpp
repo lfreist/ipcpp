@@ -1,10 +1,11 @@
 #include <ipcpp/publisher/publisher.h>
 #include <ipcpp/publisher/notifier.h>
+#include <ipcpp/types.h>
 
 #include <iostream>
 
 struct Notification {
-  bool exit = false;
+  ipcpp::notification::NotificationType notification_type = ipcpp::notification::NotificationType::UNINITIALIZED;
   void* location = nullptr;
   std::size_t size = 0;
   uint64_t timestamp = 0;

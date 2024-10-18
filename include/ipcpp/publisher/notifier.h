@@ -16,6 +16,8 @@
 
 #include <vector>
 
+#include <ipcpp/types.h>
+
 namespace ipcpp::publisher {
 
 
@@ -112,7 +114,7 @@ class DomainSocketNotifier {
 
   void notify_exit() {
     N notification;
-    notification.exit = true;
+    notification.notification_type = notification::NotificationType::EXIT;
     notify_subscribers(notification);
   }
 

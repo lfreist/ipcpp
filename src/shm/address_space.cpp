@@ -28,14 +28,16 @@ SharedAddressSpace::~SharedAddressSpace() {
     munmap(_start, _size);
     shm_unlink(_path.c_str());
   }
+  if (_fd != -1) {
+    close(_fd);
+  }
 }
 
 SharedAddressSpace::SharedAddressSpace(SharedAddressSpace&& other)  noexcept {
   _path = std::move(other._path);
-  _start = other._start;
-  _size = other._size;
-  other._start = nullptr;
-  other._size = 0U;
+  std::swap(_start, other._start);
+  std::swap(_size, other._size);
+  std::swap(_fd, other._fd);
 }
 
 }

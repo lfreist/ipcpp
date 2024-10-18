@@ -19,14 +19,7 @@ namespace ipcpp::shm {
  */
 class SharedAddressSpace {
  public:
-  ~SharedAddressSpace() {
-    if (_start != nullptr) {
-      munmap(_start, _size);
-    }
-    if (_fd != -1) {
-      close(_fd);
-    }
-  }
+  ~SharedAddressSpace();
   /// move constructor: needed for SharedAddressSpace::create to make an std::expected<SharedAddressSpace>.
   SharedAddressSpace(SharedAddressSpace&& other) noexcept;
 
@@ -34,9 +27,9 @@ class SharedAddressSpace {
   static std::expected<SharedAddressSpace, error::MemoryError> create(std::string&& path, std::size_t size) {
     int o_flags = O_CREAT;
     if constexpr (A == AccessMode::WRITE) {
-      o_flags |= O_RDWR;
+      o_flags = O_RDWR;
     } else if constexpr (A == AccessMode::READ) {
-      o_flags |= O_RDONLY;
+      o_flags = O_RDONLY;
     }
 
     SharedAddressSpace self(std::move(path), size);

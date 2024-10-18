@@ -8,6 +8,7 @@
 #include <span>
 #include <stdexcept>
 #include <memory>
+#include <cassert>
 
 #include <ipcpp/shm/address_space.h>
 
@@ -56,7 +57,7 @@ class MappedMemory {
   }
 
   template <typename T>
-  T* data() { return (T*)(_mapped_region); }
+  T* data(std::size_t offset = 0) { return (T*)((uint8_t*)_mapped_region + offset); }
 
   [[nodiscard]] std::size_t size() const { return _size; }
 
@@ -66,8 +67,6 @@ class MappedMemory {
   MappedMemory(SharedAddressSpace&& shared_address_space) : _shared_address_space(std::move(shared_address_space)) {}
 
   static std::expected<void *, int> map_memory(std::size_t expected_size, void *start_addr, int fd, std::size_t offset) {
-    [[maybe_unused]] const std::size_t page_size = getpagesize();
-
     const int protect_flags = PROT_READ | PROT_WRITE;
 
     int flags{};
@@ -124,16 +123,16 @@ std::expected<MappedMemory<ipcpp::shm::MappingType::DOUBLE>, int> MappedMemory<M
 
   self._size = self._shared_address_space.size();
   self._total_size = self._shared_address_space.size() + self._shared_address_space.size();
-  auto double_mapping = map_memory(self._size, nullptr, 0, 0);
+  auto double_mapping = map_memory(self._total_size, nullptr, 0, 0);
   if (!double_mapping.has_value()) {
     return std::unexpected(double_mapping.error());
   }
   self._mapped_region = double_mapping.value();
-  auto first_mapping = map_memory(self._shared_address_space.size(), self._mapped_region, self._shared_address_space.fd(), 0);
+  auto first_mapping = map_memory(self._size, self._mapped_region, self._shared_address_space.fd(), 0);
   if (!first_mapping.has_value()) {
     return std::unexpected(first_mapping.error());
   }
-  auto second_mapping = map_memory(self._shared_address_space.size(), static_cast<uint8_t*>(self._mapped_region) + self._shared_address_space.size(), self._shared_address_space.fd(), 0);
+  auto second_mapping = map_memory(self._size, static_cast<uint8_t*>(self._mapped_region) + self._size, self._shared_address_space.fd(), 0);
   if (!second_mapping.has_value()) {
     return std::unexpected(second_mapping.error());
   }

@@ -21,18 +21,7 @@ enum class AccessMode {
   WRITE,
 };
 
-std::ostream& operator<<(std::ostream& os, AccessMode am) {
-  switch (am) {
-    case AccessMode::READ:
-      os << AS_STRING(AccessMode::READ);
-      break;
-    case AccessMode::WRITE:
-      os << AS_STRING(AccessMode::WRITE);
-      break;
-  }
-  return os;
-}
-
+std::ostream& operator<<(std::ostream& os, AccessMode am);
 
 namespace notification {
 
@@ -42,9 +31,13 @@ enum class NotificationType {
   REGISTRATION_FAILED,
   PUBLISHER_DOWN,
   REGULAR,
+  EXIT,
 };
 
+std::ostream& operator<<(std::ostream& os, NotificationType nt);
+
 }
+
 
 // === concepts ========================================================================================================
 namespace concepts {
