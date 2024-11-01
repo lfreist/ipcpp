@@ -16,7 +16,7 @@ enum class Error {
   LISTEN_ERROR,
 };
 
-std::ostream& operator<<(std::ostream& os, Error am);
+std::ostream& operator<<(std::ostream& os, Error error);
 
 }
 

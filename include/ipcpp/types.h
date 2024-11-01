@@ -36,6 +36,13 @@ enum class NotificationType {
 
 std::ostream& operator<<(std::ostream& os, NotificationType nt);
 
+
+enum class _NotificationError {
+  NO_DATA,
+  PROVIDER_DOWN,
+};
+
+std::ostream& operator<<(std::ostream& os, _NotificationError error);
 }
 
 

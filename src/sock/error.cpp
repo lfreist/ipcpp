@@ -18,6 +18,12 @@ std::ostream& operator<<(std::ostream& os, Error error) {
     case Error::CONNECTION_ERROR:
       os << AS_STRING(Error::CONNECTION_ERROR);
       break;
+    case Error::BIND_ERROR:
+      os << AS_STRING(Error::BIND_ERROR);
+      break;
+    case Error::LISTEN_ERROR:
+      os << AS_STRING(Error::LISTEN_ERROR);
+      break;
   }
   return os;
 }

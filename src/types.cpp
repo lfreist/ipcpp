@@ -51,6 +51,18 @@ std::ostream& operator<<(std::ostream& os, NotificationType nt) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, _NotificationError error) {
+  switch (error) {
+    case _NotificationError::NO_DATA:
+      os << AS_STRING(NotificationError::NO_DATA);
+      break;
+    case _NotificationError::PROVIDER_DOWN:
+      os << AS_STRING(NotificationError::PROVIDER_DOWN);
+      break;
+  }
+  return os;
+}
+
 }
 
 }

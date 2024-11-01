@@ -2,13 +2,16 @@
 // Created by lfreist on 17/10/2024.
 //
 
-#include <thread>
-#include <chrono>
-
-#include <ipcpp/shm/publisher.h>
+#include <ipcpp/notification/notifier_old.h>
 #include <ipcpp/shm/mapped_memory.h>
 #include <ipcpp/shm/notification.h>
-#include <ipcpp/notification/notifier.h>
+#include <ipcpp/shm/publisher.h>
+#include <ipcpp/utils/utils.h>
+
+#include <chrono>
+#include <thread>
+
+#include "message.h"
 
 int main(int argc, char** argv) {
   using namespace ipcpp;
@@ -22,7 +25,7 @@ int main(int argc, char** argv) {
     std::cerr << expected_shared_address_space.error() << std::endl;
     return 1;
   }
-  auto expected_mapped_memory = shm::MappedMemory<shm::MappingType::DOUBLE>::create(std::move(expected_shared_address_space.value()));
+  auto expected_mapped_memory = shm::MappedMemory<shm::MappingType::DOUBLE>::create<AccessMode::WRITE>(std::move(expected_shared_address_space.value()));
   if (!expected_mapped_memory.has_value()) {
     std::cerr << expected_mapped_memory.error() << std::endl;
     return 1;
@@ -31,18 +34,19 @@ int main(int argc, char** argv) {
 
   while (true) {
     std::string message("hi");
-    //std::getline(std::cin, message);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::getline(std::cin, message);
 
-    auto data = publisher.get_data(message.size() + sizeof(uint64_t));
-    //publisher.write(&timestamp, sizeof(uint64_t));
+    auto data = publisher.get_data(sizeof(Message));
 
     if (message == "exit") {
       data.set_exit();
       std::cout << "exiting..." << std::endl;
       break;
     }
-    data.data<uint64_t>()[0] = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    std::memcpy(data.data<uint8_t>().data() + sizeof(uint64_t), message.data(), message.size());
+    Message& msg = data.data<Message>()[0];
+    msg.timestamp = utils::timestamp();
+    msg.msg_size = message.size();
   }
+
+  expected_shared_address_space.value().unlink();
 }

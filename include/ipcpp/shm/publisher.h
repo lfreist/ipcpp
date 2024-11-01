@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ipcpp/notification/notifier.h>
+#include <ipcpp/notification/notifier_old.h>
 #include <ipcpp/shm/mapped_memory.h>
 #include <ipcpp/shm/notification.h>
 
@@ -87,7 +87,7 @@ Publisher<NotifierT>::Data::Data(Publisher<NotifierT>::Data&& other) noexcept {
 template <template <typename N> typename NotifierT>
 template <typename T>
 std::span<T> Publisher<NotifierT>::Data::data() {
-  return std::span((T*)(_start) + _offset, _size);
+  return std::span((T*)((uint8_t*)(_start) + _offset), _size);
 }
 
 // _____________________________________________________________________________________________________________________

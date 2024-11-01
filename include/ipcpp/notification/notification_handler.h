@@ -4,15 +4,15 @@
 
 #pragma once
 
+#include <ipcpp/sock/error.h>
+#include <ipcpp/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 
-#include <expected>
 #include <concepts>
-
-#include <ipcpp/types.h>
-#include <ipcpp/sock/error.h>
+#include <expected>
+#include <utility>
 
 namespace ipcpp::subscriber {
 
@@ -24,6 +24,8 @@ template <concepts::IsNotification N>
 class DomainSocketNotificationHandler {
  public:
   typedef sock::domain::Error error;
+  typedef N Notification;
+
  public:
   /// Move constructor needed for DomainSocketNotificationHandler::create()
   DomainSocketNotificationHandler(DomainSocketNotificationHandler&& other) noexcept;
@@ -45,9 +47,10 @@ class DomainSocketNotificationHandler {
    */
   [[nodiscard]] bool register_to_publisher() const;
 
-  template <typename F, typename Ret>
-  requires concepts::IsCallable<F, Ret, N>
-  std::expected<Ret, int> receive(F&& callback);
+  template <typename F, typename... Args>
+    requires std::is_invocable_v<F, N, Args...>
+  auto receive(F&& callback, Args&&... args)
+      -> std::expected<decltype(std::forward<F>(callback)(std::declval<N>(), std::forward<Args>(args)...)), notification::NotificationError>;
 
  private:
   explicit DomainSocketNotificationHandler(std::string&& socket_path) : _socket_path(std::move(socket_path)) {}
@@ -62,7 +65,8 @@ class DomainSocketNotificationHandler {
 // === implementations =================================================================================================
 // _____________________________________________________________________________________________________________________
 template <concepts::IsNotification N>
-DomainSocketNotificationHandler<N>::DomainSocketNotificationHandler(DomainSocketNotificationHandler<N>&& other) noexcept {
+DomainSocketNotificationHandler<N>::DomainSocketNotificationHandler(
+    DomainSocketNotificationHandler<N>&& other) noexcept {
   std::swap(_socket, other._socket);
   _socket_path = std::move(other._socket_path);
 }
@@ -77,7 +81,8 @@ DomainSocketNotificationHandler<N>::~DomainSocketNotificationHandler() {
 
 // _____________________________________________________________________________________________________________________
 template <concepts::IsNotification N>
-std::expected<DomainSocketNotificationHandler<N>, typename DomainSocketNotificationHandler<N>::error> DomainSocketNotificationHandler<N>::create(std::string socket_path) {
+std::expected<DomainSocketNotificationHandler<N>, typename DomainSocketNotificationHandler<N>::error>
+DomainSocketNotificationHandler<N>::create(std::string socket_path) {
   DomainSocketNotificationHandler self(std::move(socket_path));
 
   auto result = self.setup_socket();
@@ -99,22 +104,33 @@ bool DomainSocketNotificationHandler<N>::register_to_publisher() const {
 
 // _____________________________________________________________________________________________________________________
 template <concepts::IsNotification N>
-template <typename F, typename Ret>
-  requires concepts::IsCallable<F, Ret, N>
-std::expected<Ret, int> DomainSocketNotificationHandler<N>::receive(F&& callback) {
+template <typename F, typename... Args>
+  requires std::is_invocable_v<F, N, Args...>
+auto DomainSocketNotificationHandler<N>::receive(F&& callback, Args&&... args)
+    -> std::expected<decltype(std::forward<F>(callback)(std::declval<N>(), std::forward<Args>(args)...)), notification::NotificationError> {
   N notification;
 
   ssize_t bytes_received = recv(_socket, &notification, sizeof(notification), 0);
-  if (bytes_received <= 0) {
-    return std::unexpected(0);
+  if (bytes_received == 0) {
+    return std::unexpected(notification::NotificationError::PROVIDER_DOWN);
+  } else if (bytes_received < 0) {
+    return std::unexpected(notification::NotificationError::NO_DATA);
   }
 
-  return callback(notification);
+  if constexpr (std::is_void_v<std::invoke_result_t<F, N, Args...>>) {
+    // return void
+    std::forward<F>(callback)(notification, std::forward<Args>(args)...);
+  } else {
+    // return complete type
+    return std::forward<F>(callback)(notification, std::forward<Args>(args)...);
+  }
+  return {};
 }
 
 // _____________________________________________________________________________________________________________________
 template <concepts::IsNotification N>
-std::expected<void, typename DomainSocketNotificationHandler<N>::error> DomainSocketNotificationHandler<N>::setup_socket() {
+std::expected<void, typename DomainSocketNotificationHandler<N>::error>
+DomainSocketNotificationHandler<N>::setup_socket() {
   _socket = socket(AF_UNIX, SOCK_STREAM, 0);
   if (_socket == -1) {
     return std::unexpected(sock::domain::Error::CREATION_ERROR);
@@ -131,4 +147,4 @@ std::expected<void, typename DomainSocketNotificationHandler<N>::error> DomainSo
   return {};
 }
 
-}
+}  // namespace ipcpp::subscriber

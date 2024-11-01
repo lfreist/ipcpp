@@ -12,6 +12,16 @@ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     set(MAIN_PROJECT ON)
 endif ()
 
+include(FetchContent)
+
+FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG v1.11.0
+)
+
+FetchContent_MakeAvailable(spdlog)
+
 include_directories(${PROJECT_SOURCE_DIR}/include/)
 add_subdirectory(src)
 
