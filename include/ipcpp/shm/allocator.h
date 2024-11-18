@@ -17,13 +17,15 @@
 #include <stdexcept>
 #include <vector>
 
+namespace ipcpp::shm {
+
 constexpr std::size_t ALIGNMENT = 16;
 constexpr std::size_t TCACHE_MAX_BINS = 64;
 constexpr std::size_t TCACHE_MAX_PER_BIN = 7;
 constexpr std::size_t MAX_FASTBIN_SIZE = 64;
 constexpr std::size_t PAGE_SIZE = 4096;
 
-std::size_t align_up(std::size_t size, std::size_t alignment) { return (size + alignment - 1) & ~(alignment - 1); }
+inline std::size_t align_up(std::size_t size, std::size_t alignment) { return (size + alignment - 1) & ~(alignment - 1); }
 
 class TCache {
  public:
@@ -40,6 +42,13 @@ class UnsortedBin {
  private:
 };
 
+/**
+ * @brief
+ * MemoryLayout: | Header | ChunkAllocator | available memory ... |
+ *
+ * The Header stores offsets of ChunkAllocator and the available memory
+ * The ChunkAllocator is used to allocate Nodes for the linked list storing information of the dynamic allocations
+ */
 class SharedMemoryAllocator {
  public:
   struct Chunk {
@@ -142,7 +151,7 @@ class SharedMemoryAllocator {
     coalesce_backwards(node);
   }
 
-  void coalesce_backwards(ipcpp::utils::linked_list::Node<Chunk*>* node) {
+  static void coalesce_backwards(ipcpp::utils::linked_list::Node<Chunk*>* node) {
     while (node->prev() != nullptr) {
       if (!node->prev()->data()->is_free) {
         break;
@@ -154,7 +163,7 @@ class SharedMemoryAllocator {
     }
   }
 
-  void coalesce_forward(ipcpp::utils::linked_list::Node<Chunk*>* node) {
+  static void coalesce_forward(ipcpp::utils::linked_list::Node<Chunk*>* node) {
     while (node->next() != nullptr) {
       if (!node->next()->data()->is_free) {
         break;
@@ -200,3 +209,5 @@ class SharedMemoryAllocatorAdapter {
 
   SharedMemoryAllocator* allocator_;
 };
+
+}

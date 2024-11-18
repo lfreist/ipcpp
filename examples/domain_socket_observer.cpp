@@ -1,13 +1,20 @@
 /**
- * Copyright 2024, Leon Freist (https://github.com/lfreist)
- * Author: Leon Freist <freist.leon@gmail.com>
- *
- * This file is part of ipcpp.
- */
+* Copyright 2024, Leon Freist (https://github.com/lfreist)
+* Author: Leon Freist <freist.leon@gmail.com>
+*
+* This file is part of ipcpp.
+*
+* Example usage of DomainSocketNotifier.
+*
+* Usage:
+*  - Start the binary compiled from domain_socket_notifier.cpp to run the notifier
+*  - Start the binary compiled from this file to run observers
+*  - Press enter to broadcast a notification to all subscribed observers
+*/
 
-#include <ipcpp/notification/domain_socket_observer.h>
+#include <ipcpp/event/domain_socket_observer.h>
+#include <ipcpp/event/notification.h>
 #include <ipcpp/utils/utils.h>
-#include <spdlog/spdlog.h>
 
 #include <chrono>
 
@@ -17,43 +24,31 @@ struct Notification {
 
 int main(int argc, char** argv) {
   using namespace std::chrono_literals;
-  spdlog::set_level(spdlog::level::debug);
-  auto expected_observer = ipcpp::notification::DomainSocketObserver<Notification, int>::create("/tmp/ipcpp.sock");
+  auto expected_observer = ipcpp::event::DomainSocketObserver<Notification, ipcpp::event::SubscriptionResponse<int>>::create("/tmp/ipcpp.sock");
   if (!expected_observer.has_value()) {
     std::cerr << "Failed to create DomainSocketObserver: " << expected_observer.error() << std::endl;
     return 1;
   }
 
-  auto observer = std::move(expected_observer.value());
-  {
-    auto result = observer.subscribe();
-    if (result.has_value()) {
-      std::cout << result.value() << std::endl;
-    } else {
-      std::cerr << "Subscription failed: " << result.error() << std::endl;
-    }
+  auto& observer = expected_observer.value();
+
+  auto subscription_result = observer.subscribe();
+  if (subscription_result.has_value()) {
+    std::cout << "Successfully subscribed to Notifier" << std::endl;
+  } else {
+    std::cerr << "Subscription failed: " << subscription_result.error() << std::endl;
   }
 
-  auto result = observer.receive([](Notification notification) {
-    int64_t timestamp = ipcpp::utils::timestamp();
-    std::cout << timestamp - notification.timestamp << std::endl;
-  });
-
-  result = observer.receive([](Notification notification) {
-    int64_t timestamp = ipcpp::utils::timestamp();
-    std::cout << timestamp - notification.timestamp << std::endl;
-  });
-
-  observer.cancel_subscription();
-
-  std::this_thread::sleep_for(1s);
-
-  observer.subscribe();
-
-  result = observer.receive([](Notification notification) {
-    int64_t timestamp = ipcpp::utils::timestamp();
-    std::cout << timestamp - notification.timestamp << std::endl;
-  });
-
-  std::this_thread::sleep_for(1s);
+  while (true) {
+    auto result = observer.receive([](Notification notification) -> int64_t {
+      int64_t timestamp = ipcpp::utils::timestamp();
+      return timestamp - notification.timestamp;
+    });
+    if (result.has_value()) {
+      std::cout << "Received notification with latency: " << result.value() << std::endl;
+    } else {
+      std::cout << "Error receiving message: " << result.error() << std::endl;
+      break;
+    }
+  }
 }

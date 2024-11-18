@@ -22,6 +22,27 @@ enum class MemoryError {
   MAPPING_ERROR,     // mmap fails
 };
 
+enum class MappingError {
+  // mmap error codes - errno is set to one of these errors (probably EINVAL)
+  //  read mmap(2) documentation for further details
+  MMAP_EACCES = EACCES,
+  MMAP_EAGAIN = EAGAIN,
+  MMAP_EBADF = EBADF,
+  MMAP_EEXIST = EEXIST,
+  MMAP_EINVAL = EINVAL,
+  MMAP_ENFILE = ENFILE,
+  MMAP_ENODEV = ENODEV,
+  MMAP_ENOMEM = ENOMEM,
+  MMAP_EOVERFLOW = EOVERFLOW,
+  MMAP_EPERM = EPERM,
+  MMAP_ETXTBSY = ETXTBSY,
+  // custom error codes:
+  MMAP_FAILED,        // mmap failed
+  WRONG_ADDRESS,      // mapped to a different address than requested
+  INVALID_HEAP_SIZE,  // issue with heap size: won't fit into address space
+  SHM_ERROR
+};
+
 std::ostream& operator<<(std::ostream& os, AccessError error);
 std::ostream& operator<<(std::ostream& os, MemoryError error);
 

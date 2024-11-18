@@ -28,7 +28,7 @@ namespace sockets {
 
 }
 
-namespace notification {
+namespace event {
 
 std::ostream& operator<<(std::ostream& os, NotificationType nt) {
   switch (nt) {

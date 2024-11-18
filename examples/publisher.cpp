@@ -5,7 +5,7 @@
 #include <iostream>
 
 struct Notification {
-  ipcpp::notification::NotificationType notification_type = ipcpp::notification::NotificationType::UNINITIALIZED;
+  ipcpp::event::NotificationType notification_type = ipcpp::event::NotificationType::UNINITIALIZED;
   void* location = nullptr;
   std::size_t size = 0;
   uint64_t timestamp = 0;

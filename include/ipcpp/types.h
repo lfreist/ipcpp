@@ -23,7 +23,7 @@ enum class AccessMode {
 
 std::ostream& operator<<(std::ostream& os, AccessMode am);
 
-namespace notification {
+namespace event {
 
 enum class NotificationType {
   UNINITIALIZED,

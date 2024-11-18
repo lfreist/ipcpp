@@ -7,24 +7,21 @@
 
 #pragma once
 
-#include <ipcpp/notification/observer.h>
+#include <ipcpp/event/notification.h>
+#include <ipcpp/event/observer.h>
 #include <ipcpp/sock/error.h>
-
+#include <spdlog/spdlog.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 
-#include <ipcpp/notification/notification.h>
-
-#include <spdlog/spdlog.h>
-
-namespace ipcpp::notification {
+namespace ipcpp::event {
 
 template <typename NotificationT, typename SubscriptionDataT>
-class DomainSocketObserver : public Observer_I<NotificationT, SubscriptionResponse, SubscriptionDataT> {
+class DomainSocketObserver : public Observer_I<NotificationT, SubscriptionDataT> {
  public:
   typedef sock::domain::Error create_error_type;
-  typedef Observer_I<NotificationT, SubscriptionResponse, SubscriptionDataT> observer_base;
+  typedef Observer_I<NotificationT, SubscriptionDataT> observer_base;
 
  public:
   /// Move constructor needed for DomainSocketNotificationHandler::create()
@@ -38,7 +35,10 @@ class DomainSocketObserver : public Observer_I<NotificationT, SubscriptionRespon
   ~DomainSocketObserver() {
     if (_socket != -1) {
       if (_subscribed) {
-        cancel_subscription();
+        cancel_subscription().or_else(
+            [](auto error) -> std::expected<void, typename observer_base::subscription_return_type::info_type> {
+              return {};
+            });
       }
       ::shutdown(_socket, SHUT_RDWR);
       close(_socket);
@@ -50,11 +50,16 @@ class DomainSocketObserver : public Observer_I<NotificationT, SubscriptionRespon
     return self;
   }
 
-  std::expected<typename DomainSocketObserver::subscription_return_type::data_type, typename DomainSocketObserver::subscription_return_type::info_type> subscribe() override {
+  std::expected<typename DomainSocketObserver::subscription_return_type::data_type,
+                typename DomainSocketObserver::subscription_return_type::info_type>
+  subscribe() override {
     spdlog::debug("subscribing...");
-    setup_socket();
+    auto result = setup_socket();
+    if (!result.has_value()) {
+      return std::unexpected(SubscriptionInfo::OBSERVER_SOCKET_SETUP_FAILED);
+    }
 
-    SubscriptionResponse<SubscriptionDataT> response;
+    SubscriptionDataT response;
     if (recv(_socket, &response, sizeof(response), 0) == -1) {
       spdlog::warn("no answer received");
       return std::unexpected(SubscriptionInfo::NOTIFIER_UNREACHABLE);
@@ -75,7 +80,7 @@ class DomainSocketObserver : public Observer_I<NotificationT, SubscriptionRespon
       spdlog::warn("not subscribed");
       return std::unexpected(SubscriptionInfo::OBSERVER_NOT_SUBSCRIBED);
     }
-    SubscriptionRequest request = SubscriptionRequest::UNSUBSCRIBE;
+    ObserverRequest request = ObserverRequest::CANCEL_SUBSCRIPTION;
     if (send(_socket, &request, sizeof(request), 0) == -1) {
       spdlog::warn("sending unsubscription failed");
       return std::unexpected(SubscriptionInfo::NOTIFIER_UNREACHABLE);
@@ -99,7 +104,7 @@ class DomainSocketObserver : public Observer_I<NotificationT, SubscriptionRespon
   }
 
  private:
-  explicit DomainSocketObserver(std::string&& id) : observer_base(std::move(id)) {}
+  explicit DomainSocketObserver(std::string&& id) : _id(std::move(id)) {}
 
   std::expected<void, create_error_type> setup_socket() {
     _socket = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -124,17 +129,19 @@ class DomainSocketObserver : public Observer_I<NotificationT, SubscriptionRespon
 
     ssize_t bytes_received = recv(_socket, &notification, sizeof(notification), 0);
     if (bytes_received == -1) {
-      return std::unexpected(NotificationError::SENDER_DOWN);
+      return std::unexpected(NotificationError::NOTIFICATION_ERROR);
     } else if (bytes_received == 0) {
-      return std::unexpected(NotificationError::INVALID_NOTIFICATION);
+      return std::unexpected(NotificationError::NOTIFIER_DOWN);
     }
 
     return callback(notification);
   };
 
  private:
+  /// socket name
+  std::string _id;
   int _socket = -1;
   bool _subscribed = false;
 };
 
-}
+}  // namespace ipcpp::notification

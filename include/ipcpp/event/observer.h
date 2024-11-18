@@ -11,24 +11,23 @@
 #include <expected>
 #include <chrono>
 #include <any>
+#include <concepts>
 
-#include <ipcpp/notification/notification.h>
+#include <ipcpp/event/notification.h>
 
-namespace ipcpp::notification {
+namespace ipcpp::event {
 
-template <typename NotificationT, template <typename T> typename SubscriptionRetT, typename T>
+template <typename NotificationT, typename SubscriptionRetT = void>
 class Observer_I {
  public:
-  typedef SubscriptionRetT<T> subscription_return_type;
+  typedef SubscriptionRetT subscription_return_type;
   typedef NotificationT notification_type;
 
   typedef NotificationError notification_error_type;  // defined in notification.h
 
  public:
-  explicit Observer_I(std::string&& id) : _id(std::move(id)) {}
+  Observer_I() = default;
   virtual ~Observer_I() = default;
-
-  Observer_I(Observer_I&& other) noexcept : _id(std::move(other._id)) {}
 
   /// virtual member function to subscribe receiver to sender
   virtual std::expected<typename subscription_return_type::data_type, typename subscription_return_type::info_type> subscribe() = 0;
@@ -74,9 +73,6 @@ class Observer_I {
   /// virtual member function to handle received notifications
   virtual std::expected<std::any, notification_error_type> receive_helper(
       const std::function<std::any(notification_type)>& callback) = 0;
-
- protected:
-  std::string _id;
 };
 
 }

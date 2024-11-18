@@ -11,11 +11,11 @@
 
 namespace ipcpp::shm {
 
-template <AccessMode A, typename T = uint8_t>
-class DataView {
+template <typename T = uint8_t>
+class MemoryView {
  public:
-  DataView(void* start, std::size_t size, std::function<void(void)>& release_callback) : _data(static_cast<T*>(start), size), _release_callback(release_callback) {}
-  ~DataView() {
+  MemoryView(void* start, std::size_t size, std::function<void(void)>& release_callback) : _data(static_cast<T*>(start), size), _release_callback(release_callback) {}
+  ~MemoryView() {
     _release_callback();
   }
 

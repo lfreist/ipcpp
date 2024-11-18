@@ -9,16 +9,16 @@
 
 #include <string>
 
-namespace ipcpp::notification {
+namespace ipcpp::event {
 
-template <typename NotificationT, template <typename T> typename SubscriptionRetT, typename T>
+template <typename NotificationT, typename SubscriptionRetT = void>
 class Notifier_I {
  public:
-  typedef SubscriptionRetT<T> subscription_return_type;
+  typedef SubscriptionRetT subscription_return_type;
   typedef NotificationT notification_type;
 
  public:
-  explicit Notifier_I(std::string&& id) : _id(std::move(id)) {}
+  Notifier_I() = default;
   virtual ~Notifier_I() = default;
 
   virtual void notify_observers(notification_type notification) = 0;

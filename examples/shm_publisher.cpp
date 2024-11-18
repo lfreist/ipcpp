@@ -2,7 +2,6 @@
 // Created by lfreist on 17/10/2024.
 //
 
-#include <ipcpp/notification/notifier_old.h>
 #include <ipcpp/shm/mapped_memory.h>
 #include <ipcpp/shm/notification.h>
 #include <ipcpp/shm/publisher.h>

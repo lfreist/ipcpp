@@ -27,7 +27,7 @@ class Subscriber {
   auto receive(F&& callback, Args&&... args)
       -> std::expected<decltype(std::forward<F>(callback)(std::declval<Notification>(), std::declval<SharedMemory&>(),
                                                           std::forward<Args>(args)...)),
-                       notification::NotificationError>;
+                       event::NotificationError>;
 
  private:
   SharedMemory _mapped_memory;
@@ -50,7 +50,7 @@ template <typename F, typename... Args>
 auto Subscriber<NotifierT>::receive(F&& callback, Args&&... args)
     -> std::expected<decltype(std::forward<F>(callback)(std::declval<Notification>(), std::declval<SharedMemory&>(),
                                                         std::forward<Args>(args)...)),
-                     notification::NotificationError> {
+                     event::NotificationError> {
   return _notification_handler.template receive<F, Args...>(std::forward<F>(callback), _mapped_memory,
                                                             std::forward<Args>(args)...);
 }

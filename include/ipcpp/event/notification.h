@@ -8,33 +8,29 @@
 
 #include <ipcpp/shm/notification.h>
 
-namespace ipcpp::notification {
+namespace ipcpp::event {
 
 enum class NotificationError {
-  SENDER_DOWN,
-  RECEIVER_DOWN,
-  PUBLISH_ERROR,
+  NOTIFIER_DOWN,
+  OBSERVER_DOWN,
+  NOTIFICATION_ERROR,
   INVALID_NOTIFICATION,
-  RECEIVER_REJECTED,
   UNKNOWN,
 };
 
 std::ostream& operator<<(std::ostream& os, NotificationError error) {
   switch (error) {
-    case NotificationError::SENDER_DOWN:
-      os << AS_STRING(NotificationError::SENDER_DOWN);
+    case NotificationError::NOTIFIER_DOWN:
+      os << AS_STRING(NotificationError::NOTIFIER_DOWN);
       break;
-    case NotificationError::RECEIVER_DOWN:
-      os << AS_STRING(NotificationError::RECEIVER_DOWN);
+    case NotificationError::OBSERVER_DOWN:
+      os << AS_STRING(NotificationError::OBSERVER_DOWN);
       break;
-    case NotificationError::PUBLISH_ERROR:
-      os << AS_STRING(NotificationError::PUBLISH_ERROR);
+    case NotificationError::NOTIFICATION_ERROR:
+      os << AS_STRING(NotificationError::NOTIFICATION_ERROR);
       break;
     case NotificationError::INVALID_NOTIFICATION:
       os << AS_STRING(NotificationError::INVALID_NOTIFICATION);
-      break;
-    case NotificationError::RECEIVER_REJECTED:
-      os << AS_STRING(NotificationError::RECEIVER_REJECTED);
       break;
     case NotificationError::UNKNOWN:
       os << AS_STRING(NotificationError::UNKNOWN);
@@ -49,6 +45,8 @@ enum class SubscriptionInfo {
   OBSERVER_REJECTED,
   OBSERVER_NOT_SUBSCRIBED,
   OBSERVER_ALREADY_SUBSCRIBED,
+  OBSERVER_KICKED,
+  OBSERVER_SOCKET_SETUP_FAILED,
   UNKNOWN,
 };
 
@@ -69,6 +67,12 @@ std::ostream& operator<<(std::ostream& os, SubscriptionInfo info) {
     case SubscriptionInfo::OBSERVER_ALREADY_SUBSCRIBED:
       os << AS_STRING(SubscriptionInfo::OBSERVER_ALREADY_SUBSCRIBED);
       break;
+    case SubscriptionInfo::OBSERVER_KICKED:
+      os << AS_STRING(SubscriptionInfo::OBSERVER_KICKED);
+      break;
+    case SubscriptionInfo::OBSERVER_SOCKET_SETUP_FAILED:
+      os << AS_STRING(SubscriptionInfo::OBSERVER_SOCKET_SETUP_FAILED);
+      break;
     case SubscriptionInfo::UNKNOWN:
       os << AS_STRING(SubscriptionInfo::UNKNOWN);
       break;
@@ -76,9 +80,9 @@ std::ostream& operator<<(std::ostream& os, SubscriptionInfo info) {
   return os;
 }
 
-enum class SubscriptionRequest {
+enum class ObserverRequest {
   SUBSCRIBE,
-  UNSUBSCRIBE,
+  CANCEL_SUBSCRIPTION,
 };
 
 template <typename T>

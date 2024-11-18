@@ -9,7 +9,7 @@
 namespace ipcpp::shm {
 
 struct Notification {
-  notification::NotificationType notification_type = notification::NotificationType::UNINITIALIZED;
+  event::NotificationType notification_type = event::NotificationType::UNINITIALIZED;
   std::size_t offset = 0;
   std::size_t size = 0;
 };

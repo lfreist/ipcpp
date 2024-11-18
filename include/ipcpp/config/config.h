@@ -5,7 +5,25 @@
  * This file is part of ipcpp.
  */
 
-#ifndef _CONFIG_H_
-#define _CONFIG_H_
+#pragma once
 
-#endif  //_CONFIG_H_
+namespace ipcpp::config {
+
+enum class OutOfMemoryPolicy {
+  BLOCK_PRODUCER,
+  DISCARD_OLDEST,
+};
+
+enum class NotificationQueuePolicy {
+  LATEST_ONLY,  // empty queue whenever a new notification is published
+  FIFO,         // first in, first out
+  LIFO,         // last in first out
+};
+
+enum class QueueFullPolicy {
+  BLOCK,
+  DISCARD_OLDEST,
+  ERROR
+};
+
+}

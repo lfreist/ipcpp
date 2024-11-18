@@ -16,3 +16,18 @@ target_link_libraries(domain_socket_notifier PUBLIC shm sock spdlog::spdlog)
 
 add_executable(domain_socket_observer domain_socket_observer.cpp)
 target_link_libraries(domain_socket_observer PUBLIC shm sock spdlog::spdlog)
+
+add_executable(shm_polling_notifier shm_polling_notifier.cpp)
+target_link_libraries(shm_polling_notifier PUBLIC shm spdlog::spdlog)
+
+add_executable(shm_polling_observer shm_polling_observer.cpp)
+target_link_libraries(shm_polling_observer PUBLIC shm spdlog::spdlog)
+
+add_executable(shm_broadcaster shm_broadcaster.cpp)
+target_link_libraries(shm_broadcaster PUBLIC shm sock spdlog::spdlog)
+
+add_executable(shm_broadcast_client shm_broadcast_client.cpp)
+target_link_libraries(shm_broadcast_client PUBLIC shm sock spdlog::spdlog)
+
+add_executable(shm_list_allocator shm_list_allocator.cpp)
+target_link_libraries(shm_list_allocator PUBLIC shm spdlog::spdlog)

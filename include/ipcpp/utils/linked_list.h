@@ -48,4 +48,3 @@ class Node {
 };
 
 }
-class DoubleLinkedList {};

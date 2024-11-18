@@ -68,7 +68,7 @@ Publisher<NotifierT>::Data::~Data() {
     notification.size = _size;
     notification.offset = _offset;
     notification.notification_type =
-        _exit ? notification::NotificationType::EXIT : notification::NotificationType::REGULAR;
+        _exit ? event::NotificationType::EXIT : event::NotificationType::REGULAR;
     _notifier->notify_subscribers(notification);
   }
 }
@@ -127,7 +127,7 @@ bool Publisher<NotifierT>::write(void* data, std::size_t size, bool exit) {
   }
   std::memcpy(_mapped_memory.data<uint8_t>() + _offset, data, size);
   Notification notification{
-      .notification_type = exit ? notification::NotificationType::EXIT : notification::NotificationType::REGULAR,
+      .notification_type = exit ? event::NotificationType::EXIT : event::NotificationType::REGULAR,
       .offset = _offset,
       .size = size,
   };
