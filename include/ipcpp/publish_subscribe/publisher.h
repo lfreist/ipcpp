@@ -14,16 +14,16 @@
 namespace ipcpp::publish_subscribe {
 
 template <typename DataT, typename NotifierT>
-class Publisher {
+class Publisher_I {
  public:
-  virtual ~Publisher() = default;
-  Publisher(Publisher&& other) noexcept : _notifier(std::move(other._notifier)) {}
+  virtual ~Publisher_I() = default;
+  Publisher_I(Publisher_I&& other) noexcept : _notifier(std::move(other._notifier)) {}
 
   virtual void publish(DataT& data) = 0;
   virtual void publish(DataT&& data) = 0;
 
  protected:
-  explicit Publisher(NotifierT&& notifier) : _notifier(std::move(notifier)) {}
+  explicit Publisher_I(NotifierT&& notifier) : _notifier(std::move(notifier)) {}
 
   virtual void notify_observers(typename NotifierT::notifier_base::notification_type notification) = 0;
 

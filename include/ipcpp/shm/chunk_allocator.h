@@ -12,6 +12,8 @@
 #include <cstdint>
 #include <span>
 
+#include <spdlog/spdlog.h>
+
 namespace ipcpp::shm {
 
 inline std::size_t align_up(std::size_t size, std::size_t alignment = 16) {
@@ -36,7 +38,7 @@ class ChunkAllocator {
   struct StackHeader {
     SharedMutex mutex;
     /// points to the first free slot
-    std::size_t head = 0;
+    std::ptrdiff_t head = 0;
     /// capacity of the stack
     std::size_t capacity = 0;
   };
@@ -101,6 +103,7 @@ class ChunkAllocator {
   }
 
   std::size_t allocate_get_index() {
+    spdlog::info("allocating...");
     UniqueLock lock(_stack_header->mutex);
     if (_stack_header->head == 0) {
       throw std::bad_alloc();
@@ -109,6 +112,7 @@ class ChunkAllocator {
   }
 
   void deallocate(T* t) {
+    spdlog::info("deallocating");
     if (t == nullptr) {
       return;
     }
@@ -117,13 +121,14 @@ class ChunkAllocator {
   }
 
   void deallocate(std::size_t index) {
+    spdlog::info("deallocating {}", index);
     UniqueLock(_stack_header->mutex);
     push_to_stack(index);
   }
 
   T* index_to_ptr(std::size_t index) { return _slots.data() + index; }
 
-  std::size_t ptr_to_index(T* ptr) { return ptr - reinterpret_cast<T*>(_chunks_start); }
+  std::ptrdiff_t ptr_to_index(T* ptr) { return ptr - reinterpret_cast<T*>(_chunks_start); }
 
  private:
   /**

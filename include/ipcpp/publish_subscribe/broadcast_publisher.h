@@ -12,18 +12,19 @@
 #include <ipcpp/shm/chunk_allocator.h>
 #include <ipcpp/shm/mapped_memory.h>
 #include <ipcpp/utils/utils.h>
+#include <ipcpp/publish_subscribe/subscription_respons.h>
 
 namespace ipcpp::publish_subscribe {
 
 struct Notification {
   int64_t timestamp;
-  std::size_t data_offset;
+  std::ptrdiff_t data_offset;
 };
 
 template <typename T,
-          typename NotifierT = event::DomainSocketNotifier<Notification, ipcpp::event::SubscriptionResponse<int>>>
-class Broadcaster : public Publisher<T, NotifierT> {
-  typedef Publisher<T, NotifierT> base_publisher;
+          typename NotifierT = event::DomainSocketNotifier<Notification, ipcpp::event::SubscriptionResponse<SubscriptionResponseData>>>
+class Broadcaster : public Publisher_I<T, NotifierT> {
+  typedef Publisher_I<T, NotifierT> base_publisher;
 
  public:
   template <AccessMode A>
@@ -43,7 +44,7 @@ class Broadcaster : public Publisher<T, NotifierT> {
         _data_container->shared_mutex.unlock();
       } else if constexpr (A == AccessMode::READ) {
         _data_container->observer_count.fetch_sub(1);
-        if (_data_container->observer_count == 0) {
+        if (_data_container->observer_count.load() == 0) {
           _allocator->deallocate(_data_container);
         }
         _data_container->shared_mutex.shared_unlock();
@@ -57,8 +58,8 @@ class Broadcaster : public Publisher<T, NotifierT> {
 
  public:
   Broadcaster(Broadcaster&& other) noexcept
-      : _id(other._id),
-        Publisher<T, NotifierT>(std::move(other)),
+      : Publisher_I<T, NotifierT>(std::move(other)),
+        _id(other._id),
         _mapped_memory(std::move(other._mapped_memory)),
         _list_allocator(std::move(other._list_allocator)) {}
 
@@ -67,6 +68,7 @@ class Broadcaster : public Publisher<T, NotifierT> {
     if (!notifier.has_value()) {
       return std::unexpected(-1);
     }
+    notifier.value().accept_subscriptions();
     auto mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
         std::string("/" + id + ".ipcpp.shm"), shm_size);
     if (!mapped_memory.has_value()) {
@@ -87,8 +89,7 @@ class Broadcaster : public Publisher<T, NotifierT> {
     DataContainer<T>* shm_data = _list_allocator.allocate();
     new (shm_data) DataContainer<T>(data, base_publisher::_notifier.num_observers());
     Notification notification{.timestamp = timestamp,
-                              .data_offset = (reinterpret_cast<std::uintptr_t>(shm_data),
-                                              reinterpret_cast<std::uintptr_t>(_mapped_memory.addr()))};
+                              .data_offset = _list_allocator.ptr_to_index(shm_data)};
     notify_observers(notification);
   }
 
@@ -97,22 +98,29 @@ class Broadcaster : public Publisher<T, NotifierT> {
     int64_t timestamp = utils::timestamp();
     DataContainer<T>* shm_data = _list_allocator.allocate();
     new (shm_data) DataContainer<T>(std::move(data), base_publisher::_notifier.num_observers());
-    Notification notification{.timestamp = timestamp,
-                              .data_offset = (reinterpret_cast<std::uintptr_t>(shm_data),
-                                              reinterpret_cast<std::uintptr_t>(_mapped_memory.addr()))};
+    Notification notification{.timestamp = timestamp, .data_offset = _list_allocator.ptr_to_index(shm_data)};
     notify_observers(notification);
   }
 
-  DataContainer<T>* get_container() { return _list_allocator.allocate(); }
+  void publish(DataContainer<T>* data) {
+    int64_t timestamp = utils::timestamp();
+    Notification notification{.timestamp = timestamp, .data_offset = _list_allocator.ptr_to_index(data)};
+    notify_observers(notification);
+  }
+
+  DataContainer<T>* get_raw_access() { return _list_allocator.allocate(); }
 
  private:
   explicit Broadcaster(NotifierT&& notifier, shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory)
-      : Publisher<T, NotifierT>(std::move(notifier)),
+      : Publisher_I<T, NotifierT>(std::move(notifier)),
         _mapped_memory(std::move(mapped_memory)),
-        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()) {}
+        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()) {
+    SubscriptionResponseData data{.list_size=_mapped_memory.size()};
+    base_publisher::_notifier.set_response_data(std::move(data));
+  }
 
   void notify_observers(typename NotifierT::notifier_base::notification_type notification) override {
-    Publisher<T, NotifierT>::_notifier.notify_observers(notification);
+    Publisher_I<T, NotifierT>::_notifier.notify_observers(notification);
   }
 
  private:

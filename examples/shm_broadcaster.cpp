@@ -13,7 +13,7 @@
 #include <spdlog/spdlog.h>
 
 int main(int argc, char** argv) {
-  auto expected_broadcaster = ipcpp::publish_subscribe::Broadcaster<int>::create("broadcaster", 10, 1024);
+  auto expected_broadcaster = ipcpp::publish_subscribe::Broadcaster<int>::create("broadcaster", 10, 2048);
   if (expected_broadcaster.has_value()) {
     auto& broadcaster = expected_broadcaster.value();
     for (int i = 0; i < 10000; ++i) {

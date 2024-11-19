@@ -13,7 +13,16 @@
 namespace ipcpp::shm {
 
 /**
- * @brief
+ * @brief DynamicAllocator can be used to dynamically allocate memory of a given size in a pre-allocated memory space.
+ *  In order to make it fully shared memory compatible (including sharing this Allocator among different processes, the
+ *  following requirements are fulfilled:
+ *  - internal data are all stored in the provided memory, DynamicAllocator itself is just a convenient wrapper around
+ *    these data
+ *  - concerning the internal data, no raw pointers but only std::ptrdiff is used as offset of data
+ *  - Once DynamicAllocator was constructed using the DynamicAllocator(void*, std::size_t) constructor, other processes
+ *    can use this DynamicAllocator by using the DynamicAllocator(void*) constructor
+ *
+ *  @warning NOT YET THREAD- NOR INTERPROCESS-SAFE
  *
  * offset: byte distance from _memory, used for AllocatorListNodes
  */
@@ -181,7 +190,9 @@ class DynamicAllocator {
   }
 
  private:
+  /// located in provided memory right before _memory. aligned at 16 bytes
   Header* _header;
+  /// located in provided memory right after aligned _header
   void* _memory;
 };
 

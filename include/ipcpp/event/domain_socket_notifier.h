@@ -48,7 +48,7 @@ class DomainSocketNotifier : Notifier_I<NotificationT, SubscriptionDataT> {
 
  public:
   /// Move constructor needed for DomainSocketNotificationHandler::create()
-  DomainSocketNotifier(DomainSocketNotifier&& other) noexcept : notifier_base(std::move(other)), _max_observers(other._max_observers) {
+  DomainSocketNotifier(DomainSocketNotifier&& other) noexcept : notifier_base(std::move(other)), _max_observers(other._max_observers), _response_data(std::move(other._response_data)) {
     if (other._cancellation_enabled.load()) {
       _cancellation_enabled.store(true);
       _request_processing_thread = std::thread(&DomainSocketNotifier::process_observer_requests, this);
@@ -77,6 +77,12 @@ class DomainSocketNotifier : Notifier_I<NotificationT, SubscriptionDataT> {
       shutdown();
       close(_socket);
     }
+  }
+
+  void set_response_data(SubscriptionDataT::data_type&& data) {
+    std::cout << data.list_size << std::endl;
+    _response_data = std::move(data);
+    std::cout << _response_data.list_size << std::endl;
   }
 
   /**
@@ -194,6 +200,11 @@ class DomainSocketNotifier : Notifier_I<NotificationT, SubscriptionDataT> {
       return std::unexpected(create_error_type ::LISTEN_ERROR);
     }
 
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 100;
+    setsockopt(_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+
     return {};
   }
 
@@ -208,7 +219,7 @@ class DomainSocketNotifier : Notifier_I<NotificationT, SubscriptionDataT> {
         _observer_sockets.wlock()->insert(client_fd);
         SubscriptionDataT response;
         response.info = SubscriptionInfo::OK;
-        response.data = 1;
+        response.data = _response_data;
         send(client_fd, &response, sizeof(response), 0);
         spdlog::debug("Registered new client: {}", client_fd);
       }
@@ -263,6 +274,8 @@ class DomainSocketNotifier : Notifier_I<NotificationT, SubscriptionDataT> {
   std::atomic_bool _cancellation_enabled = false;
   std::thread _subscription_processing_thread;
   std::thread _request_processing_thread;
+
+  SubscriptionDataT::data_type _response_data{};
 };
 
 }  // namespace ipcpp::notification

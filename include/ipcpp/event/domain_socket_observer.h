@@ -25,8 +25,9 @@ class DomainSocketObserver : public Observer_I<NotificationT, SubscriptionDataT>
 
  public:
   /// Move constructor needed for DomainSocketNotificationHandler::create()
-  DomainSocketObserver(DomainSocketObserver&& other) noexcept : observer_base(std::move(other)) {
+  DomainSocketObserver(DomainSocketObserver&& other) noexcept : observer_base(std::move(other)), _id(std::move(other._id)) {
     std::swap(_socket, other._socket);
+    std::swap(_subscribed, other._subscribed);
   }
 
   /// Delete copy constructor

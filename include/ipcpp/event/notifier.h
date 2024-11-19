@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <concepts>
 #include <string>
 
 namespace ipcpp::event {
@@ -27,4 +28,4 @@ class Notifier_I {
   std::string _id;
 };
 
-}
+}  // namespace ipcpp::event
