@@ -8,8 +8,11 @@
 #pragma once
 
 #include <cstdint>
+#include <ipcpp/datatypes/fixed_size/basic_string.h>
 
-struct Message {
-  int64_t timestamp;
-  std::size_t msg_size;
+template <std::size_t N>
+struct String {
+  char text[N]{};
+  std::size_t size = 0;
+  static constexpr std::size_t max_size = N;
 };

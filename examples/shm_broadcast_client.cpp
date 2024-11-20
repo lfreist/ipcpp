@@ -9,8 +9,10 @@
 
 #include <spdlog/spdlog.h>
 
+#include "message.h"
+
 int main(int argc, char** argv) {
-  auto expected_broadcaster = ipcpp::publish_subscribe::BroadcastSubscriber<int>::create("broadcaster");
+  auto expected_broadcaster = ipcpp::publish_subscribe::BroadcastSubscriber<String<32>>::create("broadcaster");
   if (!expected_broadcaster.has_value()) {
     std::cout << "Error creating client: " << expected_broadcaster.error() << std::endl;
     return 1;
@@ -18,8 +20,8 @@ int main(int argc, char** argv) {
   auto& broadcaster = expected_broadcaster.value();
   spdlog::info("go!");
   for (int i = 0; i < 1000; ++i) {
-    broadcaster.on_receive([](ipcpp::publish_subscribe::BroadcastSubscriber<int>::Data<ipcpp::AccessMode::READ>& data) {
-      std::cout << data.data() << std::endl;
+    broadcaster.on_receive([](ipcpp::publish_subscribe::BroadcastSubscriber<String<32>>::Data<ipcpp::AccessMode::READ>& data) {
+      std::cout << std::string_view(data.data().text, data.data().size) << std::endl;
     });
   }
   return 0;
