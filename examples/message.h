@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include <ipcpp/datatypes/vector.h>
 
 struct Message {

@@ -9,9 +9,6 @@
 #include <ipcpp/utils/io.h>
 #include <spdlog/spdlog.h>
 
-#include <chrono>
-#include <thread>
-
 #include "message.h"
 
 int main(int argc, char** argv) {
