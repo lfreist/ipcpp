@@ -6,6 +6,7 @@
  */
 
 #include <ipcpp/publish_subscribe/broadcast_subscriber.h>
+#include <ipcpp/utils/utils.h>
 
 #include <spdlog/spdlog.h>
 
@@ -21,7 +22,7 @@ int main(int argc, char** argv) {
   spdlog::info("go!");
   for (int i = 0; i < 1000; ++i) {
     broadcaster.on_receive([](ipcpp::publish_subscribe::BroadcastSubscriber<Message>::Data<ipcpp::AccessMode::READ>& data) {
-      std::cout << data.data().data[0] << " " << data.data().data.size() << std::endl;
+      std::cout << std::string_view(data.data().data.data(), data.data().data.size()) << std::endl;
     });
   }
   return 0;

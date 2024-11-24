@@ -14,6 +14,7 @@
 #include <ipcpp/publish_subscribe/subscription_respons.h>
 #include <ipcpp/shm/chunk_allocator.h>
 #include <ipcpp/shm/dynamic_allocator.h>
+#include <ipcpp/utils/utils.h>
 
 namespace ipcpp::publish_subscribe {
 
@@ -66,8 +67,7 @@ class BroadcastSubscriber : Subscriber_I<T, ObserverT> {
         _id(other._id),
         _mapped_memory(std::move(other._mapped_memory)),
         _mapped_memory_dyn(std::move(other._mapped_memory_dyn)),
-        _list_allocator(std::move(other._list_allocator)),
-        _dynamic_allocator(std::move(other._dynamic_allocator)) {}
+        _list_allocator(std::move(other._list_allocator)) {}
 
   static std::expected<BroadcastSubscriber, int> create(std::string&& id) {
     auto notifier = ObserverT::create(std::string("/tmp/" + id + ".ipcpp.sock"));
@@ -101,9 +101,12 @@ class BroadcastSubscriber : Subscriber_I<T, ObserverT> {
     auto expected_notification = base_subscriber::_observer.receive([](Notification n) { return n; });
     if (!expected_notification.has_value()) {
       std::cout << "received error" << std::endl;
+      return;
     }
+    std::int64_t timestamp_received = ipcpp::utils::timestamp();
     auto& notification = expected_notification.value();
     std::cout << "received data at timestamp: " << notification.timestamp << std::endl;
+    std::cout << "                   latency: " << timestamp_received - notification.timestamp << std::endl;
     std::cout << "                    offset: " << notification.data_offset << std::endl;
     Data<AccessMode::READ> data(&_list_allocator, _list_allocator.index_to_ptr(notification.data_offset));
     callback(data);
@@ -115,15 +118,15 @@ class BroadcastSubscriber : Subscriber_I<T, ObserverT> {
       : Subscriber_I<T, ObserverT>(std::move(observer)),
         _mapped_memory(std::move(mapped_memory)),
         _mapped_memory_dyn(std::move(mapped_memory_dyn)),
-        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()),
-        _dynamic_allocator(_mapped_memory_dyn.addr()) {}
+        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()) {
+    shm::DynamicAllocator<uint8_t>::initialize_factory(_mapped_memory_dyn.addr());
+  }
 
  private:
   std::string _id{};
   shm::MappedMemory<shm::MappingType::SINGLE> _mapped_memory;
   shm::ChunkAllocator<DataContainer<T>> _list_allocator;
   shm::MappedMemory<shm::MappingType::SINGLE> _mapped_memory_dyn;
-  shm::DynamicAllocator<int> _dynamic_allocator;
 };
 
 }  // namespace ipcpp::publish_subscribe

@@ -64,8 +64,7 @@ class Broadcaster : public Publisher_I<T, NotifierT> {
         _id(other._id),
         _mapped_memory(std::move(other._mapped_memory)),
         _mapped_memory_dyn(std::move(other._mapped_memory_dyn)),
-        _list_allocator(std::move(other._list_allocator)),
-        _dynamic_allocator(std::move(other._dynamic_allocator)) {}
+        _list_allocator(std::move(other._list_allocator)) {}
 
   /*
   static std::expected<Broadcaster, int> create(std::string&& id, std::size_t max_num_clients, std::size_t shm_size) {
@@ -143,14 +142,14 @@ class Broadcaster : public Publisher_I<T, NotifierT> {
     return T_DynAllocator(_mapped_memory_dyn.addr());
   }
 
-  private:
+ private:
   explicit Broadcaster(NotifierT&& notifier, shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory,
                        shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory_dyn)
       : Publisher_I<T, NotifierT>(std::move(notifier)),
         _mapped_memory(std::move(mapped_memory)),
         _mapped_memory_dyn(std::move(mapped_memory_dyn)),
-        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()),
-        _dynamic_allocator(_mapped_memory_dyn.addr(), _mapped_memory_dyn.size()) {
+        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()) {
+    shm::DynamicAllocator<uint8_t>::initialize_factory(_mapped_memory_dyn.addr(), _mapped_memory_dyn.size());
     base_publisher::_notifier.set_response_data(
         SubscriptionResponseData{.list_size = _mapped_memory.size(), .heap_size = _mapped_memory_dyn.size()});
   }
@@ -164,7 +163,6 @@ class Broadcaster : public Publisher_I<T, NotifierT> {
   shm::MappedMemory<shm::MappingType::SINGLE> _mapped_memory;
   shm::ChunkAllocator<DataContainer<T>> _list_allocator;
   shm::MappedMemory<shm::MappingType::SINGLE> _mapped_memory_dyn;
-  shm::DynamicAllocator<int> _dynamic_allocator;
 };
 
 }  // namespace ipcpp::publish_subscribe

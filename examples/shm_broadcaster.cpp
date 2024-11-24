@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
   if (expected_broadcaster.has_value()) {
     auto& broadcaster = expected_broadcaster.value();
     while (true) {
-      Message message{.timestamp=ipcpp::utils::timestamp(), .data=ipcpp::vector<char>(broadcaster.get_dyn_allocator<ipcpp::shm::DynamicAllocator<char>>())};
+      Message message{.timestamp=ipcpp::utils::timestamp(), .data=ipcpp::vector<char>()};
       std::cout << "Enter message: ";
       while (true) {
         char c;

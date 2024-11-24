@@ -29,12 +29,12 @@ class vector {
 
  public:
   // --- constructors --------------------------------------------------------------------------------------------------
-  explicit vector(const allocator_type& a) noexcept : _m_allocator(a) {}
-  vector(size_type n, const allocator_type& a) : _m_allocator(a) {
+  vector() noexcept : _m_data() {}
+  explicit vector(size_type n) : _m_data() {
     _m_create_storage(n);
     _m_default_initialize(n);
   }
-  vector(size_type n, const value_type& v, const allocator_type& a) : _m_allocator(a) {
+  vector(size_type n, const value_type& v) : _m_data() {
     _m_create_storage(n);
     _m_fill_initialize(n, v);
   }
@@ -44,22 +44,22 @@ class vector {
     _m_fill_initialize(n, v);
   }
   */
-  vector(const vector& other) : _m_allocator(other._m_allocator) {
+  vector(const vector& other) {
     _m_create_storage(other.size());
     _m_copy_initialize(other.size(), other.data());
   }
   template <typename T_Allocator2>
   requires std::is_same_v<typename allocator_type::value_type, typename T_Allocator2::value_type>
-  vector(const vector<value_type, T_Allocator2>& other, const allocator_type& a) : _m_allocator(a) {
+  explicit vector(const vector<value_type, T_Allocator2>& other) {
     _m_create_storage(other.size());
     _m_copy_initialize(other.size(), other.data());
   }
   vector(vector&&) noexcept = default;
-  vector(std::initializer_list<value_type> l, const allocator_type& a) : vector(l.begin(), l.end(), a) {}
+  vector(std::initializer_list<value_type> l) : vector(l.begin(), l.end()) {}
 
   template <typename T_InputIt>
   requires forward_iterator<T_InputIt> || std::is_same_v<T_InputIt, const_pointer>
-  vector(T_InputIt first, T_InputIt last, const allocator_type& a) : _m_allocator(a) {
+  vector(T_InputIt first, T_InputIt last) {
     _m_create_storage(last - first);
     _m_copy_initialize(first, last);
   }
@@ -67,7 +67,7 @@ class vector {
   // --- destructor ----------------------------------------------------------------------------------------------------
   ~vector() noexcept {
     _m_destroy(begin(), end());
-    _m_deallocate(_m_allocator.addr_from_offset(_m_data._m_start), capacity());
+    _m_deallocate(get_allocator().addr_from_offset(_m_data._m_start), capacity());
   }
 
   // --- copy/move assignment ------------------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ class vector {
   // --- assign --------------------------------------------------------------------------------------------------------
 
   // --- allocator -----------------------------------------------------------------------------------------------------
-  allocator_type get_allocator() const { return allocator_type(_m_allocator); }
+  allocator_type get_allocator() const { return allocator_type::get_from_factory(); }
 
   // --- element access ------------------------------------------------------------------------------------------------
   reference operator[](size_type n) noexcept { return *(_m_start_ptr() + n); }
@@ -120,7 +120,7 @@ class vector {
   // --- capacity ------------------------------------------------------------------------------------------------------
   [[nodiscard]] size_type size() const noexcept { return size_type(_m_finish_ptr() - _m_start_ptr()); }
 
-  [[nodiscard]] size_type max_size() const noexcept { return _m_allocator.max_size(); }
+  [[nodiscard]] size_type max_size() const noexcept { return get_allocator().max_size(); }
 
   [[nodiscard]] size_type capacity() const noexcept { return size_type(_m_end_of_storage_ptr() - _m_start_ptr()); }
 
@@ -134,7 +134,7 @@ class vector {
 
   void push_back(const value_type& v) {
     if (_m_data._m_finish != _m_data._m_end_of_storage) {
-      new (_m_allocator.addr_from_offset(_m_data._m_finish)) value_type(v);
+      new (get_allocator().addr_from_offset(_m_data._m_finish)) value_type(v);
       _m_data._m_finish += sizeof(value_type);
     } else {
       _m_realloc_append(v);
@@ -145,7 +145,7 @@ class vector {
   template <typename... T_Args>
   reference emplace_back(T_Args&&... args) {
     if (_m_data._m_finish != _m_data._m_end_of_storage) {
-      new (_m_allocator.addr_from_offset(_m_data._m_finish)) value_type(std::forward<T_Args>(args)...);
+      new (get_allocator().addr_from_offset(_m_data._m_finish)) value_type(std::forward<T_Args>(args)...);
       _m_data._m_finish += sizeof(value_type);
     } else {
       _m_realloc_append(std::forward<T_Args>(args)...);
@@ -160,18 +160,18 @@ class vector {
     if (n == 0) {
       return -1;
     }
-    difference_type data_index = _m_allocator.allocate_get_index(n);
+    difference_type data_index = get_allocator().allocate_get_index(n);
     return data_index;
   }
   void _m_deallocate(pointer p, size_type n) {
     if (p) {
-      _m_allocator.deallocate(p, n);
+      get_allocator().deallocate(p, n);
     }
   }
 
-  pointer _m_start_ptr() const { return _m_allocator.addr_from_offset(_m_data._m_start); }
-  pointer _m_finish_ptr() const { return _m_allocator.addr_from_offset(_m_data._m_finish); }
-  pointer _m_end_of_storage_ptr() const { return _m_allocator.addr_from_offset(_m_data._m_end_of_storage); }
+  pointer _m_start_ptr() const { return get_allocator().addr_from_offset(_m_data._m_start); }
+  pointer _m_finish_ptr() const { return get_allocator().addr_from_offset(_m_data._m_finish); }
+  pointer _m_end_of_storage_ptr() const { return get_allocator().addr_from_offset(_m_data._m_end_of_storage); }
 
   void _m_create_storage(size_type n) {
     _m_data._m_start = _m_allocate(n);
@@ -248,12 +248,12 @@ class vector {
     pointer old_finish = _m_finish_ptr();
     const size_type elems = end() - begin();
     difference_type new_start(_m_allocate(len));
-    value_type* new_finish_ptr = _m_uninitialized_move(old_start, old_finish, _m_allocator.addr_from_offset(new_start));
+    value_type* new_finish_ptr = _m_uninitialized_move(old_start, old_finish, get_allocator().addr_from_offset(new_start));
     _m_construct_at(new_finish_ptr, std::forward<T_Args>(args)...);
     new_finish_ptr++;
     _m_deallocate(old_start, capacity());
     _m_data._m_start = new_start;
-    _m_data._m_finish = _m_allocator.offset_from_addr(new_finish_ptr);
+    _m_data._m_finish = get_allocator().offset_from_addr(new_finish_ptr);
     _m_data._m_end_of_storage = new_start + (len * sizeof(value_type));
   }
 
@@ -294,7 +294,6 @@ class vector {
   };
 
   vector_data _m_data;
-  allocator_type _m_allocator;
 };
 
 }  // namespace ipcpp

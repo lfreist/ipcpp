@@ -14,16 +14,17 @@ constexpr static std::size_t allocator_mem_size = 4096;
 static uint8_t alloc_mem[allocator_mem_size];
 
 TEST(ipcpp_vector, constructors_tp_trivial_copyable) {
-  ipcpp::shm::DynamicAllocator<int> allocator(alloc_mem, allocator_mem_size);
+  ipcpp::shm::DynamicAllocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::shm::DynamicAllocator<int> allocator(alloc_mem);
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(allocator);
+    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec;
     ASSERT_EQ(vec.size(), 0);
     ASSERT_EQ(vec.capacity(), 0);
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5, allocator);
+    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5);
     ASSERT_EQ(vec.size(), 5);
     ASSERT_EQ(vec.capacity(), 5);
     for (auto v : vec) {
@@ -32,7 +33,7 @@ TEST(ipcpp_vector, constructors_tp_trivial_copyable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5, 3, allocator);
+    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5, 3);
     ASSERT_EQ(vec.size(), 5);
     ASSERT_EQ(vec.capacity(), 5);
     for (auto v : vec) {
@@ -41,7 +42,7 @@ TEST(ipcpp_vector, constructors_tp_trivial_copyable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5, 3, allocator);
+    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5, 3);
     ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec2(vec);
     ASSERT_EQ(vec2.size(), 5);
     ASSERT_EQ(vec.size(), vec2.size());
@@ -56,7 +57,7 @@ TEST(ipcpp_vector, constructors_tp_trivial_copyable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5, 3, allocator);
+    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5, 3);
     ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec2(std::move(vec));
     ASSERT_EQ(vec2.size(), 5);
     ASSERT_EQ(vec2.capacity(), 5);
@@ -66,7 +67,7 @@ TEST(ipcpp_vector, constructors_tp_trivial_copyable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(std::initializer_list<int>{0, 1, 2, 3, 4}, allocator);
+    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(std::initializer_list<int>{0, 1, 2, 3, 4});
     ASSERT_EQ(vec.size(), 5);
     ASSERT_EQ(vec.capacity(), 5);
     for (int i = 0; i < vec.size(); ++i) {
@@ -75,8 +76,8 @@ TEST(ipcpp_vector, constructors_tp_trivial_copyable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5, 3, allocator);
-    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec2(vec.begin(), vec.end(), allocator);
+    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec(5, 3);
+    ipcpp::vector<int, ipcpp::shm::DynamicAllocator<int>> vec2(vec.begin(), vec.end());
     ASSERT_EQ(vec2.size(), 5);
     ASSERT_EQ(vec.size(), vec2.size());
     ASSERT_EQ(vec2.capacity(), 5);
@@ -91,16 +92,17 @@ TEST(ipcpp_vector, constructors_tp_trivial_copyable) {
 }
 
 TEST(ipcpp_vector, constructors_tp_copy_constructable) {
-  ipcpp::shm::DynamicAllocator<std::string> allocator(alloc_mem, allocator_mem_size);
+  ipcpp::shm::DynamicAllocator<std::string>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::shm::DynamicAllocator<std::string> allocator(alloc_mem);
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(allocator);
+    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec;
     ASSERT_EQ(vec.size(), 0);
     ASSERT_EQ(vec.capacity(), 0);
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5, allocator);
+    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5);
 
     ASSERT_EQ(vec.size(), 5);
     ASSERT_EQ(vec.capacity(), 5);
@@ -110,7 +112,7 @@ TEST(ipcpp_vector, constructors_tp_copy_constructable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5, "hello", allocator);
+    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5, "hello");
 
     ASSERT_EQ(vec.size(), 5);
     ASSERT_EQ(vec.capacity(), 5);
@@ -120,7 +122,7 @@ TEST(ipcpp_vector, constructors_tp_copy_constructable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5, "hello", allocator);
+    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5, "hello");
     ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec2(vec);
     ASSERT_EQ(vec2.size(), 5);
     ASSERT_EQ(vec.size(), vec2.size());
@@ -135,7 +137,7 @@ TEST(ipcpp_vector, constructors_tp_copy_constructable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5, "hello", allocator);
+    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5, "hello");
     ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec2(std::move(vec));
     ASSERT_EQ(vec2.size(), 5);
     ASSERT_EQ(vec2.capacity(), 5);
@@ -145,7 +147,7 @@ TEST(ipcpp_vector, constructors_tp_copy_constructable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(std::initializer_list<std::string>{"hi", "hello"}, allocator);
+    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(std::initializer_list<std::string>{"hi", "hello"});
     ASSERT_EQ(vec.size(), 2);
     ASSERT_EQ(vec.capacity(), 2);
     ASSERT_EQ(vec[0], "hi");
@@ -153,8 +155,8 @@ TEST(ipcpp_vector, constructors_tp_copy_constructable) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5, "hello", allocator);
-    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec2(vec.begin(), vec.end(), allocator);
+    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec(5, "hello");
+    ipcpp::vector<std::string, ipcpp::shm::DynamicAllocator<std::string>> vec2(vec.begin(), vec.end());
     ASSERT_EQ(vec2.size(), 5);
     ASSERT_EQ(vec.size(), vec2.size());
     ASSERT_EQ(vec2.capacity(), 5);
@@ -169,18 +171,19 @@ TEST(ipcpp_vector, constructors_tp_copy_constructable) {
 }
 
 TEST(ipcpp_vector, constructors_tp_ipcpp_vector) {
-  ipcpp::shm::DynamicAllocator<ipcpp::vector<int>> allocator(alloc_mem, allocator_mem_size);
+  ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::shm::DynamicAllocator<ipcpp::vector<int>> allocator(alloc_mem);
   ipcpp::shm::DynamicAllocator<int> allocator2(alloc_mem);
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(allocator);
+    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec;
     ASSERT_EQ(vec.size(), 0);
     ASSERT_EQ(vec.capacity(), 0);
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int> init(3, allocator2);
-    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init, allocator);
+    ipcpp::vector<int> init(3);
+    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init);
 
     ASSERT_EQ(vec.size(), 5);
     ASSERT_EQ(vec.capacity(), 5);
@@ -190,8 +193,8 @@ TEST(ipcpp_vector, constructors_tp_ipcpp_vector) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int> init(5, allocator2);
-    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init, allocator);
+    ipcpp::vector<int> init(5);
+    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init);
 
     ASSERT_EQ(vec.size(), 5);
     ASSERT_EQ(vec.capacity(), 5);
@@ -201,8 +204,8 @@ TEST(ipcpp_vector, constructors_tp_ipcpp_vector) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int> init(4, allocator2);
-    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init, allocator);
+    ipcpp::vector<int> init(4);
+    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init);
     ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec2(vec);
     ASSERT_EQ(vec2.size(), 5);
     ASSERT_EQ(vec.size(), vec2.size());
@@ -217,8 +220,8 @@ TEST(ipcpp_vector, constructors_tp_ipcpp_vector) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int> init(6, allocator2);
-    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init, allocator);
+    ipcpp::vector<int> init(6);
+    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init);
     ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec2(std::move(vec));
     ASSERT_EQ(vec2.size(), 5);
     ASSERT_EQ(vec2.capacity(), 5);
@@ -228,9 +231,9 @@ TEST(ipcpp_vector, constructors_tp_ipcpp_vector) {
   }
   ASSERT_EQ(allocator.allocated_size(), 0);
   {
-    ipcpp::vector<int> init(6, allocator2);
-    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init, allocator);
-    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec2(vec.begin(), vec.end(), allocator);
+    ipcpp::vector<int> init(6);
+    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec(5, init);
+    ipcpp::vector<ipcpp::vector<int>, ipcpp::shm::DynamicAllocator<ipcpp::vector<int>>> vec2(vec.begin(), vec.end());
     ASSERT_EQ(vec2.size(), 5);
     ASSERT_EQ(vec.size(), vec2.size());
     ASSERT_EQ(vec2.capacity(), 5);

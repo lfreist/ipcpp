@@ -12,6 +12,13 @@
 
 namespace ipcpp::shm {
 
+class AllocatorFactoryBase {
+ protected:
+  static void* _singleton_process_addr;
+};
+
+void* AllocatorFactoryBase::_singleton_process_addr = nullptr;
+
 /**
  * @brief DynamicAllocator can be used to dynamically allocate memory of a given size in a pre-allocated memory space.
  *  In order to make it fully shared memory compatible (including sharing this Allocator among different processes, the
@@ -27,7 +34,7 @@ namespace ipcpp::shm {
  * offset: byte distance from _memory, used for AllocatorListNodes
  */
 template <typename T_p>
-class DynamicAllocator {
+class DynamicAllocator : public AllocatorFactoryBase {
  public:
   typedef T_p value_type;
   typedef std::size_t size_type;
@@ -53,15 +60,18 @@ class DynamicAllocator {
  public:
   static void initialize_factory(void* addr, size_type size) {
     static DynamicAllocator<uint8_t> allocator(addr, size);
-    singleton_process_addr = addr;
+    AllocatorFactoryBase::_singleton_process_addr = addr;
+  }
+  static void initialize_factory(void* addr) {
+    AllocatorFactoryBase::_singleton_process_addr = addr;
   }
 
   static DynamicAllocator get_from_factory() {
-    if (singleton_process_addr == nullptr) {
+    if (AllocatorFactoryBase::_singleton_process_addr == nullptr) {
       throw std::runtime_error(
           "Allocator Factory not initialized. Call DynamicAllocator<T_p>::initialize_factory first.");
     }
-    return DynamicAllocator<T_p>(singleton_process_addr);
+    return DynamicAllocator<T_p>(AllocatorFactoryBase::_singleton_process_addr);
   }
 
   DynamicAllocator(void* addr, size_type size)
@@ -206,12 +216,6 @@ class DynamicAllocator {
   Header* _header = nullptr;
   /// located in provided memory right after aligned _header
   void* _memory = nullptr;
-
- private:
-  static void* singleton_process_addr;
 };
-
-template <typename T_p>
-void* DynamicAllocator<T_p>::singleton_process_addr = nullptr;
 
 }  // namespace ipcpp::shm
