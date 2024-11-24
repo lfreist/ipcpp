@@ -80,9 +80,9 @@ class DomainSocketNotifier : Notifier_I<NotificationT, SubscriptionDataT> {
   }
 
   void set_response_data(SubscriptionDataT::data_type&& data) {
-    std::cout << data.list_size << std::endl;
     _response_data = std::move(data);
     std::cout << _response_data.list_size << std::endl;
+    std::cout << _response_data.heap_size << std::endl;
   }
 
   /**

@@ -9,10 +9,11 @@
 
 #include <ipcpp/event/domain_socket_notifier.h>
 #include <ipcpp/publish_subscribe/publisher.h>
+#include <ipcpp/publish_subscribe/subscription_respons.h>
 #include <ipcpp/shm/chunk_allocator.h>
+#include <ipcpp/shm/dynamic_allocator.h>
 #include <ipcpp/shm/mapped_memory.h>
 #include <ipcpp/utils/utils.h>
-#include <ipcpp/publish_subscribe/subscription_respons.h>
 
 namespace ipcpp::publish_subscribe {
 
@@ -22,7 +23,8 @@ struct Notification {
 };
 
 template <typename T,
-          typename NotifierT = event::DomainSocketNotifier<Notification, ipcpp::event::SubscriptionResponse<SubscriptionResponseData>>>
+          typename NotifierT =
+              event::DomainSocketNotifier<Notification, ipcpp::event::SubscriptionResponse<SubscriptionResponseData>>>
 class Broadcaster : public Publisher_I<T, NotifierT> {
   typedef Publisher_I<T, NotifierT> base_publisher;
 
@@ -61,8 +63,11 @@ class Broadcaster : public Publisher_I<T, NotifierT> {
       : Publisher_I<T, NotifierT>(std::move(other)),
         _id(other._id),
         _mapped_memory(std::move(other._mapped_memory)),
-        _list_allocator(std::move(other._list_allocator)) {}
+        _mapped_memory_dyn(std::move(other._mapped_memory_dyn)),
+        _list_allocator(std::move(other._list_allocator)),
+        _dynamic_allocator(std::move(other._dynamic_allocator)) {}
 
+  /*
   static std::expected<Broadcaster, int> create(std::string&& id, std::size_t max_num_clients, std::size_t shm_size) {
     auto notifier = NotifierT::create(std::string("/tmp/" + id + ".ipcpp.sock"), max_num_clients);
     if (!notifier.has_value()) {
@@ -78,6 +83,30 @@ class Broadcaster : public Publisher_I<T, NotifierT> {
     self._id = std::move(id);
     return self;
   }
+   */
+
+  static std::expected<Broadcaster, int> create(std::string&& id, std::size_t max_num_clients, std::size_t shm_size,
+                                                std::size_t dyn_shm_size) {
+    auto notifier = NotifierT::create(std::string("/tmp/" + id + ".ipcpp.sock"), max_num_clients);
+    if (!notifier.has_value()) {
+      return std::unexpected(-1);
+    }
+    notifier.value().accept_subscriptions();
+    auto mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
+        std::string("/" + id + ".ipcpp.shm"), shm_size);
+    if (!mapped_memory.has_value()) {
+      return std::unexpected(-1);
+    }
+    auto mapped_memory_dyn = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
+        std::string("/" + id + ".ipcpp.dyn.shm"), dyn_shm_size);
+    if (!mapped_memory.has_value()) {
+      return std::unexpected(-1);
+    }
+    Broadcaster self(std::move(notifier.value()), std::move(mapped_memory.value()),
+                     std::move(mapped_memory_dyn.value()));
+    self._id = std::move(id);
+    return self;
+  }
 
   /**
    * @brief Copies data to shared memory
@@ -88,8 +117,7 @@ class Broadcaster : public Publisher_I<T, NotifierT> {
     int64_t timestamp = utils::timestamp();
     DataContainer<T>* shm_data = _list_allocator.allocate();
     new (shm_data) DataContainer<T>(data, base_publisher::_notifier.num_observers());
-    Notification notification{.timestamp = timestamp,
-                              .data_offset = _list_allocator.ptr_to_index(shm_data)};
+    Notification notification{.timestamp = timestamp, .data_offset = _list_allocator.ptr_to_index(shm_data)};
     notify_observers(notification);
   }
 
@@ -110,13 +138,21 @@ class Broadcaster : public Publisher_I<T, NotifierT> {
 
   DataContainer<T>* get_raw_access() { return _list_allocator.allocate(); }
 
- private:
-  explicit Broadcaster(NotifierT&& notifier, shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory)
+  template <typename T_DynAllocator>
+  T_DynAllocator get_dyn_allocator() const {
+    return T_DynAllocator(_mapped_memory_dyn.addr());
+  }
+
+  private:
+  explicit Broadcaster(NotifierT&& notifier, shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory,
+                       shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory_dyn)
       : Publisher_I<T, NotifierT>(std::move(notifier)),
         _mapped_memory(std::move(mapped_memory)),
-        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()) {
-    SubscriptionResponseData data{.list_size=_mapped_memory.size()};
-    base_publisher::_notifier.set_response_data(std::move(data));
+        _mapped_memory_dyn(std::move(mapped_memory_dyn)),
+        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()),
+        _dynamic_allocator(_mapped_memory_dyn.addr(), _mapped_memory_dyn.size()) {
+    base_publisher::_notifier.set_response_data(
+        SubscriptionResponseData{.list_size = _mapped_memory.size(), .heap_size = _mapped_memory_dyn.size()});
   }
 
   void notify_observers(typename NotifierT::notifier_base::notification_type notification) override {
@@ -127,6 +163,8 @@ class Broadcaster : public Publisher_I<T, NotifierT> {
   std::string _id{};
   shm::MappedMemory<shm::MappingType::SINGLE> _mapped_memory;
   shm::ChunkAllocator<DataContainer<T>> _list_allocator;
+  shm::MappedMemory<shm::MappingType::SINGLE> _mapped_memory_dyn;
+  shm::DynamicAllocator<int> _dynamic_allocator;
 };
 
 }  // namespace ipcpp::publish_subscribe

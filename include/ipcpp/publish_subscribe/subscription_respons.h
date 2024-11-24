@@ -13,9 +13,9 @@ namespace ipcpp::publish_subscribe {
 
 struct SubscriptionResponseData {
   /// shm list size (used by ChunkAllocator)
-  std::size_t list_size;
+  std::size_t list_size = 0;
   /// shm heap size (used by DynamicAllocator)
-  std::size_t heap_size;
+  std::size_t heap_size = 0;
 };
 
 }

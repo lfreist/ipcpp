@@ -8,11 +8,9 @@
 #pragma once
 
 #include <cstdint>
-#include <ipcpp/datatypes/fixed_size/basic_string.h>
+#include <ipcpp/datatypes/vector.h>
 
-template <std::size_t N>
-struct String {
-  char text[N]{};
-  std::size_t size = 0;
-  static constexpr std::size_t max_size = N;
+struct Message {
+  std::int64_t timestamp;
+  ipcpp::vector<char> data;
 };

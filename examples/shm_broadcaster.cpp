@@ -7,24 +7,30 @@
 
 #include <ipcpp/publish_subscribe/broadcast_publisher.h>
 #include <ipcpp/utils/io.h>
+#include <spdlog/spdlog.h>
 
-#include <thread>
 #include <chrono>
+#include <thread>
 
 #include "message.h"
 
-#include <spdlog/spdlog.h>
-
 int main(int argc, char** argv) {
-  auto expected_broadcaster = ipcpp::publish_subscribe::Broadcaster<String<32>>::create("broadcaster", 10, 2048);
+  auto expected_broadcaster = ipcpp::publish_subscribe::Broadcaster<Message>::create("broadcaster", 10, 2048, 4096);
   if (expected_broadcaster.has_value()) {
     auto& broadcaster = expected_broadcaster.value();
     while (true) {
-      String<32> message;
+      Message message{.timestamp=ipcpp::utils::timestamp(), .data=ipcpp::vector<char>(broadcaster.get_dyn_allocator<ipcpp::shm::DynamicAllocator<char>>())};
       std::cout << "Enter message: ";
-      message.size = ipcpp::io::getline(std::cin, std::span(message.text, message.max_size));
+      while (true) {
+        char c;
+        std::cin.get(c);
+        if (c == '\n') {
+          break;
+        }
+        message.data.push_back(c);
+      }
       broadcaster.publish(message);
-      spdlog::info("published {}", std::string_view(message.text, message.size));
+      spdlog::info("published {}", std::string_view(message.data.data(), message.data.size()));
     }
   }
 }

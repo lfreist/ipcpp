@@ -13,6 +13,7 @@
 #include <ipcpp/publish_subscribe/subscriber.h>
 #include <ipcpp/publish_subscribe/subscription_respons.h>
 #include <ipcpp/shm/chunk_allocator.h>
+#include <ipcpp/shm/dynamic_allocator.h>
 
 namespace ipcpp::publish_subscribe {
 
@@ -22,9 +23,11 @@ struct Notification {
 };
 
 template <typename T,
-          typename ObserverT = event::DomainSocketObserver<Notification, ipcpp::event::SubscriptionResponse<SubscriptionResponseData>>>
+          typename ObserverT =
+              event::DomainSocketObserver<Notification, ipcpp::event::SubscriptionResponse<SubscriptionResponseData>>>
 class BroadcastSubscriber : Subscriber_I<T, ObserverT> {
   typedef Subscriber_I<T, ObserverT> base_subscriber;
+
  public:
   template <AccessMode A>
   class Data {
@@ -62,7 +65,9 @@ class BroadcastSubscriber : Subscriber_I<T, ObserverT> {
       : Subscriber_I<T, ObserverT>(std::move(other)),
         _id(other._id),
         _mapped_memory(std::move(other._mapped_memory)),
-        _list_allocator(std::move(other._list_allocator)) {}
+        _mapped_memory_dyn(std::move(other._mapped_memory_dyn)),
+        _list_allocator(std::move(other._list_allocator)),
+        _dynamic_allocator(std::move(other._dynamic_allocator)) {}
 
   static std::expected<BroadcastSubscriber, int> create(std::string&& id) {
     auto notifier = ObserverT::create(std::string("/tmp/" + id + ".ipcpp.sock"));
@@ -75,13 +80,19 @@ class BroadcastSubscriber : Subscriber_I<T, ObserverT> {
       exit(1);
     }
     SubscriptionResponseData result = expected_result.value();
-    std::cout << result.list_size << std::endl;
+    std::cout << result.heap_size << std::endl;
     auto mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
         std::string("/" + id + ".ipcpp.shm"), result.list_size);
     if (!mapped_memory.has_value()) {
       return std::unexpected(-2);
     }
-    BroadcastSubscriber self(std::move(notifier.value()), std::move(mapped_memory.value()));
+    auto mapped_memory_dyn = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
+        std::string("/" + id + ".ipcpp.dyn.shm"), result.heap_size);
+    if (!mapped_memory_dyn.has_value()) {
+      return std::unexpected(-3);
+    }
+    BroadcastSubscriber self(std::move(notifier.value()), std::move(mapped_memory.value()),
+                             std::move(mapped_memory_dyn.value()));
     self._id = std::move(id);
     return self;
   }
@@ -99,16 +110,20 @@ class BroadcastSubscriber : Subscriber_I<T, ObserverT> {
   }
 
  private:
-  BroadcastSubscriber(ObserverT&& observer, shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory)
+  BroadcastSubscriber(ObserverT&& observer, shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory,
+                      shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory_dyn)
       : Subscriber_I<T, ObserverT>(std::move(observer)),
         _mapped_memory(std::move(mapped_memory)),
-        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()) {
-  }
+        _mapped_memory_dyn(std::move(mapped_memory_dyn)),
+        _list_allocator(_mapped_memory.addr(), _mapped_memory.size()),
+        _dynamic_allocator(_mapped_memory_dyn.addr()) {}
 
  private:
   std::string _id{};
   shm::MappedMemory<shm::MappingType::SINGLE> _mapped_memory;
   shm::ChunkAllocator<DataContainer<T>> _list_allocator;
+  shm::MappedMemory<shm::MappingType::SINGLE> _mapped_memory_dyn;
+  shm::DynamicAllocator<int> _dynamic_allocator;
 };
 
 }  // namespace ipcpp::publish_subscribe
