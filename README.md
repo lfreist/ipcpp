@@ -22,7 +22,7 @@ The following example demonstrates a broadcaster publishing messages and a clien
 #### 1. **Define the Shared Message Structure**
 
 ```cpp  
-#include <ipcpp/datatypes/vector.h>
+#include <ipcpp/container/vector.h>
 
 struct Message {
   std::int64_t timestamp;

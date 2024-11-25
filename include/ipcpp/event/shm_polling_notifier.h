@@ -8,8 +8,8 @@
 #pragma once
 
 #include <ipcpp/config/config.h>
-#include <ipcpp/datatypes/fixed_size_queue.h>
-#include <ipcpp/datatypes/fixed_size_stack.h>
+#include <ipcpp/container/fixed_size_queue.h>
+#include <ipcpp/container/fixed_size_stack.h>
 #include <ipcpp/event/notifier.h>
 #include <ipcpp/shm/address_space.h>
 #include <ipcpp/shm/mapped_memory.h>

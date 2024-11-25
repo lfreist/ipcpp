@@ -7,12 +7,10 @@
 
 #pragma once
 
-#include <ipcpp/datatypes/fixed_size_stack.h>
+#include <ipcpp/container/fixed_size_stack.h>
 
 #include <cstdint>
 #include <span>
-
-#include <spdlog/spdlog.h>
 
 namespace ipcpp::shm {
 
@@ -103,7 +101,6 @@ class ChunkAllocator {
   }
 
   std::size_t allocate_get_index() {
-    spdlog::info("allocating...");
     UniqueLock lock(_stack_header->mutex);
     if (_stack_header->head == 0) {
       throw std::bad_alloc();
@@ -112,7 +109,6 @@ class ChunkAllocator {
   }
 
   void deallocate(T* t) {
-    spdlog::info("deallocating");
     if (t == nullptr) {
       return;
     }
@@ -121,7 +117,6 @@ class ChunkAllocator {
   }
 
   void deallocate(std::size_t index) {
-    spdlog::info("deallocating {}", index);
     UniqueLock(_stack_header->mutex);
     push_to_stack(index);
   }

@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <ipcpp/datatypes/fixed_size/container_base.h>
-
 #include <concepts>
 #include <cstdint>
 #include <stdexcept>

@@ -18,6 +18,4 @@ concept forward_iterator = requires(T_Iter it) {
   { *it } -> std::convertible_to<typename T_Iter::value_type>;
 } && requires { typename T_Iter::value_type; };
 
-static_assert(forward_iterator<std::vector<int>::iterator>, "NOOO");
-
 }  // namespace ipcpp

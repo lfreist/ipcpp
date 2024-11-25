@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <ipcpp/datatypes/vector.h>
+#include <ipcpp/container/vector.h>
 
 struct Message {
   std::int64_t timestamp;

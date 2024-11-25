@@ -19,7 +19,7 @@ namespace ipcpp {
  */
 class Mutex {
  public:
-  Mutex() : _flag(0) {}
+  Mutex() : _flag(false) {}
 
   void lock() noexcept {
     auto value = _flag.test_and_set(std::memory_order_acquire);
@@ -32,6 +32,10 @@ class Mutex {
   void unlock() noexcept {
     _flag.clear(std::memory_order_release);
     _flag.notify_one();
+  }
+
+  [[nodiscard]] bool is_locked() const noexcept {
+    return _flag.test();
   }
 
  private:

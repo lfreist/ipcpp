@@ -5,7 +5,7 @@
 * This file is part of ipcpp.
 */
 
-#include <ipcpp/datatypes/fixed_size_stack.h>
+#include <ipcpp/container/fixed_size_stack.h>
 
 using namespace ipcpp;
 
