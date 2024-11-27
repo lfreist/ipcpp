@@ -46,6 +46,9 @@ class DynamicAllocator : public AllocatorFactoryBase {
   typedef T_p value_type;
   typedef std::size_t size_type;
   typedef std::ptrdiff_t difference_type;
+  typedef std::ptrdiff_t alloc_return_type;
+  typedef T_p* pointer;
+  typedef const T_p* const_pointer;
 
  private:
   struct Header {
@@ -167,9 +170,7 @@ class DynamicAllocator : public AllocatorFactoryBase {
    * @param n
    * @return
    */
-  value_type* allocate(size_type n = 1) {
-    return reinterpret_cast<value_type*>(addr_from_offset(allocate_get_index(n)));
-  }
+  alloc_return_type allocate(size_type n = 1) { return allocate_get_index(n).offset; }
 
   /**
    * @brief Allocate n value_types and return the offset of their address to _memory.
@@ -202,7 +203,9 @@ class DynamicAllocator : public AllocatorFactoryBase {
    *
    * @return
    */
-  [[nodiscard]] size_type max_size() const noexcept { return _header->size - align_up(sizeof(AllocatorListNode)); }
+  [[nodiscard]] size_type max_size() const noexcept {
+    return (_header->size - align_up(sizeof(AllocatorListNode))) / sizeof(value_type);
+  }
 
   // --- Allocator developer information -------------------------------------------------------------------------------
   // warning: The following functions iterate through the full linked list of the allocator to compute different metrics
@@ -290,11 +293,11 @@ class DynamicAllocator : public AllocatorFactoryBase {
    * @param addr
    * @return
    */
-  [[nodiscard]] difference_type offset_from_addr(void* addr) const noexcept {
+  [[nodiscard]] difference_type offset_from_addr(const void* addr) const noexcept {
     if (addr == nullptr || addr > (reinterpret_cast<uint8_t*>(_memory) + _header->size)) {
       return invalid_offset;
     }
-    return reinterpret_cast<uint8_t*>(addr) - reinterpret_cast<uint8_t*>(_memory);
+    return reinterpret_cast<const uint8_t*>(addr) - reinterpret_cast<uint8_t*>(_memory);
   }
 
  private:
@@ -323,7 +326,7 @@ class DynamicAllocator : public AllocatorFactoryBase {
         auto data_offset = offset_from_addr(node) + static_cast<difference_type>(align_up(sizeof(AllocatorListNode)));
         return {data_offset, node->size};
       } else {
-        if (node->next_offset == 0) {
+        if (node->next_offset == invalid_offset) {
           throw std::bad_alloc();
         }
         node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(node->next_offset));

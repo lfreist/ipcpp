@@ -7,8 +7,10 @@
 
 #include <ipcpp/container/concepts.h>
 #include <ipcpp/container/ipcpp_iterator.h>
+#include <ipcpp/memory/allocator_traits.h>
 #include <ipcpp/shm/dynamic_allocator.h>
 
+#include <concepts>
 #include <format>
 #include <utility>
 
@@ -26,8 +28,10 @@ class vector {
   typedef const T_p& const_reference;
   typedef T_p* pointer;
   typedef const T_p* const_pointer;
-  typedef normal_iterator<typename allocator_type::difference_type, allocator_type> iterator;
-  typedef _reverse_iterator<typename allocator_type::difference_type, allocator_type> reverse_iterator;
+  typedef normal_iterator<typename allocator_type::pointer, vector> iterator;
+  typedef normal_iterator<typename allocator_type::const_pointer, vector> const_iterator;
+  typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+  typedef std::reverse_iterator<iterator> reverse_iterator;
 
   // ___________________________________________________________________________________________________________________
  public:
@@ -41,13 +45,17 @@ class vector {
     _m_create_storage(n);
     _m_fill_initialize(n, v);
   }
-  vector(const vector& other) requires std::is_copy_constructible_v<value_type> {
+  vector(const vector& other)
+    requires std::is_copy_constructible_v<value_type>
+  {
     _m_create_storage(other.size());
     _m_copy_initialize(other.size(), other.data());
   }
   template <typename T_Allocator2>
     requires std::is_same_v<typename allocator_type::value_type, typename T_Allocator2::value_type>
-  explicit vector(const vector<value_type, T_Allocator2>& other) requires std::is_copy_constructible_v<value_type> {
+  explicit vector(const vector<value_type, T_Allocator2>& other)
+    requires std::is_copy_constructible_v<value_type>
+  {
     _m_create_storage(other.size());
     _m_copy_initialize(other.size(), other.data());
   }
@@ -100,9 +108,11 @@ class vector {
       // reallocate
       _m_deallocate(get_allocator().addr_from_offset(_m_data._m_start), size());
       _m_create_storage(ilist.size());
+    } else {
+      _m_data._m_finish = _m_data._m_start;
     }
     // copy new data
-    _m_copy_initialize(ilist.begin(), ilist.begin());
+    _m_copy_initialize(ilist.begin(), ilist.end());
     return *this;
   }
 
@@ -175,21 +185,23 @@ class vector {
   const_pointer data() const noexcept { return _m_start_ptr(); }
 
   // --- iterators -----------------------------------------------------------------------------------------------------
-  iterator begin() noexcept { return iterator(_m_data._m_start, get_allocator()); }
+  // NOTE: Any iterators cannot safely be shared across processes no matter what allocator is used!
 
-  iterator end() noexcept { return iterator(_m_data._m_finish, get_allocator()); }
+  iterator begin() noexcept { return iterator(data()); }
 
-  reverse_iterator rbegin() noexcept { return reverse_iterator(_m_data._m_finish, get_allocator()); }
+  iterator end() noexcept { return iterator(data() + size()); }
 
-  reverse_iterator rend() noexcept { return reverse_iterator(_m_data._m_start, get_allocator()); }
+  reverse_iterator rbegin() noexcept { return reverse_iterator(end()); }
 
-  iterator cbegin() const noexcept { return iterator(_m_data._m_start, get_allocator()); }
+  reverse_iterator rend() noexcept { return reverse_iterator(begin()); }
 
-  iterator cend() const noexcept { return iterator(_m_data._m_finish, get_allocator()); }
+  const_iterator cbegin() const noexcept { return const_iterator(data()); }
 
-  reverse_iterator crbegin() const noexcept { return reverse_iterator(_m_data._m_finish, get_allocator()); }
+  const_iterator cend() const noexcept { return const_iterator(data() + size()); }
 
-  reverse_iterator crend() const noexcept { return reverse_iterator(_m_data._m_start, get_allocator()); }
+  const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cend()); }
+
+  const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cbegin()); }
 
   // --- capacity ------------------------------------------------------------------------------------------------------
   [[nodiscard]] bool empty() const noexcept { return _m_data._m_start == _m_data._m_finish; }
@@ -216,6 +228,85 @@ class vector {
     _m_data._m_finish = _m_data._m_start;
   }
 
+  iterator insert(const_iterator pos, const value_type& value) { return insert(pos, 1, value); }
+  iterator insert(const_iterator pos, value_type&& value) {
+    value_type tmp(std::move(value));
+    return insert(pos, tmp);
+  }
+  iterator insert(const_iterator pos, size_type count, const value_type& value) {
+    difference_type offset = pos - cbegin();
+    if (capacity() < size() + count) {
+      // NOTE: _m_uninitialized_realloc_n may invalidate pos. Thus, we reset it to the same element after reallocation
+      _m_uninitialized_realloc_n(count);
+      pos = cbegin() + offset;
+    }
+    _m_move_to(pos, cend(), pos + count);
+    for (size_type i = 0; i < count; ++i) {
+      _m_construct_at(std::addressof(*(pos + i)), value);
+      _m_data._m_finish += sizeof(value_type);
+    }
+    return begin() + offset;
+  }
+  template <class T_InputIt>
+  iterator insert(const_iterator pos, T_InputIt first, T_InputIt last)
+    requires std::input_iterator<T_InputIt>
+  {
+    difference_type offset = pos - cbegin();
+    size_type count = std::distance(first, last);
+    if (capacity() < size() + count) {
+      // NOTE: _m_uninitialized_realloc_n may invalidate pos. Thus, we reset it to the same element after reallocation
+      _m_uninitialized_realloc_n(count);
+      pos = cbegin() + offset;
+    }
+    _m_move_to(pos, cend(), pos + count);
+    for (size_type i = 0; i < count; ++i) {
+      _m_construct_at(std::addressof(*(pos + i)), *first);
+      first++;
+      _m_data._m_finish += sizeof(value_type);
+    }
+    return begin() + offset;
+  }
+  iterator insert(const_iterator pos, std::initializer_list<value_type> ilist) {
+    return insert(pos, ilist.begin(), ilist.end());
+  }
+
+  // TODO: fix this:
+  /*
+  template <std::ranges::range T_Range>
+  iterator insert_range(const_iterator pos, T_Range&& rg) {
+    return insert(pos, rg.begin(), rg.end());
+  }
+   */
+
+  template <class... T_Args>
+  iterator emplace(const_iterator pos, T_Args&&... args) {
+    return insert(pos, value_type(std::forward<T_Args>(args)...));
+  }
+
+  iterator erase(iterator pos) {
+    if ((pos + 1) == end()) {
+      std::destroy_at(std::addressof(*pos));
+      _m_data._m_finish -= sizeof(value_type);
+      return end();
+    }
+    difference_type offset = pos - begin();
+    _m_move_to(pos + 1, end(), pos);
+    _m_data._m_finish -= sizeof(value_type);
+    return begin() + offset;
+  }
+  iterator erase(const_iterator pos) { return erase(iterator(pos)); }
+  iterator erase(iterator first, iterator last) {
+    difference_type offset = first - begin();
+    difference_type len = last - first;
+    if (len <= 0) {
+      return last;
+    }
+    _m_move_to(last, end(), first);
+    _m_data._m_finish -= len * sizeof(value_type);
+    return begin() + offset;
+  }
+  iterator erase(const_iterator first, const_iterator last) { return erase(iterator(first), iterator(last)); }
+
   void push_back(const value_type& v) {
     if (_m_data._m_finish != _m_data._m_end_of_storage) {
       new (get_allocator().addr_from_offset(_m_data._m_finish)) value_type(v);
@@ -229,7 +320,7 @@ class vector {
   template <typename... T_Args>
   reference emplace_back(T_Args&&... args) {
     if (_m_data._m_finish != _m_data._m_end_of_storage) {
-      new (get_allocator().addr_from_offset(_m_data._m_finish)) value_type(std::forward<T_Args>(args)...);
+      _m_construct_at(get_allocator().addr_from_offset(_m_data._m_finish), value_type(std::forward<T_Args>(args)...));
       _m_data._m_finish += sizeof(value_type);
     } else {
       _m_realloc_append(std::forward<T_Args>(args)...);
@@ -247,16 +338,16 @@ class vector {
       return;
     } else if (count < size()) {
       _m_destroy(begin() + count, end());
-      _m_data._m_finish = count * sizeof(value_type);
+      _m_data._m_finish = _m_data._m_start + (count * sizeof(value_type));
     } else {
       // count > size()
-      size_type new_size = size() + count;
+      size_type new_size = count;
       if (new_size <= capacity()) {
         // allocated memory can be filled
         for (size_type i = size(); i < new_size; ++i) {
-          new (_m_start_ptr() + i) value_type;
+          _m_construct_at(_m_start_ptr() + i);
         }
-        _m_data._m_finish = (new_size * sizeof(value_type));
+        _m_data._m_finish = _m_data._m_start + (new_size * sizeof(value_type));
       } else {
         // reallocate
         _m_realloc_append_n(new_size);
@@ -268,19 +359,18 @@ class vector {
       return;
     } else if (count < size()) {
       _m_destroy(begin() + count, end());
-      _m_data._m_finish = count * sizeof(value_type);
+      _m_data._m_finish = _m_data._m_start + (count * sizeof(value_type));
     } else {
       // count > size()
-      size_type new_size = size() + count;
+      size_type new_size = count;
       if (new_size <= capacity()) {
         // allocated memory can be filled
         for (size_type i = size(); i < new_size; ++i) {
-          new (_m_start_ptr() + i) value_type;
+          _m_construct_at(_m_start_ptr() + i, value);
         }
-        _m_data._m_finish = (new_size * sizeof(value_type));
+        _m_data._m_finish = _m_data._m_start + (new_size * sizeof(value_type));
       } else {
         // reallocate
-        // TODO: validate: is it okay to pass the reference as rvalue reference argument to allocate n new value_types?
         _m_realloc_append_n(new_size, value);
       }
     }
@@ -374,9 +464,6 @@ class vector {
   template <typename... T_Args>
   void _m_realloc_append(T_Args&&... args) {
     const size_type len = _m_check_length(1u, "ipcpp::vector::_m_realloc_append");
-    if (len <= 0) {
-      std::unreachable();
-    }
     pointer old_start = _m_start_ptr();
     pointer old_finish = _m_finish_ptr();
     auto [new_start, new_size] = _m_allocate(len);
@@ -393,18 +480,28 @@ class vector {
   template <typename... T_Args>
   void _m_realloc_append_n(size_type n, T_Args&&... args) {
     const size_type len = _m_check_length(n, "ipcpp::vector::_m_realloc_append_n");
-    if (len <= 0) {
-      std::unreachable();
+    pointer old_start = _m_start_ptr();
+    pointer old_finish = _m_finish_ptr();
+    auto [new_start, new_capacity] = _m_allocate(len);
+    value_type* new_finish_ptr =
+        _m_uninitialized_move(old_start, old_finish, get_allocator().addr_from_offset(new_start));
+    for (size_type i = size(); i < n; ++i) {
+      _m_construct_at(new_finish_ptr, std::forward<T_Args>(args)...);
+      new_finish_ptr++;
     }
+    _m_deallocate(old_start, capacity());
+    _m_data._m_start = new_start;
+    _m_data._m_finish = get_allocator().offset_from_addr(new_finish_ptr);
+    _m_data._m_end_of_storage = new_start + new_capacity;
+  }
+
+  void _m_uninitialized_realloc_n(size_type n) {
+    const size_type len = _m_check_length(n, "ipcpp::vector::_m_uninitialized_realloc_n");
     pointer old_start = _m_start_ptr();
     pointer old_finish = _m_finish_ptr();
     auto [new_start, new_size] = _m_allocate(len);
     value_type* new_finish_ptr =
         _m_uninitialized_move(old_start, old_finish, get_allocator().addr_from_offset(new_start));
-    for (size_type i = 0; i < n; ++n) {
-      _m_construct_at(new_finish_ptr, std::forward<T_Args>(args)...);
-      new_finish_ptr++;
-    }
     _m_deallocate(old_start, capacity());
     _m_data._m_start = new_start;
     _m_data._m_finish = get_allocator().offset_from_addr(new_finish_ptr);
@@ -427,8 +524,25 @@ class vector {
     _m_data._m_end_of_storage = new_start + new_size;
   }
 
+  template <typename T_Iterator>
+  void _m_move_to(T_Iterator first, T_Iterator last, T_Iterator dst) {
+    if (dst == first) {
+      return;
+    } else if (dst < first || dst > last + 1) {
+      for (; first < last; ++first) {
+        _m_construct_at(std::addressof(*dst), *first);
+        ++dst;
+      }
+    } else {
+      difference_type offset = (last - first) - 1;
+      for (; offset >= 0; --offset) {
+        _m_construct_at(std::addressof(*(dst + offset)), *(first + offset));
+      }
+    }
+  }
+
   template <typename... T_Args>
-  void _m_construct_at(pointer addr, T_Args&&... args) {
+  void _m_construct_at(const_pointer addr, T_Args&&... args) {
     std::construct_at(addr, std::forward<T_Args>(args)...);
   }
 
@@ -478,8 +592,10 @@ bool operator==(const vector<T_p, T_Alloc>& lhs, const vector<T_p, T_Alloc>& rhs
 }
 
 template <class T_p, class T_Alloc>
-int operator<=>(const vector<T_p, T_Alloc>& lhs, const vector<T_p, T_Alloc>& rhs) {
-  return std::lexicographical_compare_three_way(lhs.data(), lhs.data() + lhs.size(), rhs.data(), rhs.data() + rhs.size());
+auto operator<=>(const vector<T_p, T_Alloc>& lhs,
+                 const vector<T_p, T_Alloc>& rhs) -> decltype(lhs.front() <=> rhs.front()) {
+  return std::lexicographical_compare_three_way(lhs.data(), lhs.data() + lhs.size(), rhs.data(),
+                                                rhs.data() + rhs.size());
 }
 
 }  // namespace ipcpp
