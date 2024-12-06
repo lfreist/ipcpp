@@ -12,6 +12,8 @@
 
 #include "message.h"
 
+#include <vector>
+
 int main(int argc, char** argv) {
   auto expected_broadcaster = ipcpp::publish_subscribe::BroadcastSubscriber<Message>::create("broadcaster");
   if (!expected_broadcaster.has_value()) {

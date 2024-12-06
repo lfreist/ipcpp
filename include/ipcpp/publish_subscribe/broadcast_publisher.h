@@ -137,11 +137,6 @@ class Broadcaster : public Publisher_I<T, NotifierT> {
 
   DataContainer<T>* get_raw_access() { return _list_allocator.allocate(); }
 
-  template <typename T_DynAllocator>
-  T_DynAllocator get_dyn_allocator() const {
-    return T_DynAllocator(_mapped_memory_dyn.addr());
-  }
-
  private:
   explicit Broadcaster(NotifierT&& notifier, shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory,
                        shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory_dyn)

@@ -8,41 +8,41 @@
 #pragma once
 
 #include <ipcpp/utils/mutex.h>
-#include <ipcpp/container/alloc_traits.h>
 
 #include <cassert>
 
-namespace ipcpp::shm {
+namespace ipcpp {
 
+namespace detail {
 // TODO: creating the overhead data at addr does not require a template type. Thus, we can do all of this in the Base
 //       class and only implement the value_type specific member functions (allocation) in the templated child class.
 
 /**
  * @brief Base class to provide a static void* for all template types of the child allocator
  */
-class AllocatorFactoryBase {
+class allocator_factory_base {
  protected:
   static void* _singleton_process_addr;
 };
 
-void* AllocatorFactoryBase::_singleton_process_addr = nullptr;
+void* allocator_factory_base::_singleton_process_addr = nullptr;
+
+}  // namespace detail
 
 /**
- * @brief DynamicAllocator can be used to dynamically allocate memory of a given size in a pre-allocated memory space.
- *  In order to make it fully shared memory compatible (including sharing this Allocator among different processes, the
- *  following requirements are fulfilled:
+ * @brief poo_allocator can be used to dynamically allocate memory of a given size in a pre-allocated memory space
+ * (pool). In order to make it fully shared memory compatible (including sharing this Allocator among different
+ * processes, the following requirements are fulfilled:
  *  - internal data are all stored in the provided memory, DynamicAllocator itself is just a convenient wrapper around
  *    these data
  *  - concerning the internal data, no raw pointers but only std::ptrdiff is used as offset of data
  *  - Once DynamicAllocator was constructed using the DynamicAllocator(void*, size_type) constructor, other processes
  *    can use this DynamicAllocator by using the DynamicAllocator(void*) constructor
  *
- *  @warning NOT YET THREAD- NOR INTERPROCESS-SAFE
- *
  * offset: byte distance from _memory, used for AllocatorListNodes
  */
 template <typename T_p>
-class DynamicAllocator : public AllocatorFactoryBase {
+class pool_allocator : public detail::allocator_factory_base {
  public:
   typedef T_p value_type;
   typedef std::size_t size_type;
@@ -72,10 +72,6 @@ class DynamicAllocator : public AllocatorFactoryBase {
   }
 
  public:
-  struct memory {
-    difference_type offset;
-    size_type size_bytes;
-  };
   /**
    * @brief Initializes the static instance of this allocator. After initialization, get_singleton() returns a
    *  working allocator using the data at addr.
@@ -87,8 +83,8 @@ class DynamicAllocator : public AllocatorFactoryBase {
    * @param size
    */
   static void initialize_factory(void* addr, size_type size) {
-    static DynamicAllocator<uint8_t> allocator(addr, size);
-    AllocatorFactoryBase::_singleton_process_addr = addr;
+    static pool_allocator<uint8_t> allocator(addr, size);
+    allocator_factory_base::_singleton_process_addr = addr;
   }
   /**
    * @brief Initializes the static instance of this allocator. After initialization, get_singleton() returns a
@@ -100,7 +96,7 @@ class DynamicAllocator : public AllocatorFactoryBase {
    *
    * @param addr
    */
-  static void initialize_factory(void* addr) { AllocatorFactoryBase::_singleton_process_addr = addr; }
+  static void initialize_factory(void* addr) { allocator_factory_base::_singleton_process_addr = addr; }
 
   /**
    * @brief builds and returns a local wrapper for DynamicAllocator at AllocatorFactoryBase::_singleton_process_addr.
@@ -112,12 +108,12 @@ class DynamicAllocator : public AllocatorFactoryBase {
    *
    * @return
    */
-  static DynamicAllocator get_from_factory() {
-    if (AllocatorFactoryBase::_singleton_process_addr == nullptr) {
+  static pool_allocator get_singleton() {
+    if (allocator_factory_base::_singleton_process_addr == nullptr) {
       throw std::runtime_error(
           "Allocator Factory not initialized. Call DynamicAllocator<T_p>::initialize_factory first.");
     }
-    return DynamicAllocator<T_p>(AllocatorFactoryBase::_singleton_process_addr);
+    return pool_allocator<T_p>(allocator_factory_base::_singleton_process_addr);
   }
 
   /**
@@ -134,7 +130,7 @@ class DynamicAllocator : public AllocatorFactoryBase {
    * @param addr
    * @param size
    */
-  DynamicAllocator(void* addr, size_type size)
+  pool_allocator(void* addr, size_type size)
       : _header(new(addr) Header{.size = size, .list_head_offset = 0}),
         _memory(reinterpret_cast<uint8_t*>(addr) + align_up(sizeof(Header))) {
     new (_memory) AllocatorListNode{.size = size - align_up(sizeof(Header)) - align_up(sizeof(AllocatorListNode)),
@@ -151,13 +147,13 @@ class DynamicAllocator : public AllocatorFactoryBase {
    *
    * @param addr
    */
-  explicit DynamicAllocator(void* addr)
+  explicit pool_allocator(void* addr)
       : _header(reinterpret_cast<Header*>(addr)),
         _memory(reinterpret_cast<uint8_t*>(addr) + align_up(sizeof(Header))) {}
 
   /// default trivially copyable and movable
-  DynamicAllocator(DynamicAllocator&& other) noexcept = default;
-  DynamicAllocator(const DynamicAllocator& other) = default;
+  pool_allocator(pool_allocator&& other) noexcept = default;
+  pool_allocator(const pool_allocator& other) = default;
 
   /**
    * @brief Allocate n value_types and get pointer to first value_type.
@@ -171,17 +167,26 @@ class DynamicAllocator : public AllocatorFactoryBase {
    * @param n
    * @return
    */
-  alloc_return_type allocate(size_type n = 1) { return allocate_get_index(n).offset; }
+  pointer allocate(size_type n = 1) { return _m_allocate_from_list_ptr(n * sizeof(value_type)); }
 
   /**
    * @brief Allocate n value_types and return the offset of their address to _memory.
    * @param n
    * @return
    */
-  memory allocate_get_index(size_type n) {
+  difference_type allocate_offset(size_type n) {
     UniqueLock lock(_header->mutex);
-    memory memory = _m_allocate_from_list(align_up(n * sizeof(value_type)));
-    return memory;
+    return _m_allocate_from_list(align_up(n * sizeof(value_type))).first;
+  }
+
+  std::pair<pointer, size_type> allocate_at_least(size_type n) {
+    UniqueLock lock(_header->mutex);
+    return _m_allocate_from_list_ptr(align_up(n * sizeof(value_type)));
+  }
+
+  std::pair<difference_type, size_type> allocate_at_least_offset(size_type n) {
+    UniqueLock lock(_header->mutex);
+    return _m_allocate_from_list(align_up(n * sizeof(value_type)));
   }
 
   /**
@@ -217,14 +222,14 @@ class DynamicAllocator : public AllocatorFactoryBase {
    */
   [[nodiscard]] size_type allocated_size() const noexcept {
     UniqueLock lock(_header->mutex);
-    auto* node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(_header->list_head_offset));
+    auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
     size_type size = 0;
     while (node != nullptr) {
       if (!node->is_free) {
         // not free: add data size + header size
         size += node->size + align_up(sizeof(AllocatorListNode));
       }
-      node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(node->next_offset));
+      node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(node->next_offset));
     }
     return size;
   }
@@ -235,14 +240,14 @@ class DynamicAllocator : public AllocatorFactoryBase {
    */
   [[nodiscard]] size_type allocated_data_size() const noexcept {
     UniqueLock lock(_header->mutex);
-    auto* node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(_header->list_head_offset));
+    auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
     size_type size = 0;
     while (node != nullptr) {
       if (!node->is_free) {
         // not free: add data size
         size += node->size;
       }
-      node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(node->next_offset));
+      node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(node->next_offset));
     }
     return size;
   }
@@ -261,7 +266,7 @@ class DynamicAllocator : public AllocatorFactoryBase {
     UniqueLock lock(_header->mutex);
     size_type largest_free_block = 0;
     size_type total_free_memory = 0;
-    auto* node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(_header->list_head_offset));
+    auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
     while (node != nullptr) {
       if (node->is_free) {
         // not free: add data size
@@ -270,7 +275,7 @@ class DynamicAllocator : public AllocatorFactoryBase {
           largest_free_block = node->size;
         }
       }
-      node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(node->next_offset));
+      node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(node->next_offset));
     }
     return static_cast<double>(largest_free_block) / static_cast<double>(total_free_memory);
   }
@@ -282,7 +287,7 @@ class DynamicAllocator : public AllocatorFactoryBase {
    * @param offset
    * @return
    */
-  [[nodiscard]] value_type* addr_from_offset(difference_type offset) const noexcept {
+  [[nodiscard]] value_type* offset_to_pointer(difference_type offset) const noexcept {
     if (offset < 0 || offset > _header->size) {
       return nullptr;
     }
@@ -294,7 +299,7 @@ class DynamicAllocator : public AllocatorFactoryBase {
    * @param addr
    * @return
    */
-  [[nodiscard]] difference_type offset_from_addr(const void* addr) const noexcept {
+  [[nodiscard]] difference_type pointer_to_offset(const void* addr) const noexcept {
     if (addr == nullptr || addr > (reinterpret_cast<uint8_t*>(_memory) + _header->size)) {
       return invalid_offset;
     }
@@ -302,6 +307,32 @@ class DynamicAllocator : public AllocatorFactoryBase {
   }
 
  private:
+  std::pair<pointer, size_type> _m_allocate_from_list_ptr(size_type bytes) {
+    assert(_header->mutex.is_locked());
+    auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
+    while (true) {
+      if (node->is_free && node->size >= bytes) {
+        // use the current node
+        node->is_free = false;
+        if (node->size - bytes > align_up(sizeof(AllocatorListNode))) {
+          _m_insert_node(node,
+                         pointer_to_offset(node) + static_cast<difference_type>(align_up(sizeof(AllocatorListNode))) +
+                             static_cast<difference_type>(bytes),
+                         node->size - bytes - align_up(sizeof(AllocatorListNode)));
+          node->size = bytes;
+        }
+        return {reinterpret_cast<pointer>(reinterpret_cast<uint8_t>(node) +
+                                          static_cast<difference_type>(align_up(sizeof(AllocatorListNode)))),
+                node->size};
+      } else {
+        if (node->next_offset == invalid_offset) {
+          throw std::bad_alloc();
+        }
+        node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(node->next_offset));
+      }
+    }
+  }
+
   /**
    * @brief Return the offset of the allocated chunk without AllocatorListNode
    *  | AllocatorListNode | data ... |
@@ -310,27 +341,27 @@ class DynamicAllocator : public AllocatorFactoryBase {
    * @param size_bytes
    * @return
    */
-  memory _m_allocate_from_list(size_type size_bytes) {
+  std::pair<difference_type, size_type> _m_allocate_from_list(size_type size_bytes) {
     assert(_header->mutex.is_locked());
-    auto* node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(_header->list_head_offset));
+    auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
     while (true) {
       if (node->is_free && node->size >= size_bytes) {
         // use the current node
         node->is_free = false;
         if (node->size - size_bytes > align_up(sizeof(AllocatorListNode))) {
           _m_insert_node(node,
-                         offset_from_addr(node) + static_cast<difference_type>(align_up(sizeof(AllocatorListNode))) +
+                         pointer_to_offset(node) + static_cast<difference_type>(align_up(sizeof(AllocatorListNode))) +
                              static_cast<difference_type>(size_bytes),
                          node->size - size_bytes - align_up(sizeof(AllocatorListNode)));
           node->size = size_bytes;
         }
-        auto data_offset = offset_from_addr(node) + static_cast<difference_type>(align_up(sizeof(AllocatorListNode)));
+        auto data_offset = pointer_to_offset(node) + static_cast<difference_type>(align_up(sizeof(AllocatorListNode)));
         return {data_offset, node->size};
       } else {
         if (node->next_offset == invalid_offset) {
           throw std::bad_alloc();
         }
-        node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(node->next_offset));
+        node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(node->next_offset));
       }
     }
   }
@@ -345,11 +376,11 @@ class DynamicAllocator : public AllocatorFactoryBase {
     assert(_header->mutex.is_locked());
     difference_type next_offset = node->next_offset;
     node->next_offset = new_nodes_offset;
-    auto p = offset_from_addr(node);
-    new (addr_from_offset(new_nodes_offset)) AllocatorListNode{
-        .size = new_nodes_size, .next_offset = next_offset, .prev_offset = offset_from_addr(node), .is_free = true};
+    auto p = pointer_to_offset(node);
+    new (offset_to_pointer(new_nodes_offset)) AllocatorListNode{
+        .size = new_nodes_size, .next_offset = next_offset, .prev_offset = pointer_to_offset(node), .is_free = true};
     if (next_offset != invalid_offset) {
-      auto* next_node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(next_offset));
+      auto* next_node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(next_offset));
       next_node->prev_offset = new_nodes_offset;
     }
   }
@@ -366,21 +397,21 @@ class DynamicAllocator : public AllocatorFactoryBase {
       return;
     }
     size_type merged_size = node->size;
-    auto* next_node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(node->next_offset));
+    auto* next_node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(node->next_offset));
     while (true) {
       if (next_node == nullptr) {
         node->next_offset = -1;
         break;
       }
       if (!next_node->is_free) {
-        next_node->prev_offset = offset_from_addr(node);
+        next_node->prev_offset = pointer_to_offset(node);
         break;
       }
       merged_size += next_node->size + align_up(sizeof(AllocatorListNode));
-      next_node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(next_node->next_offset));
+      next_node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(next_node->next_offset));
     }
     node->size = merged_size;
-    node->next_offset = offset_from_addr(next_node);
+    node->next_offset = pointer_to_offset(next_node);
   }
 
   /**
@@ -398,7 +429,7 @@ class DynamicAllocator : public AllocatorFactoryBase {
       return;
     }
     size_type merged_size = node->size;
-    auto* prev_node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(node->prev_offset));
+    auto* prev_node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(node->prev_offset));
     AllocatorListNode* prev_next_node = node;
     while (true) {
       if (prev_node == nullptr) {
@@ -409,12 +440,12 @@ class DynamicAllocator : public AllocatorFactoryBase {
       }
       merged_size += prev_node->size + align_up(sizeof(AllocatorListNode));
       prev_next_node = prev_node;
-      prev_node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(prev_node->prev_offset));
+      prev_node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(prev_node->prev_offset));
     }
     prev_next_node->size = merged_size;
-    auto* next_node = reinterpret_cast<AllocatorListNode*>(addr_from_offset(node->next_offset));
+    auto* next_node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(node->next_offset));
     if (next_node != nullptr) {
-      next_node->prev_offset = offset_from_addr(prev_next_node);
+      next_node->prev_offset = pointer_to_offset(prev_next_node);
     }
     prev_next_node->next_offset = node->next_offset;
   }
@@ -426,4 +457,4 @@ class DynamicAllocator : public AllocatorFactoryBase {
   void* _memory = nullptr;
 };
 
-}  // namespace ipcpp::shm
+}  // namespace ipcpp

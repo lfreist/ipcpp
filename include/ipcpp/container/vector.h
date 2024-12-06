@@ -5,10 +5,10 @@
  * This file is part of ipcpp.
  */
 
+#include <ipcpp/container/alloc_traits.h>
+#include <ipcpp/container/allocator.h>
 #include <ipcpp/container/concepts.h>
 #include <ipcpp/container/ipcpp_iterator.h>
-#include <ipcpp/memory/allocator_traits.h>
-#include <ipcpp/shm/dynamic_allocator.h>
 
 #include <concepts>
 #include <format>
@@ -16,20 +16,21 @@
 
 namespace ipcpp {
 
-template <typename T_p, typename T_Allocator = ipcpp::shm::DynamicAllocator<T_p>>
+template <typename T_p, typename T_Allocator = ipcpp::pool_allocator<T_p>>
 class vector {
   // ___________________________________________________________________________________________________________________
  public:
+  typedef allocator_traits<T_Allocator> alloc_traits;
   typedef T_p value_type;
   typedef T_Allocator allocator_type;
-  typedef std::size_t size_type;
-  typedef std::ptrdiff_t difference_type;
+  typedef typename alloc_traits::size_type size_type;
+  typedef typename alloc_traits::difference_type difference_type;
   typedef T_p& reference;
   typedef const T_p& const_reference;
   typedef T_p* pointer;
   typedef const T_p* const_pointer;
-  typedef normal_iterator<typename allocator_type::pointer, vector> iterator;
-  typedef normal_iterator<typename allocator_type::const_pointer, vector> const_iterator;
+  typedef normal_iterator<pointer, vector> iterator;
+  typedef normal_iterator<const_pointer, vector> const_iterator;
   typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
   typedef std::reverse_iterator<iterator> reverse_iterator;
 
@@ -78,7 +79,7 @@ class vector {
   // --- destructor ----------------------------------------------------------------------------------------------------
   ~vector() noexcept {
     _m_destroy(begin(), end());
-    _m_deallocate(get_allocator().addr_from_offset(_m_data._m_start), capacity());
+    _m_deallocate(alloc_traits::offset_to_pointer(_m_data._m_start), capacity());
   }
 
   // --- copy/move assignment ------------------------------------------------------------------------------------------
@@ -90,7 +91,7 @@ class vector {
     _m_destroy(begin(), end());
     if (other.size() > capacity()) {
       // reallocate
-      _m_deallocate(get_allocator().addr_from_offset(_m_data._m_start), size());
+      _m_deallocate(alloc_traits::offset_to_pointer(_m_data._m_start), size());
       _m_create_storage(other.size());
     }
     // create new
@@ -106,7 +107,7 @@ class vector {
     _m_destroy(begin(), end());
     if (ilist.size() > capacity()) {
       // reallocate
-      _m_deallocate(get_allocator().addr_from_offset(_m_data._m_start), size());
+      _m_deallocate(alloc_traits::offset_to_pointer(_m_data._m_start), size());
       _m_create_storage(ilist.size());
     } else {
       _m_data._m_finish = _m_data._m_start;
@@ -122,7 +123,7 @@ class vector {
     _m_destroy(begin(), end());
     if (count > capacity()) {
       // reallocate
-      _m_deallocate(get_allocator().addr_from_offset(_m_data._m_start), size());
+      _m_deallocate(alloc_traits::offset_to_pointer(_m_data._m_start), size());
       _m_create_storage(count);
     }
     _m_fill_initialize(count, value);
@@ -140,7 +141,7 @@ class vector {
     }
     if (new_size > capacity()) {
       // reallocate
-      _m_deallocate(get_allocator().addr_from_offset(_m_data._m_start), size());
+      _m_deallocate(alloc_traits::offset_to_pointer(_m_data._m_start), size());
       _m_create_storage(new_size);
     }
     // copy new data
@@ -151,15 +152,12 @@ class vector {
     _m_destroy(begin(), end());
     if (ilist.size() > capacity()) {
       // reallocate
-      _m_deallocate(get_allocator().addr_from_offset(_m_data._m_start), size());
+      _m_deallocate(alloc_traits::offset_to_pointer(_m_data._m_start), size());
       _m_create_storage(ilist.size());
     }
     // copy new data
     _m_copy_initialize(ilist.begin(), ilist.end());
   }
-
-  // --- allocator -----------------------------------------------------------------------------------------------------
-  allocator_type get_allocator() const { return allocator_type::get_from_factory(); }
 
   // --- element access ------------------------------------------------------------------------------------------------
   reference operator[](size_type n) noexcept { return *(_m_start_ptr() + n); }
@@ -208,7 +206,7 @@ class vector {
 
   [[nodiscard]] size_type size() const noexcept { return size_type(_m_finish_ptr() - _m_start_ptr()); }
 
-  [[nodiscard]] size_type max_size() const noexcept { return get_allocator().max_size(); }
+  [[nodiscard]] size_type max_size() const noexcept { return alloc_traits::max_size(); }
 
   void reserve(size_type new_cap) {
     if (new_cap <= capacity()) return;
@@ -309,7 +307,7 @@ class vector {
 
   void push_back(const value_type& v) {
     if (_m_data._m_finish != _m_data._m_end_of_storage) {
-      new (get_allocator().addr_from_offset(_m_data._m_finish)) value_type(v);
+      new (alloc_traits::offset_to_pointer(_m_data._m_finish)) value_type(v);
       _m_data._m_finish += sizeof(value_type);
     } else {
       _m_realloc_append(v);
@@ -320,7 +318,7 @@ class vector {
   template <typename... T_Args>
   reference emplace_back(T_Args&&... args) {
     if (_m_data._m_finish != _m_data._m_end_of_storage) {
-      _m_construct_at(get_allocator().addr_from_offset(_m_data._m_finish), value_type(std::forward<T_Args>(args)...));
+      _m_construct_at(alloc_traits::offset_to_pointer(_m_data._m_finish), value_type(std::forward<T_Args>(args)...));
       _m_data._m_finish += sizeof(value_type);
     } else {
       _m_realloc_append(std::forward<T_Args>(args)...);
@@ -379,21 +377,21 @@ class vector {
   void swap(vector& other) noexcept { _m_data._m_swap_data(other._m_data); }
 
  private:  // ----------------------------------------------------------------------------------------------------------
-  allocator_type::memory _m_allocate(size_type n) {
+  std::pair<difference_type, size_type> _m_allocate(size_type n) {
     if (n == 0) {
       return {-1, 0};
     }
-    return get_allocator().allocate_get_index(n);
+    return alloc_traits::allocate_at_least(n);
   }
   void _m_deallocate(pointer p, size_type n) {
     if (p) {
-      get_allocator().deallocate(p, n);
+      alloc_traits::deallocate(p, n);
     }
   }
 
-  pointer _m_start_ptr() const { return get_allocator().addr_from_offset(_m_data._m_start); }
-  pointer _m_finish_ptr() const { return get_allocator().addr_from_offset(_m_data._m_finish); }
-  pointer _m_end_of_storage_ptr() const { return get_allocator().addr_from_offset(_m_data._m_end_of_storage); }
+  pointer _m_start_ptr() const { return alloc_traits::offset_to_pointer(_m_data._m_start); }
+  pointer _m_finish_ptr() const { return alloc_traits::offset_to_pointer(_m_data._m_finish); }
+  pointer _m_end_of_storage_ptr() const { return alloc_traits::offset_to_pointer(_m_data._m_end_of_storage); }
 
   void _m_create_storage(size_type n) {
     auto [start, size] = _m_allocate(n);
@@ -468,12 +466,12 @@ class vector {
     pointer old_finish = _m_finish_ptr();
     auto [new_start, new_size] = _m_allocate(len);
     value_type* new_finish_ptr =
-        _m_uninitialized_move(old_start, old_finish, get_allocator().addr_from_offset(new_start));
+        _m_uninitialized_move(old_start, old_finish, alloc_traits::offset_to_pointer(new_start));
     _m_construct_at(new_finish_ptr, std::forward<T_Args>(args)...);
     new_finish_ptr++;
     _m_deallocate(old_start, capacity());
     _m_data._m_start = new_start;
-    _m_data._m_finish = get_allocator().offset_from_addr(new_finish_ptr);
+    _m_data._m_finish = alloc_traits::pointer_to_offset(new_finish_ptr);
     _m_data._m_end_of_storage = new_start + new_size;
   }
 
@@ -484,14 +482,14 @@ class vector {
     pointer old_finish = _m_finish_ptr();
     auto [new_start, new_capacity] = _m_allocate(len);
     value_type* new_finish_ptr =
-        _m_uninitialized_move(old_start, old_finish, get_allocator().addr_from_offset(new_start));
+        _m_uninitialized_move(old_start, old_finish, alloc_traits::offset_to_pointer(new_start));
     for (size_type i = size(); i < n; ++i) {
       _m_construct_at(new_finish_ptr, std::forward<T_Args>(args)...);
       new_finish_ptr++;
     }
     _m_deallocate(old_start, capacity());
     _m_data._m_start = new_start;
-    _m_data._m_finish = get_allocator().offset_from_addr(new_finish_ptr);
+    _m_data._m_finish = alloc_traits::pointer_to_offset(new_finish_ptr);
     _m_data._m_end_of_storage = new_start + new_capacity;
   }
 
@@ -501,10 +499,10 @@ class vector {
     pointer old_finish = _m_finish_ptr();
     auto [new_start, new_size] = _m_allocate(len);
     value_type* new_finish_ptr =
-        _m_uninitialized_move(old_start, old_finish, get_allocator().addr_from_offset(new_start));
+        _m_uninitialized_move(old_start, old_finish, alloc_traits::offset_to_pointer(new_start));
     _m_deallocate(old_start, capacity());
     _m_data._m_start = new_start;
-    _m_data._m_finish = get_allocator().offset_from_addr(new_finish_ptr);
+    _m_data._m_finish = alloc_traits::pointer_to_offset(new_finish_ptr);
     _m_data._m_end_of_storage = new_start + new_size;
   }
 
@@ -517,10 +515,10 @@ class vector {
     pointer old_finish = _m_finish_ptr();
     auto [new_start, new_size] = _m_allocate(n);
     value_type* new_finish_ptr =
-        _m_uninitialized_move(old_start, old_finish, get_allocator().addr_from_offset(new_start));
+        _m_uninitialized_move(old_start, old_finish, alloc_traits::offset_to_pointer(new_start));
     _m_deallocate(old_start, capacity());
     _m_data._m_start = new_start;
-    _m_data._m_finish = get_allocator().offset_from_addr(new_finish_ptr);
+    _m_data._m_finish = alloc_traits::pointer_to_offset(new_finish_ptr);
     _m_data._m_end_of_storage = new_start + new_size;
   }
 
@@ -543,13 +541,13 @@ class vector {
 
   template <typename... T_Args>
   void _m_construct_at(const_pointer addr, T_Args&&... args) {
-    std::construct_at(addr, std::forward<T_Args>(args)...);
+    alloc_traits::construct(addr, std::forward<T_Args>(args)...);
   }
 
   template <typename T_Iterator>
   void _m_destroy(T_Iterator first, T_Iterator last) {
     for (; first != last; ++first) {
-      std::destroy_at(std::addressof(*first));
+      alloc_traits::destroy(std::addressof(*first));
     }
   }
 
