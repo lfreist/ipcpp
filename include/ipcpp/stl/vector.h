@@ -5,10 +5,10 @@
  * This file is part of ipcpp.
  */
 
-#include <ipcpp/container/alloc_traits.h>
-#include <ipcpp/container/allocator.h>
-#include <ipcpp/container/concepts.h>
-#include <ipcpp/container/ipcpp_iterator.h>
+#include <ipcpp/stl/alloc_traits.h>
+#include <ipcpp/stl/allocator.h>
+#include <ipcpp/stl/concepts.h>
+#include <ipcpp/stl/ipcpp_iterator.h>
 
 #include <concepts>
 #include <format>

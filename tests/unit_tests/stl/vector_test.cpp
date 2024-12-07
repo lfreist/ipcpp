@@ -6,8 +6,8 @@
  */
 
 #include <gtest/gtest.h>
-#include <ipcpp/container/vector.h>
-#include <ipcpp/shm/dynamic_allocator.h>
+#include <ipcpp/stl/vector.h>
+#include <ipcpp/stl/allocator.h>
 
 #include <list>
 
@@ -68,6 +68,13 @@ TEST(ipcpp_vector, default_constructor) {
     EXPECT_EQ(vec.size(), 0);
     EXPECT_EQ(vec.capacity(), 0);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    EXPECT_TRUE(vec.empty());
+    EXPECT_EQ(vec.size(), 0);
+    EXPECT_EQ(vec.capacity(), 0);
+  }
 }
 
 TEST(ipcpp_vector, constructor_size_value) {
@@ -107,6 +114,13 @@ TEST(ipcpp_vector, constructor_size_value) {
     EXPECT_EQ(vec.size(), 6);
     EXPECT_GE(vec.capacity(), 6);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec(6, 1);
+    EXPECT_EQ(vec.size(), 6);
+    EXPECT_GE(vec.capacity(), 6);
+    EXPECT_TRUE(std::all_of(vec.begin(), vec.end(), [&](int i) { return i == 1; }));
+  }
 }
 
 TEST(ipcpp_vector, copy_constructor) {
@@ -116,7 +130,7 @@ TEST(ipcpp_vector, copy_constructor) {
     ipcpp::vector<int> copy(original);
     EXPECT_EQ(copy.size(), original.size());
     EXPECT_EQ(copy.capacity(), original.capacity());
-    EXPECT_TRUE(std::equal(copy.data(), copy.data() + copy.size(), original.data()));
+    EXPECT_TRUE(std::equal(copy.begin(), copy.end(), original.begin()));
   }
 
   {
@@ -124,7 +138,7 @@ TEST(ipcpp_vector, copy_constructor) {
     ipcpp::vector<double> copy(original);
     EXPECT_EQ(copy.size(), original.size());
     EXPECT_EQ(copy.capacity(), original.capacity());
-    EXPECT_TRUE(std::equal(copy.data(), copy.data() + copy.size(), original.data()));
+    EXPECT_TRUE(std::equal(copy.begin(), copy.end(), original.begin()));
   }
 
   {
@@ -132,7 +146,7 @@ TEST(ipcpp_vector, copy_constructor) {
     ipcpp::vector<std::string> copy(original);
     EXPECT_EQ(copy.size(), original.size());
     EXPECT_EQ(copy.capacity(), original.capacity());
-    EXPECT_TRUE(std::equal(copy.data(), copy.data() + copy.size(), original.data()));
+    EXPECT_TRUE(std::equal(copy.begin(), copy.end(), original.begin()));
   }
 
   {
@@ -140,7 +154,7 @@ TEST(ipcpp_vector, copy_constructor) {
     ipcpp::vector<CustomType> copy(original);
     EXPECT_EQ(copy.size(), original.size());
     EXPECT_EQ(copy.capacity(), original.capacity());
-    EXPECT_TRUE(std::equal(copy.data(), copy.data() + copy.size(), original.begin()));
+    EXPECT_TRUE(std::equal(copy.begin(), copy.end(), original.begin()));
   }
 
   {
@@ -148,7 +162,7 @@ TEST(ipcpp_vector, copy_constructor) {
     ipcpp::vector<void*> copy(original);
     EXPECT_EQ(copy.size(), original.size());
     EXPECT_EQ(copy.capacity(), original.capacity());
-    EXPECT_TRUE(std::equal(copy.data(), copy.data() + copy.size(), original.begin()));
+    EXPECT_TRUE(std::equal(copy.begin(), copy.end(), original.begin()));
   }
 
   {
@@ -159,6 +173,20 @@ TEST(ipcpp_vector, copy_constructor) {
     // Cannot copy std::unique_ptr, so this tests that copy is unavailable
     static_assert(!std::is_copy_constructible_v<ipcpp::vector<std::unique_ptr<int>>>);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> original{1, 2, 3, 4, 5};
+    ipcpp::vector<int> copy(original);
+    EXPECT_EQ(copy.size(), original.size());
+    EXPECT_TRUE(std::equal(copy.begin(), copy.end(), original.begin()));
+  }
+
+  {
+    ipcpp::vector<int> original{1, 2, 3, 4, 5};
+    ipcpp::vector<int, std::allocator<int>> copy(original);
+    EXPECT_EQ(copy.size(), original.size());
+    EXPECT_TRUE(std::equal(copy.begin(), copy.end(), original.begin()));
+  }
 }
 
 TEST(ipcpp_vector, move_constructor) {
@@ -166,7 +194,6 @@ TEST(ipcpp_vector, move_constructor) {
   {
     ipcpp::vector<int> original{1, 2, 3, 4, 5};
     ipcpp::vector<int> moved(std::move(original));
-    EXPECT_TRUE(original.empty());
     EXPECT_EQ(moved.size(), 5);
     EXPECT_GE(moved.capacity(), 5);
     EXPECT_EQ(moved, (ipcpp::vector<int>{1, 2, 3, 4, 5}));
@@ -175,7 +202,6 @@ TEST(ipcpp_vector, move_constructor) {
   {
     ipcpp::vector<double> original{3.14, 2.71, 1.61};
     ipcpp::vector<double> moved(std::move(original));
-    EXPECT_TRUE(original.empty());
     EXPECT_EQ(moved.size(), 3);
     EXPECT_GE(moved.capacity(), 3);
     EXPECT_EQ(moved, ipcpp::vector<double>({3.14, 2.71, 1.61}));
@@ -184,7 +210,6 @@ TEST(ipcpp_vector, move_constructor) {
   {
     ipcpp::vector<std::string> original{"one", "two", "three"};
     ipcpp::vector<std::string> moved(std::move(original));
-    EXPECT_TRUE(original.empty());
     EXPECT_EQ(moved.size(), 3);
     EXPECT_GE(moved.capacity(), 3);
     EXPECT_EQ(moved, (ipcpp::vector<std::string>{"one", "two", "three"}));
@@ -193,7 +218,6 @@ TEST(ipcpp_vector, move_constructor) {
   {
     ipcpp::vector<CustomType> original{{1, 2.5}, {3, 4.5}};
     ipcpp::vector<CustomType> moved(std::move(original));
-    EXPECT_TRUE(original.empty());
     EXPECT_EQ(moved.size(), 2);
     EXPECT_GE(moved.capacity(), 2);
     EXPECT_EQ(moved, (ipcpp::vector<CustomType>{{1, 2.5}, {3, 4.5}}));
@@ -204,10 +228,25 @@ TEST(ipcpp_vector, move_constructor) {
     original.push_back(std::make_unique<int>(10));
     original.push_back(std::make_unique<int>(20));
     ipcpp::vector<std::unique_ptr<int>> moved(std::move(original));
-    EXPECT_TRUE(original.empty());
     EXPECT_EQ(moved.size(), 2);
     EXPECT_EQ(*moved[0], 10);
     EXPECT_EQ(*moved[1], 20);
+  }
+
+  {
+    ipcpp::vector<int> original{1, 2, 3, 4, 5};
+    ipcpp::vector<int, std::allocator<int>> moved(std::move(original));
+    EXPECT_EQ(moved.size(), 5);
+    EXPECT_GE(moved.capacity(), 5);
+    EXPECT_EQ(moved, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 4, 5}));
+  }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> original{1, 2, 3, 4, 5};
+    ipcpp::vector<int> moved(std::move(original));
+    EXPECT_EQ(moved.size(), 5);
+    EXPECT_GE(moved.capacity(), 5);
+    EXPECT_EQ(moved, (ipcpp::vector<int>{1, 2, 3, 4, 5}));
   }
 }
 
@@ -219,7 +258,7 @@ TEST(ipcpp_vector, constructor_initializer_list) {
     EXPECT_GE(vec.capacity(), 5);
     EXPECT_EQ(vec, (ipcpp::vector<int>{1, 2, 3, 4, 5}));
   }
-  
+
   {
     ipcpp::vector<double> vec{3.14, 2.71, 1.61};
     EXPECT_EQ(vec.size(), 3);
@@ -247,6 +286,13 @@ TEST(ipcpp_vector, constructor_initializer_list) {
     EXPECT_GE(vec.capacity(), 2);
     EXPECT_EQ(vec, (ipcpp::vector<void*>{reinterpret_cast<void*>(0x1), reinterpret_cast<void*>(0x2)}));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3, 4, 5};
+    EXPECT_EQ(vec.size(), 5);
+    EXPECT_GE(vec.capacity(), 5);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 4, 5}));
+  }
 }
 
 TEST(ipcpp_vector, constructor_iterator) {
@@ -257,7 +303,7 @@ TEST(ipcpp_vector, constructor_iterator) {
     EXPECT_EQ(vec.size(), source.size());
     EXPECT_EQ(vec, source);
   }
-  
+
   {
     ipcpp::vector<double> source{3.14, 2.71, 1.61};
     ipcpp::vector<double> vec(source.begin(), source.end());
@@ -292,6 +338,27 @@ TEST(ipcpp_vector, constructor_iterator) {
     EXPECT_EQ(vec.size(), source.size());
     EXPECT_TRUE(std::equal(vec.begin(), vec.end(), source.begin()));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> source{1, 2, 3, 4, 5};
+    ipcpp::vector<int, std::allocator<int>> vec(source.begin(), source.end());
+    EXPECT_EQ(vec.size(), source.size());
+    EXPECT_EQ(vec, source);
+  }
+
+  {
+    ipcpp::vector<int> source{1, 2, 3, 4, 5};
+    ipcpp::vector<int, std::allocator<int>> vec(source.begin(), source.end());
+    EXPECT_EQ(vec.size(), source.size());
+    EXPECT_TRUE(std::equal(source.begin(), source.end(), vec.begin()));
+  }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> source{1, 2, 3, 4, 5};
+    ipcpp::vector<int> vec(source.begin(), source.end());
+    EXPECT_EQ(vec.size(), source.size());
+    EXPECT_TRUE(std::equal(source.begin(), source.end(), vec.begin()));
+  }
 }
 
 struct Tracker {
@@ -315,6 +382,22 @@ TEST(ipcpp_vector, destructor) {
     vec.push_back(std::make_unique<int>(20));
     EXPECT_EQ(vec.size(), 2);
   }
+
+  EXPECT_EQ(Tracker::active_count, 0);
+
+  {
+    ipcpp::vector<Tracker, std::allocator<Tracker>> vec(5);
+    EXPECT_EQ(Tracker::active_count, 5);
+  }
+
+  EXPECT_EQ(Tracker::active_count, 0);
+
+  {
+    ipcpp::vector<std::unique_ptr<int>, std::allocator<std::unique_ptr<int>>> vec;
+    vec.push_back(std::make_unique<int>(10));
+    vec.push_back(std::make_unique<int>(20));
+    EXPECT_EQ(vec.size(), 2);
+  }
 }
 
 TEST(ipcpp_vector, move_assign_operator) {
@@ -323,8 +406,7 @@ TEST(ipcpp_vector, move_assign_operator) {
     ipcpp::vector<int> source{1, 2, 3, 4, 5};
     ipcpp::vector<int> target;
     target = std::move(source);
-    
-    EXPECT_TRUE(source.empty());
+
     EXPECT_EQ(target.size(), 5);
     EXPECT_GE(target.capacity(), 5);
     EXPECT_EQ(target, (ipcpp::vector<int>{1, 2, 3, 4, 5}));
@@ -335,7 +417,6 @@ TEST(ipcpp_vector, move_assign_operator) {
     ipcpp::vector<double> target;
     target = std::move(source);
 
-    EXPECT_TRUE(source.empty());
     EXPECT_EQ(target.size(), 3);
     EXPECT_GE(target.capacity(), 3);
     EXPECT_EQ(target, (ipcpp::vector<double>{3.14, 2.71, 1.61}));
@@ -346,7 +427,6 @@ TEST(ipcpp_vector, move_assign_operator) {
     ipcpp::vector<std::string> target;
     target = std::move(source);
 
-    EXPECT_TRUE(source.empty());
     EXPECT_EQ(target.size(), 3);
     EXPECT_GE(target.capacity(), 3);
     EXPECT_EQ(target, (ipcpp::vector<std::string>{"one", "two", "three"}));
@@ -357,7 +437,6 @@ TEST(ipcpp_vector, move_assign_operator) {
     ipcpp::vector<CustomType> target;
     target = std::move(source);
 
-    EXPECT_TRUE(source.empty());
     EXPECT_EQ(target.size(), 2);
     EXPECT_GE(target.capacity(), 2);
     EXPECT_EQ(target, (ipcpp::vector<CustomType>{{1, 2.5}, {3, 4.5}}));
@@ -371,7 +450,6 @@ TEST(ipcpp_vector, move_assign_operator) {
     ipcpp::vector<std::unique_ptr<int>> target;
     target = std::move(source);
 
-    EXPECT_TRUE(source.empty());
     EXPECT_EQ(target.size(), 2);
     EXPECT_EQ(*target[0], 10);
     EXPECT_EQ(*target[1], 20);
@@ -384,7 +462,7 @@ TEST(ipcpp_vector, copy_assign_operator) {
     ipcpp::vector<int> source{1, 2, 3, 4, 5};
     ipcpp::vector<int> target;
     target = source;
-    
+
     EXPECT_EQ(source.size(), 5);
     EXPECT_EQ(target.size(), 5);
     EXPECT_EQ(source, target);
@@ -410,7 +488,7 @@ TEST(ipcpp_vector, copy_assign_operator) {
     EXPECT_EQ(source, target);
   }
 
-  {    
+  {
     ipcpp::vector<CustomType> source{{1, 2.5}, {3, 4.5}};
     ipcpp::vector<CustomType> target;
     target = source;
@@ -435,6 +513,16 @@ TEST(ipcpp_vector, copy_assign_operator) {
     source = source;
 
     EXPECT_EQ(source.size(), 2);
+  }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> source{1, 2, 3, 4, 5};
+    ipcpp::vector<int, std::allocator<int>> target;
+    target = std::move(source);
+
+    EXPECT_EQ(target.size(), 5);
+    EXPECT_GE(target.capacity(), 5);
+    EXPECT_EQ(target, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 4, 5}));
   }
 }
 
@@ -484,6 +572,15 @@ TEST(ipcpp_vector, ilist_assign_operator) {
     EXPECT_GE(vec.capacity(), 2);
     EXPECT_EQ(vec, (ipcpp::vector<void*>{reinterpret_cast<void*>(0x1), reinterpret_cast<void*>(0x2)}));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    vec = {1, 2, 3, 4, 5};
+
+    EXPECT_EQ(vec.size(), 5);
+    EXPECT_GE(vec.capacity(), 5);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 4, 5}));
+  }
 }
 
 TEST(ipcpp_vector, assign_size_value) {
@@ -491,7 +588,7 @@ TEST(ipcpp_vector, assign_size_value) {
   {
     ipcpp::vector<int> vec;
     vec.assign(5, 42);
-    
+
     EXPECT_EQ(vec.size(), 5);
     EXPECT_GE(vec.capacity(), 5);
     EXPECT_TRUE(std::all_of(vec.begin(), vec.end(), [](int x) { return x == 42; }));
@@ -515,13 +612,23 @@ TEST(ipcpp_vector, assign_size_value) {
     EXPECT_TRUE(std::all_of(vec.begin(), vec.end(), [](const std::string& s) { return s == "test"; }));
   }
 
-  {    
+  {
     ipcpp::vector<CustomType> vec;
     vec.assign(2, {42, 3.14});
 
     EXPECT_EQ(vec.size(), 2);
     EXPECT_GE(vec.capacity(), 2);
-    EXPECT_TRUE(std::all_of(vec.begin(), vec.end(), [](const CustomType& obj) { return obj.a == 42 && obj.b == 3.14; }));
+    EXPECT_TRUE(
+        std::all_of(vec.begin(), vec.end(), [](const CustomType& obj) { return obj.a == 42 && obj.b == 3.14; }));
+  }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    vec.assign(5, 42);
+
+    EXPECT_EQ(vec.size(), 5);
+    EXPECT_GE(vec.capacity(), 5);
+    EXPECT_TRUE(std::all_of(vec.begin(), vec.end(), [](int x) { return x == 42; }));
   }
 }
 
@@ -531,7 +638,7 @@ TEST(ipcpp_vector, assign_iterator) {
     ipcpp::vector<int> source{1, 2, 3, 4, 5};
     ipcpp::vector<int> vec;
     vec.assign(source.begin(), source.end());
-    
+
     EXPECT_EQ(vec.size(), source.size());
     EXPECT_GE(vec.capacity(), source.size());
     EXPECT_EQ(vec, source);
@@ -576,6 +683,36 @@ TEST(ipcpp_vector, assign_iterator) {
     EXPECT_GE(vec.capacity(), source.size());
     EXPECT_TRUE(std::equal(vec.begin(), vec.end(), source.begin()));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> source{1, 2, 3, 4, 5};
+    ipcpp::vector<int> vec;
+    vec.assign(source.begin(), source.end());
+
+    EXPECT_EQ(vec.size(), source.size());
+    EXPECT_GE(vec.capacity(), source.size());
+    EXPECT_TRUE(std::equal(source.begin(), source.end(), vec.begin()));
+  }
+
+  {
+    ipcpp::vector<int> source{1, 2, 3, 4, 5};
+    ipcpp::vector<int, std::allocator<int>> vec;
+    vec.assign(source.begin(), source.end());
+
+    EXPECT_EQ(vec.size(), source.size());
+    EXPECT_GE(vec.capacity(), source.size());
+    EXPECT_TRUE(std::equal(source.begin(), source.end(), vec.begin()));
+  }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> source{1, 2, 3, 4, 5};
+    ipcpp::vector<int, std::allocator<int>> vec;
+    vec.assign(source.begin(), source.end());
+
+    EXPECT_EQ(vec.size(), source.size());
+    EXPECT_GE(vec.capacity(), source.size());
+    EXPECT_EQ(vec, source);
+  }
 }
 
 TEST(ipcpp_vector, assign_initializer_list) {
@@ -583,7 +720,7 @@ TEST(ipcpp_vector, assign_initializer_list) {
   {
     ipcpp::vector<int> vec;
     vec.assign({1, 2, 3, 4, 5});
-    
+
     EXPECT_EQ(vec.size(), 5);
     EXPECT_GE(vec.capacity(), 5);
     EXPECT_EQ(vec, (ipcpp::vector<int>{1, 2, 3, 4, 5}));
@@ -624,6 +761,15 @@ TEST(ipcpp_vector, assign_initializer_list) {
     EXPECT_GE(vec.capacity(), 2);
     EXPECT_EQ(vec, (ipcpp::vector<void*>{reinterpret_cast<void*>(0x1), reinterpret_cast<void*>(0x2)}));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    vec.assign({1, 2, 3, 4, 5});
+
+    EXPECT_EQ(vec.size(), 5);
+    EXPECT_GE(vec.capacity(), 5);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 4, 5}));
+  }
 }
 
 TEST(ipcpp_vector, operator_at) {
@@ -635,7 +781,7 @@ TEST(ipcpp_vector, operator_at) {
     EXPECT_EQ(vec[2], 30);
     EXPECT_EQ(vec[3], 40);
     EXPECT_EQ(vec[4], 50);
-    
+
     vec[2] = 100;
     EXPECT_EQ(vec[0], 10);
     EXPECT_EQ(vec[1], 20);
@@ -699,6 +845,22 @@ TEST(ipcpp_vector, operator_at) {
     EXPECT_EQ(vec[1], reinterpret_cast<void*>(0x4));
     EXPECT_EQ(vec[2], reinterpret_cast<void*>(0x3));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    EXPECT_EQ(vec[0], 10);
+    EXPECT_EQ(vec[1], 20);
+    EXPECT_EQ(vec[2], 30);
+    EXPECT_EQ(vec[3], 40);
+    EXPECT_EQ(vec[4], 50);
+
+    vec[2] = 100;
+    EXPECT_EQ(vec[0], 10);
+    EXPECT_EQ(vec[1], 20);
+    EXPECT_EQ(vec[2], 100);
+    EXPECT_EQ(vec[3], 40);
+    EXPECT_EQ(vec[4], 50);
+  }
 }
 
 TEST(ipcpp_vector, at) {
@@ -710,7 +872,7 @@ TEST(ipcpp_vector, at) {
     EXPECT_EQ(vec.at(2), 30);
     EXPECT_EQ(vec.at(3), 40);
     EXPECT_EQ(vec.at(4), 50);
-    
+
     vec.at(2) = 100;
     EXPECT_EQ(vec.at(0), 10);
     EXPECT_EQ(vec.at(1), 20);
@@ -822,6 +984,33 @@ TEST(ipcpp_vector, at) {
     EXPECT_EQ(vec.at(2), reinterpret_cast<void*>(0x3));
     EXPECT_EQ(vec.at(3), reinterpret_cast<void*>(0x5));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    EXPECT_EQ(vec.at(0), 10);
+    EXPECT_EQ(vec.at(1), 20);
+    EXPECT_EQ(vec.at(2), 30);
+    EXPECT_EQ(vec.at(3), 40);
+    EXPECT_EQ(vec.at(4), 50);
+
+    vec.at(2) = 100;
+    EXPECT_EQ(vec.at(0), 10);
+    EXPECT_EQ(vec.at(1), 20);
+    EXPECT_EQ(vec.at(2), 100);
+    EXPECT_EQ(vec.at(3), 40);
+    EXPECT_EQ(vec.at(4), 50);
+
+    EXPECT_THROW(vec.at(5), std::out_of_range);
+    EXPECT_THROW(vec.at(-1), std::out_of_range);
+
+    vec.push_back(1);
+    EXPECT_EQ(vec.at(0), 10);
+    EXPECT_EQ(vec.at(1), 20);
+    EXPECT_EQ(vec.at(2), 100);
+    EXPECT_EQ(vec.at(3), 40);
+    EXPECT_EQ(vec.at(4), 50);
+    EXPECT_EQ(vec.at(5), 1);
+  }
 }
 
 TEST(ipcpp_vector, front) {
@@ -829,7 +1018,7 @@ TEST(ipcpp_vector, front) {
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     EXPECT_EQ(vec.front(), 10);
-    
+
     vec.front() = 99;
     EXPECT_EQ(vec.front(), 99);
   }
@@ -850,7 +1039,7 @@ TEST(ipcpp_vector, front) {
     EXPECT_EQ(vec.front(), "updated");
   }
 
-  {    
+  {
     ipcpp::vector<CustomType> vec{{1, 2.5}, {3, 4.5}, {5, 6.5}};
     EXPECT_EQ(vec.front(), (CustomType{1, 2.5}));
 
@@ -865,6 +1054,14 @@ TEST(ipcpp_vector, front) {
     vec.front() = reinterpret_cast<void*>(0x5);
     EXPECT_EQ(vec.front(), reinterpret_cast<void*>(0x5));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    EXPECT_EQ(vec.front(), 10);
+
+    vec.front() = 99;
+    EXPECT_EQ(vec.front(), 99);
+  }
 }
 
 TEST(ipcpp_vector, back) {
@@ -872,7 +1069,7 @@ TEST(ipcpp_vector, back) {
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     EXPECT_EQ(vec.back(), 50);
-    
+
     vec.back() = 99;
     EXPECT_EQ(vec.back(), 99);
 
@@ -923,6 +1120,17 @@ TEST(ipcpp_vector, back) {
     vec.push_back(reinterpret_cast<void*>(0xA));
     EXPECT_EQ(vec.back(), reinterpret_cast<void*>(0xA));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    EXPECT_EQ(vec.back(), 50);
+
+    vec.back() = 99;
+    EXPECT_EQ(vec.back(), 99);
+
+    vec.push_back(100);
+    EXPECT_EQ(vec.back(), 100);
+  }
 }
 
 TEST(ipcpp_vector, data) {
@@ -930,7 +1138,7 @@ TEST(ipcpp_vector, data) {
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     int* data_ptr = vec.data();
-    
+
     EXPECT_EQ(data_ptr[0], 10);
     EXPECT_EQ(data_ptr[1], 20);
     EXPECT_EQ(data_ptr[2], 30);
@@ -988,6 +1196,20 @@ TEST(ipcpp_vector, data) {
     data_ptr[1] = reinterpret_cast<void*>(0x5);
     EXPECT_EQ(vec[1], reinterpret_cast<void*>(0x5));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    int* data_ptr = vec.data();
+
+    EXPECT_EQ(data_ptr[0], 10);
+    EXPECT_EQ(data_ptr[1], 20);
+    EXPECT_EQ(data_ptr[2], 30);
+    EXPECT_EQ(data_ptr[3], 40);
+    EXPECT_EQ(data_ptr[4], 50);
+
+    data_ptr[2] = 100;
+    EXPECT_EQ(vec[2], 100);
+  }
 }
 
 TEST(ipcpp_vector, begin) {
@@ -995,7 +1217,7 @@ TEST(ipcpp_vector, begin) {
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto it = vec.begin();
-    
+
     EXPECT_EQ(*it, 10);
     ++it;
     EXPECT_EQ(*it, 20);
@@ -1059,6 +1281,20 @@ TEST(ipcpp_vector, begin) {
     *it = reinterpret_cast<void*>(0x5);
     EXPECT_EQ(vec[1], reinterpret_cast<void*>(0x5));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    auto it = vec.begin();
+
+    EXPECT_EQ(*it, 10);
+    ++it;
+    EXPECT_EQ(*it, 20);
+    ++it;
+    EXPECT_EQ(*it, 30);
+
+    *it = 100;
+    EXPECT_EQ(vec[2], 100);
+  }
 }
 
 TEST(ipcpp_vector, cbegin) {
@@ -1066,7 +1302,7 @@ TEST(ipcpp_vector, cbegin) {
   {
     const ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto it = vec.cbegin();
-    
+
     EXPECT_EQ(*it, 10);
     ++it;
     EXPECT_EQ(*it, 20);
@@ -1115,6 +1351,17 @@ TEST(ipcpp_vector, cbegin) {
     ++it;
     EXPECT_EQ(*it, reinterpret_cast<void*>(0x2));
   }
+
+  {
+    const ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    auto it = vec.cbegin();
+
+    EXPECT_EQ(*it, 10);
+    ++it;
+    EXPECT_EQ(*it, 20);
+    ++it;
+    EXPECT_EQ(*it, 30);
+  }
 }
 
 TEST(ipcpp_vector, rbegin) {
@@ -1122,7 +1369,7 @@ TEST(ipcpp_vector, rbegin) {
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto rit = vec.rbegin();
-    
+
     EXPECT_EQ(*rit, 50);
     ++rit;
     EXPECT_EQ(*rit, 40);
@@ -1186,6 +1433,20 @@ TEST(ipcpp_vector, rbegin) {
     *rit = reinterpret_cast<void*>(0x5);
     EXPECT_EQ(vec[0], reinterpret_cast<void*>(0x5));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    auto rit = vec.rbegin();
+
+    EXPECT_EQ(*rit, 50);
+    ++rit;
+    EXPECT_EQ(*rit, 40);
+    ++rit;
+    EXPECT_EQ(*rit, 30);
+
+    *rit = 99;
+    EXPECT_EQ(vec[2], 99);
+  }
 }
 
 TEST(ipcpp_vector, end) {
@@ -1193,7 +1454,7 @@ TEST(ipcpp_vector, end) {
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto it = vec.end();
-    
+
     --it;
     EXPECT_EQ(*it, 50);
     --it;
@@ -1262,6 +1523,21 @@ TEST(ipcpp_vector, end) {
     *it = reinterpret_cast<void*>(0x5);
     EXPECT_EQ(vec[0], reinterpret_cast<void*>(0x5));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    auto it = vec.end();
+
+    --it;
+    EXPECT_EQ(*it, 50);
+    --it;
+    EXPECT_EQ(*it, 40);
+    --it;
+    EXPECT_EQ(*it, 30);
+
+    *it = 99;
+    EXPECT_EQ(vec[2], 99);
+  }
 }
 
 TEST(ipcpp_vector, cend) {
@@ -1269,7 +1545,7 @@ TEST(ipcpp_vector, cend) {
   {
     const ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto it = vec.cend();
-    
+
     --it;
     EXPECT_EQ(*it, 50);
     --it;
@@ -1323,6 +1599,18 @@ TEST(ipcpp_vector, cend) {
     --it;
     EXPECT_EQ(*it, reinterpret_cast<void*>(0x1));
   }
+
+  {
+    const ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    auto it = vec.cend();
+
+    --it;
+    EXPECT_EQ(*it, 50);
+    --it;
+    EXPECT_EQ(*it, 40);
+    --it;
+    EXPECT_EQ(*it, 30);
+  }
 }
 
 TEST(ipcpp_vector, crbegin) {
@@ -1330,7 +1618,7 @@ TEST(ipcpp_vector, crbegin) {
   {
     const ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto rit = vec.crbegin();
-    
+
     EXPECT_EQ(*rit, 50);
     ++rit;
     EXPECT_EQ(*rit, 40);
@@ -1379,6 +1667,17 @@ TEST(ipcpp_vector, crbegin) {
     ++rit;
     EXPECT_EQ(*rit, reinterpret_cast<void*>(0x1));
   }
+
+  {
+    const ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    auto rit = vec.crbegin();
+
+    EXPECT_EQ(*rit, 50);
+    ++rit;
+    EXPECT_EQ(*rit, 40);
+    ++rit;
+    EXPECT_EQ(*rit, 30);
+  }
 }
 
 TEST(ipcpp_vector, crend) {
@@ -1386,7 +1685,7 @@ TEST(ipcpp_vector, crend) {
   {
     const ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto rit = vec.crend();
-    
+
     --rit;
     EXPECT_EQ(*rit, 10);
     --rit;
@@ -1440,6 +1739,18 @@ TEST(ipcpp_vector, crend) {
     --rit;
     EXPECT_EQ(*rit, reinterpret_cast<void*>(0x2));
   }
+
+  {
+    const ipcpp::vector<int, std::allocator<int>> vec{10, 20, 30, 40, 50};
+    auto rit = vec.crend();
+
+    --rit;
+    EXPECT_EQ(*rit, 10);
+    --rit;
+    EXPECT_EQ(*rit, 20);
+    --rit;
+    EXPECT_EQ(*rit, 30);
+  }
 }
 
 TEST(ipcpp_vector, empty) {
@@ -1447,7 +1758,7 @@ TEST(ipcpp_vector, empty) {
   {
     ipcpp::vector<int> vec;
     EXPECT_TRUE(vec.empty());
-    
+
     vec.push_back(10);
     EXPECT_FALSE(vec.empty());
 
@@ -1487,6 +1798,17 @@ TEST(ipcpp_vector, empty) {
     vec.push_back(reinterpret_cast<void*>(0x1));
     EXPECT_FALSE(vec.empty());
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    EXPECT_TRUE(vec.empty());
+
+    vec.push_back(10);
+    EXPECT_FALSE(vec.empty());
+
+    vec.clear();
+    EXPECT_TRUE(vec.empty());
+  }
 }
 
 TEST(ipcpp_vector, size) {
@@ -1494,7 +1816,7 @@ TEST(ipcpp_vector, size) {
   {
     ipcpp::vector<int> vec;
     EXPECT_EQ(vec.size(), 0);
-    
+
     vec.push_back(10);
     EXPECT_EQ(vec.size(), 1);
 
@@ -1551,6 +1873,20 @@ TEST(ipcpp_vector, size) {
     vec.clear();
     EXPECT_EQ(vec.size(), 0);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    EXPECT_EQ(vec.size(), 0);
+
+    vec.push_back(10);
+    EXPECT_EQ(vec.size(), 1);
+
+    vec.push_back(20);
+    EXPECT_EQ(vec.size(), 2);
+
+    vec.clear();
+    EXPECT_EQ(vec.size(), 0);
+  }
 }
 
 TEST(ipcpp_vector, max_size) {
@@ -1559,7 +1895,7 @@ TEST(ipcpp_vector, max_size) {
     ipcpp::vector<int> vec;
     EXPECT_EQ(vec.max_size(), ipcpp::pool_allocator<int>::get_singleton().max_size());
   }
-  
+
   {
     ipcpp::vector<double> vec{1.1, 2.2, 3.3};
     EXPECT_EQ(vec.max_size(), ipcpp::pool_allocator<double>::get_singleton().max_size());
@@ -1586,7 +1922,7 @@ TEST(ipcpp_vector, reserve_capacity) {
   {
     ipcpp::vector<int> vec;
     EXPECT_EQ(vec.capacity(), 0);
-    
+
     vec.reserve(5);
     EXPECT_GE(vec.capacity(), 5);
 
@@ -1658,6 +1994,25 @@ TEST(ipcpp_vector, reserve_capacity) {
     ipcpp::vector<int> vec;
     EXPECT_THROW(vec.reserve(vec.max_size() + 1), std::length_error);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    EXPECT_EQ(vec.capacity(), 0);
+
+    vec.reserve(5);
+    EXPECT_GE(vec.capacity(), 5);
+
+    vec.reserve(10);
+    EXPECT_GE(vec.capacity(), 10);
+
+    vec.reserve(5);
+    EXPECT_GE(vec.capacity(), 10);
+  }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    EXPECT_THROW(vec.reserve(vec.max_size() + 1), std::length_error);
+  }
 }
 
 TEST(ipcpp_vector, shrink_to_fit) {
@@ -1666,7 +2021,7 @@ TEST(ipcpp_vector, shrink_to_fit) {
     ipcpp::vector<int> vec;
     vec.reserve(10);
     EXPECT_GE(vec.capacity(), 10);
-    
+
     vec.shrink_to_fit();
     EXPECT_EQ(vec.capacity(), 0);
   }
@@ -1718,6 +2073,15 @@ TEST(ipcpp_vector, shrink_to_fit) {
 
   {
     ipcpp::vector<int> vec;
+    vec.shrink_to_fit();
+    EXPECT_EQ(vec.capacity(), 0);
+  }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    vec.reserve(10);
+    EXPECT_GE(vec.capacity(), 10);
+
     vec.shrink_to_fit();
     EXPECT_EQ(vec.capacity(), 0);
   }
@@ -1789,11 +2153,19 @@ TEST(ipcpp_vector, clear) {
     EXPECT_EQ(vec.size(), 0);
     EXPECT_TRUE(vec.empty());
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3, 4, 5};
+    EXPECT_EQ(vec.size(), 5);
+
+    vec.clear();
+    EXPECT_EQ(vec.size(), 0);
+    EXPECT_TRUE(vec.empty());
+  }
 }
 
 TEST(ipcpp_vector, insert_const_iterator) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
 
@@ -1867,11 +2239,19 @@ TEST(ipcpp_vector, insert_const_iterator) {
     EXPECT_EQ(vec.size(), 1);
     EXPECT_EQ(vec[0], 1);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3, 4, 5};
+
+    vec.insert(vec.cbegin() + 2, 10);
+    EXPECT_EQ(vec.size(), 6);
+    EXPECT_EQ(vec[2], 10);
+    EXPECT_EQ(vec[3], 3);
+  }
 }
 
 TEST(ipcpp_vector, insert_const_iterator_rvalue) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
 
@@ -1883,7 +2263,7 @@ TEST(ipcpp_vector, insert_const_iterator_rvalue) {
 
   {
     ipcpp::vector<double> vec{1.1, 2.2, 3.3};
-        
+
     vec.insert(vec.cbegin() + 1, 4.4);
     EXPECT_EQ(vec.size(), 4);
     EXPECT_EQ(vec[1], 4.4);
@@ -1892,7 +2272,7 @@ TEST(ipcpp_vector, insert_const_iterator_rvalue) {
 
   {
     ipcpp::vector<std::string> vec{"one", "two", "three"};
-        
+
     vec.insert(vec.cbegin(), "zero");
     EXPECT_EQ(vec.size(), 4);
     EXPECT_EQ(vec[0], "zero");
@@ -1910,7 +2290,7 @@ TEST(ipcpp_vector, insert_const_iterator_rvalue) {
 
   {
     ipcpp::vector<void*> vec{reinterpret_cast<void*>(0x1), reinterpret_cast<void*>(0x2)};
-        
+
     vec.insert(vec.cbegin(), reinterpret_cast<void*>(0x3));
     EXPECT_EQ(vec.size(), 3);
     EXPECT_EQ(vec[0], reinterpret_cast<void*>(0x3));
@@ -1919,7 +2299,7 @@ TEST(ipcpp_vector, insert_const_iterator_rvalue) {
   // Inserting at the end
   {
     ipcpp::vector<int> vec{1, 2, 3};
-        
+
     vec.insert(vec.cend(), 4);
     EXPECT_EQ(vec.size(), 4);
     EXPECT_EQ(vec[3], 4);
@@ -1928,7 +2308,7 @@ TEST(ipcpp_vector, insert_const_iterator_rvalue) {
   // Inserting at the beginning
   {
     ipcpp::vector<int> vec{2, 3, 4};
-        
+
     vec.insert(vec.cbegin(), 1);
     EXPECT_EQ(vec.size(), 4);
     EXPECT_EQ(vec[0], 1);
@@ -1937,16 +2317,24 @@ TEST(ipcpp_vector, insert_const_iterator_rvalue) {
   // Inserting into an empty vector
   {
     ipcpp::vector<int> vec;
-        
+
     vec.insert(vec.cbegin(), 1);
     EXPECT_EQ(vec.size(), 1);
     EXPECT_EQ(vec[0], 1);
+  }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3, 4, 5};
+
+    vec.insert(vec.cbegin() + 2, 10);
+    EXPECT_EQ(vec.size(), 6);
+    EXPECT_EQ(vec[2], 10);
+    EXPECT_EQ(vec[3], 3);
   }
 }
 
 TEST(ipcpp_vector, insert_count_value) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
   // Insert multiple values in the middle
   {
     ipcpp::vector<int> vec{1, 2, 6, 7};
@@ -2000,11 +2388,19 @@ TEST(ipcpp_vector, insert_count_value) {
     EXPECT_EQ(vec.size(), 4);
     EXPECT_EQ(vec, (ipcpp::vector<std::string>{"alpha", "beta", "beta", "omega"}));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 6, 7};
+
+    vec.insert(vec.begin() + 2, 3, 5);
+    EXPECT_EQ(vec.size(), 7);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 5, 5, 5, 6, 7}));
+  }
 }
 
 TEST(ipcpp_vector, insert_input_iterators) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Insert a range of integers in the middle
   {
     ipcpp::vector<int> vec{1, 2, 6, 7};
@@ -2073,11 +2469,20 @@ TEST(ipcpp_vector, insert_input_iterators) {
     EXPECT_EQ(vec.size(), 5);
     EXPECT_EQ(vec, (ipcpp::vector<int>{3, 4, 5, 1, 2}));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 6, 7};
+    std::list<int> range{3, 4, 5};
+
+    vec.insert(vec.begin() + 2, range.begin(), range.end());
+    EXPECT_EQ(vec.size(), 7);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 4, 5, 6, 7}));
+  }
 }
 
 TEST(ipcpp_vector, insert_initializer_list) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Insert initializer list in the middle
   {
     ipcpp::vector<int> vec{1, 2, 6, 7};
@@ -2123,12 +2528,20 @@ TEST(ipcpp_vector, insert_initializer_list) {
     EXPECT_EQ(vec.size(), 4);
     EXPECT_EQ(vec, (ipcpp::vector<std::string>{"alpha", "beta", "gamma", "delta"}));
   }
-}
 
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 6, 7};
+
+    vec.insert(vec.begin() + 2, {3, 4, 5});
+
+    EXPECT_EQ(vec.size(), 7);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 4, 5, 6, 7}));
+  }
+}
 
 TEST(ipcpp_vector, emplace) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
 
@@ -2190,6 +2603,15 @@ TEST(ipcpp_vector, emplace) {
     EXPECT_EQ(vec.size(), 1);
     EXPECT_EQ(vec[0], 1);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3, 4, 5};
+
+    vec.emplace(vec.begin() + 2, 10);
+    EXPECT_EQ(vec.size(), 6);
+    EXPECT_EQ(vec[2], 10);
+    EXPECT_EQ(vec[3], 3);
+  }
 }
 
 TEST(ipcpp_vector, erase_iterator) {
@@ -2245,6 +2667,16 @@ TEST(ipcpp_vector, erase_iterator) {
     EXPECT_EQ(vec, (ipcpp::vector<std::string>{"alpha", "gamma"}));
     EXPECT_EQ(*result, "gamma");
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3, 4, 5};
+
+    auto result = vec.erase(vec.begin() + 2);
+
+    EXPECT_EQ(vec.size(), 4);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 4, 5}));
+    EXPECT_EQ(*result, 4);
+  }
 }
 
 TEST(ipcpp_vector, erase_first_last_iterator) {
@@ -2253,8 +2685,6 @@ TEST(ipcpp_vector, erase_first_last_iterator) {
   // erase front
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
-
-    ipcpp::vector<int> vec2{1, 2, 3, 4, 5};
 
     auto result = vec.erase(vec.begin(), vec.begin() + 1);
 
@@ -2266,8 +2696,6 @@ TEST(ipcpp_vector, erase_first_last_iterator) {
   // erase multiple at front
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
-
-    ipcpp::vector<int> vec2{1, 2, 3, 4, 5};
 
     auto result = vec.erase(vec.begin(), vec.begin() + 2);
 
@@ -2281,8 +2709,6 @@ TEST(ipcpp_vector, erase_first_last_iterator) {
     ipcpp::vector<int> vec{10, 20, 30, 40};
     auto it = vec.begin();
 
-    ipcpp::vector<int> a{1, 2, 3};
-
     auto result = vec.erase(vec.begin(), vec.begin());
     EXPECT_EQ(vec.size(), 4);
     EXPECT_EQ(vec, (ipcpp::vector<int>{10, 20, 30, 40}));
@@ -2293,8 +2719,6 @@ TEST(ipcpp_vector, erase_first_last_iterator) {
   {
     ipcpp::vector<int> vec{10, 20, 30, 40};
     auto it = vec.begin();
-
-    ipcpp::vector<int> a{1, 2, 3};
 
     auto result = vec.erase(vec.begin() + 1, vec.begin());
     EXPECT_EQ(vec.size(), 4);
@@ -2353,11 +2777,21 @@ TEST(ipcpp_vector, erase_first_last_iterator) {
     EXPECT_EQ(vec, (ipcpp::vector<std::string>{"alpha"}));
     EXPECT_EQ(result, vec.end());
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3, 4, 5};
+
+    auto result = vec.erase(vec.begin(), vec.begin() + 1);
+
+    EXPECT_EQ(vec.size(), 4);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{2, 3, 4, 5}));
+    EXPECT_EQ(*result, 2);
+  }
 }
 
 TEST(ipcpp_vector, push_back_rvalue) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Push back single element
   {
     ipcpp::vector<int> vec;
@@ -2394,6 +2828,14 @@ TEST(ipcpp_vector, push_back_rvalue) {
     EXPECT_EQ(vec.size(), 2);
     EXPECT_EQ(vec, (ipcpp::vector<int>{42, 43}));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    vec.push_back(10);
+    EXPECT_EQ(vec.size(), 1);
+    EXPECT_GE(vec.capacity(), 1);
+    EXPECT_EQ(vec[0], 10);
+  }
 }
 
 TEST(ipcpp_vector, push_back_reference) {
@@ -2417,11 +2859,20 @@ TEST(ipcpp_vector, push_back_reference) {
     EXPECT_EQ(vec.size(), 3);
     EXPECT_EQ(vec, (ipcpp::vector<std::string>{"hello", "world", "!"}));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    int i = 10;
+    vec.push_back(i);
+    EXPECT_EQ(vec.size(), 1);
+    EXPECT_GE(vec.capacity(), 1);
+    EXPECT_EQ(vec[0], 10);
+  }
 }
 
 TEST(ipcpp_vector, emplace_back) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Emplace back single element
   {
     ipcpp::vector<int> vec;
@@ -2470,11 +2921,18 @@ TEST(ipcpp_vector, emplace_back) {
     EXPECT_EQ(vec.size(), 2);
     EXPECT_EQ(vec, (ipcpp::vector<int>{42, 43}));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec;
+    vec.emplace_back(10);
+    EXPECT_EQ(vec.size(), 1);
+    EXPECT_EQ(vec[0], 10);
+  }
 }
 
 TEST(ipcpp_vector, pop_back) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Pop back from a vector with multiple elements
   {
     ipcpp::vector<int> vec{1, 2, 3, 4};
@@ -2511,11 +2969,21 @@ TEST(ipcpp_vector, pop_back) {
     EXPECT_EQ(vec.size(), 0);
     EXPECT_TRUE(vec.empty());
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3, 4};
+    vec.pop_back();
+    EXPECT_EQ(vec.size(), 3);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3}));
+    vec.pop_back();
+    EXPECT_EQ(vec.size(), 2);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2}));
+  }
 }
 
 TEST(ipcpp_vector, resize) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Resize to a larger size with default value
   {
     ipcpp::vector<int> vec{1, 2, 3};
@@ -2577,11 +3045,18 @@ TEST(ipcpp_vector, resize) {
     vec.resize(3);
     EXPECT_EQ(vec.size(), 3);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3};
+    vec.resize(6);
+    EXPECT_EQ(vec.size(), 6);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 0, 0, 0}));
+  }
 }
 
 TEST(ipcpp_vector, resize_with_value) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Resize to a larger size with a specified value
   {
     ipcpp::vector<int> vec{1, 2, 3};
@@ -2643,11 +3118,18 @@ TEST(ipcpp_vector, resize_with_value) {
     vec.resize(3, 5);
     EXPECT_EQ(vec.size(), 3);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec{1, 2, 3};
+    vec.resize(6, 42);
+    EXPECT_EQ(vec.size(), 6);
+    EXPECT_EQ(vec, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 42, 42, 42}));
+  }
 }
 
 TEST(ipcpp_vector, swap) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Swap two vectors of equal size
   {
     ipcpp::vector<int> vec1{1, 2, 3};
@@ -2692,11 +3174,19 @@ TEST(ipcpp_vector, swap) {
     EXPECT_EQ(vec1, (ipcpp::vector<std::string>{"gamma", "delta", "epsilon"}));
     EXPECT_EQ(vec2, (ipcpp::vector<std::string>{"alpha", "beta"}));
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec1{1, 2, 3};
+    ipcpp::vector<int, std::allocator<int>> vec2{4, 5, 6};
+    vec1.swap(vec2);
+    EXPECT_EQ(vec1, (ipcpp::vector<int, std::allocator<int>>{4, 5, 6}));
+    EXPECT_EQ(vec2, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3}));
+  }
 }
 
 TEST(ipcpp_vector, operator_equal) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Compare two equal vectors
   {
     ipcpp::vector<int> vec1{1, 2, 3};
@@ -2740,11 +3230,17 @@ TEST(ipcpp_vector, operator_equal) {
     ipcpp::vector<std::string> vec3{"alpha", "beta", "delta"};
     EXPECT_FALSE(vec1 == vec3);
   }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec1{1, 2, 3};
+    ipcpp::vector<int, std::allocator<int>> vec2{1, 2, 3};
+    EXPECT_TRUE(vec1 == vec2);
+  }
 }
 
 TEST(ipcpp_vector, operator_spaceship) {
   ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
-  
+
   // Compare vectors that are equal
   {
     ipcpp::vector<int> vec1{1, 2, 3};
@@ -2790,5 +3286,11 @@ TEST(ipcpp_vector, operator_spaceship) {
   {
     ipcpp::vector<int> vec{1, 2, 3};
     EXPECT_TRUE((vec <=> vec) == 0);
+  }
+
+  {
+    ipcpp::vector<int, std::allocator<int>> vec1{1, 2, 3};
+    ipcpp::vector<int, std::allocator<int>> vec2{1, 2, 3};
+    EXPECT_TRUE((vec1 <=> vec2) == 0);
   }
 }
