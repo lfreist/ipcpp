@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <ipcpp/container/fixed_size_stack.h>
+#include <ipcpp/stl/fixed_size_stack.h>
 
 #include <cstdint>
 #include <span>
@@ -27,14 +27,14 @@ inline std::size_t align_up(std::size_t size, std::size_t alignment = 16) {
  *  StackHeader stores a shared_mutex for safe access from different processes, the head of the stack and the stacks
  *   capacity (n), allowing full construction of a ChunkAllocator from already constructed data.
  *  StackData are the indexes (0, ..., n-1) of the Chunks
- *  Chunk_i is a series of bytes of size sizeof(T) that is yielded by allocate()
+ *  Chunk_i is a series of _m_num_bytes of size sizeof(T) that is yielded by allocate()
  *
  * @tparam T
  */
 template <typename T>
 class ChunkAllocator {
   struct StackHeader {
-    SharedMutex mutex;
+    shared_mutex mutex;
     /// points to the first free slot
     std::ptrdiff_t head = 0;
     /// capacity of the stack
@@ -101,7 +101,7 @@ class ChunkAllocator {
   }
 
   std::size_t allocate_get_index() {
-    UniqueLock lock(_stack_header->mutex);
+    std::unique_lock lock(_stack_header->mutex);
     if (_stack_header->head == 0) {
       throw std::bad_alloc();
     }
@@ -112,12 +112,12 @@ class ChunkAllocator {
     if (t == nullptr) {
       return;
     }
-    UniqueLock lock(_stack_header->mutex);
+    std::unique_lock lock(_stack_header->mutex);
     push_to_stack(ptr_to_index(t));
   }
 
   void deallocate(std::size_t index) {
-    UniqueLock(_stack_header->mutex);
+    std::unique_lock(_stack_header->mutex);
     push_to_stack(index);
   }
 

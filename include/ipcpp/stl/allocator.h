@@ -55,7 +55,7 @@ class pool_allocator : public detail::allocator_factory_base {
   struct Header {
     const size_type size;
     difference_type list_head_offset;
-    Mutex mutex;
+    mutex mutex_;
   };
 
   struct AllocatorListNode {
@@ -157,11 +157,11 @@ class pool_allocator : public detail::allocator_factory_base {
 
   /**
    * @brief Allocate n value_types and get pointer to first value_type.
-   *  Actually align_up(n * sizeof(value_type) bytes are allocated. E.g. when allocating a single int (4 bytes), a chunk
-   *  of 16 bytes is allocated.
+   *  Actually align_up(n * sizeof(value_type) bytes are allocated. E.g. when allocating a single int (4 _m_num_bytes), a chunk
+   *  of 16 _m_num_bytes is allocated.
    *
    *  TODO: for small allocations as in the example (a single int), a separate bin should be initialized to prevent
-   *   allocation of too many too large chunks (e.g. separate allocation of 4 ints results in 64 bytes but only 16 bytes
+   *   allocation of too many too large chunks (e.g. separate allocation of 4 ints results in 64 bytes but only 16 _m_num_bytes
    *   are needed)
    *
    * @param n
@@ -175,17 +175,17 @@ class pool_allocator : public detail::allocator_factory_base {
    * @return
    */
   difference_type allocate_offset(size_type n) {
-    UniqueLock lock(_header->mutex);
+    std::unique_lock lock(_header->mutex_);
     return _m_allocate_from_list(align_up(n * sizeof(value_type))).first;
   }
 
   std::pair<pointer, size_type> allocate_at_least(size_type n) {
-    UniqueLock lock(_header->mutex);
+    std::unique_lock lock(_header->mutex_);
     return _m_allocate_from_list_ptr(align_up(n * sizeof(value_type)));
   }
 
   std::pair<difference_type, size_type> allocate_at_least_offset(size_type n) {
-    UniqueLock lock(_header->mutex);
+    std::unique_lock lock(_header->mutex_);
     return _m_allocate_from_list(align_up(n * sizeof(value_type)));
   }
 
@@ -196,7 +196,7 @@ class pool_allocator : public detail::allocator_factory_base {
    * @param n
    */
   void deallocate(value_type* p, size_type n) {
-    UniqueLock lock(_header->mutex);
+    std::unique_lock lock(_header->mutex_);
     auto* node =
         reinterpret_cast<AllocatorListNode*>(reinterpret_cast<uint8_t*>(p) - align_up(sizeof(AllocatorListNode)));
     node->is_free = true;
@@ -221,7 +221,7 @@ class pool_allocator : public detail::allocator_factory_base {
    * @return
    */
   [[nodiscard]] size_type allocated_size() const noexcept {
-    UniqueLock lock(_header->mutex);
+    std::unique_lock lock(_header->mutex_);
     auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
     size_type size = 0;
     while (node != nullptr) {
@@ -239,7 +239,7 @@ class pool_allocator : public detail::allocator_factory_base {
    * @return
    */
   [[nodiscard]] size_type allocated_data_size() const noexcept {
-    UniqueLock lock(_header->mutex);
+    std::unique_lock lock(_header->mutex_);
     auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
     size_type size = 0;
     while (node != nullptr) {
@@ -263,7 +263,7 @@ class pool_allocator : public detail::allocator_factory_base {
    * @return
    */
   [[nodiscard]] double fragmentation() {
-    UniqueLock lock(_header->mutex);
+    std::unique_lock lock(_header->mutex__);
     size_type largest_free_block = 0;
     size_type total_free_memory = 0;
     auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
@@ -308,7 +308,7 @@ class pool_allocator : public detail::allocator_factory_base {
 
  private:
   std::pair<pointer, size_type> _m_allocate_from_list_ptr(size_type bytes) {
-    assert(_header->mutex.is_locked());
+    assert(_header->mutex__.is_locked());
     auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
     while (true) {
       if (node->is_free && node->size >= bytes) {
@@ -337,12 +337,12 @@ class pool_allocator : public detail::allocator_factory_base {
    * @brief Return the offset of the allocated chunk without AllocatorListNode
    *  | AllocatorListNode | data ... |
    *                      ^
-   *                      return this bytes index
+   *                      return this _m_num_bytes index
    * @param size_bytes
    * @return
    */
   std::pair<difference_type, size_type> _m_allocate_from_list(size_type size_bytes) {
-    assert(_header->mutex.is_locked());
+    assert(_header->mutex_.is_locked());
     auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
     while (true) {
       if (node->is_free && node->size >= size_bytes) {
@@ -373,7 +373,7 @@ class pool_allocator : public detail::allocator_factory_base {
    * @param new_nodes_size
    */
   void _m_insert_node(AllocatorListNode* node, difference_type new_nodes_offset, size_type new_nodes_size) {
-    assert(_header->mutex.is_locked());
+    assert(_header->mutex_.is_locked());
     difference_type next_offset = node->next_offset;
     node->next_offset = new_nodes_offset;
     auto p = pointer_to_offset(node);
@@ -392,7 +392,7 @@ class pool_allocator : public detail::allocator_factory_base {
    * @param node
    */
   void _m_merge_forward(AllocatorListNode* node) {
-    assert(_header->mutex.is_locked());
+    assert(_header->mutex_.is_locked());
     if (node->next_offset == invalid_offset) {
       return;
     }
@@ -424,7 +424,7 @@ class pool_allocator : public detail::allocator_factory_base {
    * @param node
    */
   void _m_merge_backward(AllocatorListNode* node) {
-    assert(_header->mutex.is_locked());
+    assert(_header->mutex_.is_locked());
     if (node->prev_offset == invalid_offset) {
       return;
     }
@@ -451,7 +451,7 @@ class pool_allocator : public detail::allocator_factory_base {
   }
 
  private:
-  /// located in provided memory right before _memory. aligned at 16 bytes
+  /// located in provided memory right before _memory. aligned at 16 _m_num_bytes
   Header* _header = nullptr;
   /// located in provided memory right after aligned _header
   void* _memory = nullptr;

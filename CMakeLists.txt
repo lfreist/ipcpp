@@ -20,7 +20,7 @@ FetchContent_Declare(
         GIT_TAG v1.11.0
 )
 
-# FetchContent_MakeAvailable(spdlog)
+FetchContent_MakeAvailable(spdlog)
 
 include_directories(${PROJECT_SOURCE_DIR}/include/)
 add_subdirectory(src)

@@ -23,7 +23,7 @@ int main() {
       while (true) {
         auto value = subscriber.receive_one(
             [](Notification notification) {
-              std::cout << "Received " << notification.size << " bytes" << std::endl;
+              std::cout << "Received " << notification.size << " _m_num_bytes" << std::endl;
               return true;
             });
         if (!value.has_value()) {

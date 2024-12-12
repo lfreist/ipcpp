@@ -48,7 +48,7 @@ class SharedAddressSpace {
 // _____________________________________________________________________________________________________________________
 template <AccessMode A>
 std::expected<SharedAddressSpace, error::MemoryError> SharedAddressSpace::create(std::string&& path, std::size_t size) {
-  int o_flags;
+  int o_flags = 0;
   if constexpr (A == AccessMode::WRITE) {
     o_flags = O_RDWR | O_CREAT;
   } else if constexpr (A == AccessMode::READ) {
@@ -58,8 +58,7 @@ std::expected<SharedAddressSpace, error::MemoryError> SharedAddressSpace::create
   SharedAddressSpace self(std::move(path), size);
   self._access_mode = A;
 
-
-  int fd = shm_open(self._path.c_str(), o_flags, 0666);
+  const int fd = shm_open(self._path.c_str(), o_flags, 0666);
   if (fd == -1) {
     return std::unexpected(error::MemoryError::CREATION_ERROR);
   }

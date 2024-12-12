@@ -6,17 +6,21 @@
  */
 
 #include <ipcpp/publish_subscribe/broadcast_publisher.h>
+#include <ipcpp/event/shm_atomic_notifier.h>
 #include <ipcpp/utils/io.h>
-#include <spdlog/spdlog.h>
+#include <ipcpp/publish_subscribe/notification.h>
+
+#include <print>
 
 #include "message.h"
 
 int main(int argc, char** argv) {
-  auto expected_broadcaster = ipcpp::publish_subscribe::Broadcaster<Message>::create("broadcaster", 10, 2048, 4096);
-  if (expected_broadcaster.has_value()) {
+  spdlog::set_level(spdlog::level::debug);
+  if (auto expected_broadcaster = ipcpp::publish_subscribe::Broadcaster<Message, ipcpp::event::ShmAtomicNotifier<ipcpp::publish_subscribe::Notification>>::create("broadcaster", 10, 2048, 4096);
+      expected_broadcaster.has_value()) {
     auto& broadcaster = expected_broadcaster.value();
     while (true) {
-      Message message{.timestamp=ipcpp::utils::timestamp(), .data=ipcpp::vector<char>()};
+      Message message{.timestamp=ipcpp::utils::timestamp(), .message_type=MessageType::REGULAR, .data=ipcpp::vector<char>()};
       std::cout << "Enter message: ";
       while (true) {
         char c;
@@ -26,8 +30,14 @@ int main(int argc, char** argv) {
         }
         message.data.push_back(c);
       }
-      broadcaster.publish(message);
-      spdlog::info("published {}", std::string_view(message.data.data(), message.data.size()));
+      if (message.data == ipcpp::vector<char>({'e', 'x', 'i', 't'})) {
+        std::println("sending EXIT message");
+        message.message_type = MessageType::EXIT;
+        broadcaster.publish(message);
+        break;
+      }
+      std::println("publishing {}", std::string_view(message.data.data(), message.data.size()));
+      broadcaster.publish(std::move(message));
     }
   }
 }

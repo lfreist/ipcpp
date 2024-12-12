@@ -11,7 +11,6 @@
 #include <cstdint>
 #include <memory>
 #include <span>
-#include <stdexcept>
 
 namespace ipcpp::shm {
 
@@ -39,7 +38,7 @@ class MappedMemory {
   template <AccessMode A>
   static std::expected<MappedMemory, error::MappingError> create(std::string&& shm_id, std::size_t size);
 
-  void msync(bool sync) { ::msync(_mapped_region, _size, sync ? MS_SYNC : MS_ASYNC); }
+  void msync(const bool sync) const { ::msync(_mapped_region, _size, sync ? MS_SYNC : MS_ASYNC); }
 
   void release() noexcept {
     _mapped_region = nullptr;
@@ -47,8 +46,8 @@ class MappedMemory {
   }
 
   template <typename T>
-  T* data(std::size_t offset = 0) {
-    return (T*)((uint8_t*)_mapped_region + offset);
+  T* data(const std::size_t offset = 0) {
+    return static_cast<T*>(static_cast<uint8_t*>(_mapped_region) + offset);
   }
 
   [[nodiscard]] std::size_t size() const { return _size; }
@@ -77,12 +76,12 @@ template <>
 template <AccessMode A>
 std::expected<MappedMemory<MappingType::SINGLE>, error::MappingError> MappedMemory<MappingType::SINGLE>::create(
     SharedAddressSpace&& shared_address_space) {
-  MappedMemory<MappingType::SINGLE> self(std::move(shared_address_space));
+  MappedMemory self(std::move(shared_address_space));
 
   self._size = self._shared_address_space.size();
   self._total_size = self._shared_address_space.size();
   auto result =
-      MappedMemory<MappingType::SINGLE>::map_memory<A>(self._size, nullptr, self._shared_address_space.fd(), 0);
+      MappedMemory::map_memory<A>(self._size, nullptr, self._shared_address_space.fd(), 0);
   if (result.has_value()) {
     self._mapped_region = result.value();
   } else {
@@ -97,7 +96,7 @@ template <>
 template <AccessMode A>
 std::expected<MappedMemory<MappingType::DOUBLE>, error::MappingError> MappedMemory<MappingType::DOUBLE>::create(
     SharedAddressSpace&& shared_address_space) {
-  MappedMemory<MappingType::DOUBLE> self(std::move(shared_address_space));
+  MappedMemory self(std::move(shared_address_space));
 
   self._size = self._shared_address_space.size();
   self._total_size = self._shared_address_space.size() + self._shared_address_space.size();
@@ -106,8 +105,8 @@ std::expected<MappedMemory<MappingType::DOUBLE>, error::MappingError> MappedMemo
     return std::unexpected(double_mapping.error());
   }
   self._mapped_region = double_mapping.value();
-  auto first_mapping = map_memory<A>(self._size, self._mapped_region, self._shared_address_space.fd(), 0);
-  if (!first_mapping.has_value()) {
+  if (auto first_mapping = map_memory<A>(self._size, self._mapped_region, self._shared_address_space.fd(), 0);
+      !first_mapping.has_value()) {
     return std::unexpected(first_mapping.error());
   }
   auto second_mapping = map_memory<A>(self._size, static_cast<uint8_t*>(self._mapped_region) + self._size,
@@ -123,19 +122,19 @@ std::expected<MappedMemory<MappingType::DOUBLE>, error::MappingError> MappedMemo
 template <>
 template <AccessMode A>
 std::expected<MappedMemory<MappingType::SINGLE>, error::MappingError> MappedMemory<MappingType::SINGLE>::create(
-    std::string&& shm_id, std::size_t size) {
+    std::string&& shm_id, const std::size_t size) {
   auto shm_result = SharedAddressSpace::create<A>(std::move(shm_id), size);
   if (!shm_result.has_value()) {
     return std::unexpected(error::MappingError::SHM_ERROR);
   }
-  return MappedMemory<MappingType::SINGLE>::create<A>(std::move(shm_result.value()));
+  return MappedMemory::create<A>(std::move(shm_result.value()));
 }
 
 // _____________________________________________________________________________________________________________________
 template <>
 template <AccessMode A>
 std::expected<MappedMemory<MappingType::DOUBLE>, error::MappingError> MappedMemory<MappingType::DOUBLE>::create(
-    std::string&& shm_id, std::size_t size) {
+    std::string&& shm_id, const std::size_t size) {
   auto shm_result = SharedAddressSpace::create<A>(std::move(shm_id), size);
   if (!shm_result.has_value()) {
     return std::unexpected(error::MappingError::SHM_ERROR);
@@ -146,8 +145,8 @@ std::expected<MappedMemory<MappingType::DOUBLE>, error::MappingError> MappedMemo
 // _____________________________________________________________________________________________________________________
 template <MappingType MT>
 template <AccessMode A>
-std::expected<void*, error::MappingError> MappedMemory<MT>::map_memory(std::size_t expected_size, void* start_addr,
-                                                                       int fd, std::size_t offset) {
+std::expected<void*, error::MappingError> MappedMemory<MT>::map_memory(const std::size_t expected_size, void* start_addr, const int fd,
+                                                                       const std::size_t offset) {
   int protect_flags = PROT_READ;
   if constexpr (A == AccessMode::WRITE) {
     protect_flags |= PROT_WRITE;
@@ -168,7 +167,7 @@ std::expected<void*, error::MappingError> MappedMemory<MT>::map_memory(std::size
   void* const mapped_region = ::mmap(start_addr, expected_size, protect_flags, flags, fd, static_cast<__off_t>(offset));
 
   if (mapped_region == MAP_FAILED) {
-    return std::unexpected(error::MappingError(errno));
+    return std::unexpected(static_cast<error::MappingError>(errno));
   }
 
   if (start_addr && start_addr != mapped_region) {

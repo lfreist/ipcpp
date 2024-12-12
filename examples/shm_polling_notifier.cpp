@@ -5,13 +5,31 @@
  * This file is part of ipcpp.
  */
 
-#include <ipcpp/event/shm_polling_notifier.h>
+#include <ipcpp/event/shm_atomic_notifier.h>
+#include <ipcpp/event/shm_notification_memory_layout.h>
+#include <ipcpp/shm/factory.h>
 
-struct Notification {
-  int64_t timestamp;
+#include <chrono>
+#include <thread>
+
+using namespace std::chrono_literals;
+
+struct Message {
+  std::size_t message_number;
+  std::int64_t timestamp;
+  std::size_t index;
 };
 
 int main(int argc, char** argv) {
-  ipcpp::event::ShmPollingNotifier<Notification>::Config config {.queue_capacity=10, .shm_id="ipcpp.shm"};
-  auto exected_notifier = ipcpp::event::ShmPollingNotifier<Notification>::create(std::move(config));
+  spdlog::set_level(spdlog::level::debug);
+  auto expected_notifier = ipcpp::event::ShmAtomicNotifier<Message>::create("shm_notifier", 4096);
+  if (!expected_notifier) {
+    std::cerr << "Failed to create shm_notifier" << std::endl;
+    return 1;
+  }
+  auto notifier = std::move(expected_notifier.value());
+  for (std::size_t i = 0; i < 100; ++i) {
+    notifier.notify_observers({i, ipcpp::utils::timestamp(), 0});
+    std::this_thread::sleep_for(1000ms);
+  }
 }

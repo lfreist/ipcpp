@@ -45,5 +45,6 @@ enum class MappingError {
 
 std::ostream& operator<<(std::ostream& os, AccessError error);
 std::ostream& operator<<(std::ostream& os, MemoryError error);
+std::ostream& operator<<(std::ostream& os, MappingError error);
 
 }

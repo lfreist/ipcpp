@@ -14,7 +14,7 @@
 #include <mutex>
 #include <shared_mutex>
 
-namespace ipcpp::utils {
+namespace ipcpp {
 
 // --- Forward Declarations --------------------------------------------------------------------------------------------
 template <typename S, bool is_shared, bool is_const>
@@ -26,15 +26,15 @@ struct ConstructWithMutex {};
 /**
  * Synchronizes an object: Attaches a mutex to a given type and only allows locked access to this type.
  *
- * Adopted from [folly::synchronized](https://github.com/facebook/folly/blob/main/folly/Synchronized.h).
+ * Adopted from [folly::synchronized](https://github.com/facebook/folly/blob/main/folly/synchronized.h).
  *  Only implements most basic functionality of folly::synchronized
  *
  * @tparam T - Thy underlying type
  * @tparam M - A Lockable type (c.f. fcore/concepts.h). Defaults to std::shared_mutex
  */
 template <typename T, typename M = std::shared_mutex>
-  requires concepts::Lockable<M> && std::is_move_assignable_v<T> && std::is_move_constructible_v<T>
-class Synchronized {
+  requires concepts::lockable<M> && std::is_move_assignable_v<T> && std::is_move_constructible_v<T>
+class synchronized {
   template <typename S, bool is_shared, bool is_const>
   friend class LockedPtrAccess;
 
@@ -43,28 +43,28 @@ class Synchronized {
 
  public:
   /// not copyable
-  Synchronized(const Synchronized&) = delete;
-  Synchronized& operator=(const Synchronized&) = delete;
+  synchronized(const synchronized&) = delete;
+  synchronized& operator=(const synchronized&) = delete;
 
   /// default movable
-  Synchronized(Synchronized&&) noexcept = default;
-  Synchronized& operator=(Synchronized&&) noexcept = default;
+  synchronized(synchronized&&) noexcept = default;
+  synchronized& operator=(synchronized&&) noexcept = default;
 
   /// default constructor: requires T to be default initializable
-  Synchronized()
+  synchronized()
     requires std::default_initializable<T>
   = default;
-  ~Synchronized() = default;
+  ~synchronized() = default;
 
-  /// Constructor for not copy and not move (Arg must not be type Synchronized)
+  /// Constructor for not copy and not move (Arg must not be type synchronized)
   template <typename Arg, typename... Args>
-    requires(!std::same_as<std::remove_cvref_t<Arg>, Synchronized>)
-  explicit(sizeof...(Args) == 0) Synchronized(Arg&& arg, Args&&... args)
+    requires(!std::same_as<std::remove_cvref_t<Arg>, synchronized>)
+  explicit(sizeof...(Args) == 0) synchronized(Arg&& arg, Args&&... args)
       : _data(std::forward<Arg>(arg), std::forward<Args>(args)...), _mutex_like() {}
 
   /// Constructor accepting a lockable/mutex_like type (c.f. concepts.h)
   template <typename... Args>
-  Synchronized(ConstructWithMutex _, M mutex, Args&&... args)
+  synchronized(ConstructWithMutex _, M mutex, Args&&... args)
       : _data(std::forward<Args>(args)...), _mutex_like(mutex) {}
 
   /**
@@ -118,7 +118,7 @@ class Synchronized {
    *
    * @return LockedPtrAccess<T>
    */
-  LockedPtrAccess<Synchronized, false, false> wlock() { return LockedPtrAccess<Synchronized, false, false>(this); }
+  LockedPtrAccess<synchronized, false, false> wlock() { return LockedPtrAccess<synchronized, false, false>(this); }
 
   /**
    * Obtain const locked pointer like access to underlying data.
@@ -129,7 +129,7 @@ class Synchronized {
    *
    * @return
    */
-  LockedPtrAccess<Synchronized, false, true> wlock() const { return LockedPtrAccess<Synchronized, false, true>(this); }
+  LockedPtrAccess<synchronized, false, true> wlock() const { return LockedPtrAccess<synchronized, false, true>(this); }
 
   /**
    * Obtain locked const pointer like access to underlying data.
@@ -143,8 +143,8 @@ class Synchronized {
    */
   template <typename M_ = M>
     requires concepts::SharedLockable<M_>
-  LockedPtrAccess<Synchronized, true, true> rlock() const {
-    return LockedPtrAccess<Synchronized, true, true>(this);
+  LockedPtrAccess<synchronized, true, true> rlock() const {
+    return LockedPtrAccess<synchronized, true, true>(this);
   }
 
  private:
@@ -158,22 +158,22 @@ class Synchronized {
  * Pointer like thread-safe access to some data.
  *  A mutex gets locked on construction and unlocked on destruction.
  *
- * @tparam S - Synchronized type
+ * @tparam S - synchronized type
  * @tparam is_shared_lock [bool] - indicated shared lock capabilities of underlying mutex
  * @tparam is_const [bool] - indicates const qualification of underlying type
  */
 template <typename S, bool is_shared_lock, bool is_const>
 class LockedPtrAccess {
   template <typename T, typename M>
-    requires concepts::Lockable<M> && std::is_move_assignable_v<T> && std::is_move_constructible_v<T>
-  friend class Synchronized;
+    requires concepts::lockable<M> && std::is_move_assignable_v<T> && std::is_move_constructible_v<T>
+  friend class synchronized;
 
   using value_type = typename S::value_type;
   using ptr_type = std::conditional_t<is_const, const S* const, S* const>;
 
  private:
   /**
-   * Private Constructor: only Synchronized is allowed to construct a LockedPtrAccess
+   * Private Constructor: only synchronized is allowed to construct a LockedPtrAccess
    *
    * @param s
    */
@@ -221,4 +221,4 @@ class LockedPtrAccess {
   ptr_type _s;
 };
 
-}  // namespace ipcpp::utils
+}  // namespace ipcpp

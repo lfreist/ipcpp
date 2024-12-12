@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <ipcpp/event/error.h>
+
 #include <concepts>
 #include <string>
 
@@ -23,6 +25,11 @@ class Notifier_I {
   virtual ~Notifier_I() = default;
 
   virtual void notify_observers(notification_type notification) = 0;
+
+  [[nodiscard]] virtual std::size_t num_observers() const = 0;
+
+  virtual void accept_subscriptions() {}
+  virtual void reject_subscriptions() {}
 
  protected:
   std::string _id;

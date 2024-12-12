@@ -8,10 +8,7 @@
 #pragma once
 
 #include <ipcpp/config/config.h>
-#include <ipcpp/shm/data_view.h>
-#include <ipcpp/shm/error.h>
 #include <ipcpp/shm/mapped_memory.h>
-#include <ipcpp/types.h>
 #include <ipcpp/utils/mutex.h>
 
 #include <atomic>
@@ -57,7 +54,7 @@ class FixedSizeStack {
     /// queues size
     /// maximum size of stack
     const std::size_t _capacity;
-    SharedMutex _shared_mutex{};
+    shared_mutex _shared_mutex{};
   };
 
  public:  // public static nested datatypes
@@ -107,7 +104,7 @@ class FixedSizeStack {
   void push(T& item)
     requires std::is_trivially_copy_constructible_v<T>
   {
-    UniqueLock lock(_header->_shared_mutex);
+    std::unique_lock lock(_header->_shared_mutex);
     if (_header->_head_idx > _header->_capacity) {
       return;
     }
@@ -122,7 +119,7 @@ class FixedSizeStack {
   void push(T&& item)
     requires std::is_move_constructible_v<T>
   {
-    UniqueLock lock(_header->_shared_mutex);
+    std::unique_lock lock(_header->_shared_mutex);
     if (_header->_head_idx > _header->_capacity) {
       return;
     }
@@ -134,7 +131,7 @@ class FixedSizeStack {
    * @brief remove the first element of the stack.
    */
   void pop() {
-    UniqueLock lock(_header->_shared_mutex);
+    std::unique_lock lock(_header->_shared_mutex);
     if (_header->_head_idx == 0) {
       return;
     }
@@ -148,7 +145,7 @@ class FixedSizeStack {
    * @return
    */
   T& front() {
-    SharedLock lock(_header->_shared_mutex);
+    std::unique_lock lock(_header->_shared_mutex);
     Element& item = _items[_header->_head_idx - 1];
     std::get<std::atomic_size_t>(item).fetch_add(1, std::memory_order_acquire);
     return std::get<T>(item);
@@ -159,7 +156,7 @@ class FixedSizeStack {
    * @return
    */
   bool empty() {
-    SharedLock lock(_header->_shared_mutex);
+    std::unique_lock lock(_header->_shared_mutex);
     return _header->_head_idx == 0;
   }
 
@@ -168,7 +165,7 @@ class FixedSizeStack {
    * @return
    */
   std::size_t size() {
-    SharedLock lock(_header->_shared_mutex);
+    std::unique_lock lock(_header->_shared_mutex);
     if (_header->_head_idx > _header->_capacity) {
         return _header->_capacity;
     }

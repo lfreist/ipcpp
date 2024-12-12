@@ -4,17 +4,18 @@
  *
  * This file is part of ipcpp.
  */
+#pragma once
 
 #include <ipcpp/event/domain_socket_notifier.h>
-#include <ipcpp/publish_subscribe/data_container.h>
-
-#include <any>
-#include <expected>
+#include <ipcpp/publish_subscribe/error.h>
 
 namespace ipcpp::publish_subscribe {
 
 template <typename DataT, typename NotifierT>
 class Publisher_I {
+public:
+  typedef NotifierT notifier_type;
+
  public:
   virtual ~Publisher_I() = default;
   Publisher_I(Publisher_I&& other) noexcept : _notifier(std::move(other._notifier)) {}

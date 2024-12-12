@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <cstdint>
+#include <iostream>
 
-#include <ipcpp/shm/notification.h>
+#define AS_STRING(x) #x
 
 namespace ipcpp::event {
 
@@ -15,10 +15,14 @@ enum class NotificationError {
   OBSERVER_DOWN,
   NOTIFICATION_ERROR,
   INVALID_NOTIFICATION,
+  TIMEOUT,
+  TIMEOUT_SETUP_ERROR,
+  NOT_SUBSCRIBED,
+  SUBSCRIPTION_PAUSED,
   UNKNOWN,
 };
 
-std::ostream& operator<<(std::ostream& os, NotificationError error) {
+inline std::ostream& operator<<(std::ostream& os, const NotificationError error) {
   switch (error) {
     case NotificationError::NOTIFIER_DOWN:
       os << AS_STRING(NotificationError::NOTIFIER_DOWN);
@@ -32,48 +36,62 @@ std::ostream& operator<<(std::ostream& os, NotificationError error) {
     case NotificationError::INVALID_NOTIFICATION:
       os << AS_STRING(NotificationError::INVALID_NOTIFICATION);
       break;
+    case NotificationError::TIMEOUT:
+      os << AS_STRING(NotificationError::TIMEOUT);
+      break;
+    case NotificationError::TIMEOUT_SETUP_ERROR:
+      os << AS_STRING(NotificationError::TIMEOUT_SETUP_ERROR);
+      break;
     case NotificationError::UNKNOWN:
       os << AS_STRING(NotificationError::UNKNOWN);
+      break;
+    case NotificationError::NOT_SUBSCRIBED:
+      os << AS_STRING(NotificationError::NOT_SUBSCRIBED);
+      break;
+    case NotificationError::SUBSCRIPTION_PAUSED:
+      os << AS_STRING(NotificationError::SUBSCRIPTION_PAUSED);
+      break;
+    default:
       break;
   }
   return os;
 }
 
-enum class SubscriptionInfo {
-  OK,
+enum class SubscriptionError {
+  NO_ERROR,
   NOTIFIER_UNREACHABLE,
   OBSERVER_REJECTED,
   OBSERVER_NOT_SUBSCRIBED,
   OBSERVER_ALREADY_SUBSCRIBED,
   OBSERVER_KICKED,
-  OBSERVER_SOCKET_SETUP_FAILED,
+  OBSERVER_SETUP_FAILED,
   UNKNOWN,
 };
 
-std::ostream& operator<<(std::ostream& os, SubscriptionInfo info) {
+inline std::ostream& operator<<(std::ostream& os, const SubscriptionError info) {
   switch (info) {
-    case SubscriptionInfo::OK:
-      os << AS_STRING(SubscriptionInfo::OK);
-      break;
-    case SubscriptionInfo::NOTIFIER_UNREACHABLE:
+    case SubscriptionError::NO_ERROR:
+      os << AS_STRING(SubscriptionInfo::NO_ERROR);
+    break;
+    case SubscriptionError::NOTIFIER_UNREACHABLE:
       os << AS_STRING(SubscriptionInfo::NOTIFIER_UNREACHABLE);
-      break;
-    case SubscriptionInfo::OBSERVER_REJECTED:
+    break;
+    case SubscriptionError::OBSERVER_REJECTED:
       os << AS_STRING(SubscriptionInfo::OBSERVER_REJECTED);
       break;
-    case SubscriptionInfo::OBSERVER_NOT_SUBSCRIBED:
+    case SubscriptionError::OBSERVER_NOT_SUBSCRIBED:
       os << AS_STRING(SubscriptionInfo::OBSERVER_NOT_SUBSCRIBED);
       break;
-    case SubscriptionInfo::OBSERVER_ALREADY_SUBSCRIBED:
+    case SubscriptionError::OBSERVER_ALREADY_SUBSCRIBED:
       os << AS_STRING(SubscriptionInfo::OBSERVER_ALREADY_SUBSCRIBED);
       break;
-    case SubscriptionInfo::OBSERVER_KICKED:
+    case SubscriptionError::OBSERVER_KICKED:
       os << AS_STRING(SubscriptionInfo::OBSERVER_KICKED);
       break;
-    case SubscriptionInfo::OBSERVER_SOCKET_SETUP_FAILED:
-      os << AS_STRING(SubscriptionInfo::OBSERVER_SOCKET_SETUP_FAILED);
+    case SubscriptionError::OBSERVER_SETUP_FAILED:
+      os << AS_STRING(SubscriptionInfo::OBSERVER_SETUP_FAILED);
       break;
-    case SubscriptionInfo::UNKNOWN:
+    case SubscriptionError::UNKNOWN:
       os << AS_STRING(SubscriptionInfo::UNKNOWN);
       break;
   }
@@ -83,15 +101,17 @@ std::ostream& operator<<(std::ostream& os, SubscriptionInfo info) {
 enum class ObserverRequest {
   SUBSCRIBE,
   CANCEL_SUBSCRIPTION,
+  PAUSE_SUBSCRIPTION,
+  RESUME_SUBSCRIPTION,
 };
 
 template <typename T>
 struct SubscriptionResponse {
   typedef T data_type;
-  typedef SubscriptionInfo info_type;
+  typedef SubscriptionError info_type;
 
   info_type info;
   data_type data;
 };
 
-}
+}  // namespace ipcpp::event

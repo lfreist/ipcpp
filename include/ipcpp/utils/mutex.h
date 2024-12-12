@@ -7,19 +7,26 @@
 
 #pragma once
 
+#include <ipcpp/utils/concepts.h>
+
 #include <atomic>
 #include <thread>
+#include <mutex>
 
 namespace ipcpp {
 
 /**
- * @brief Simple mutex using std::atomic_flag.
+ * @brief mutex implementation according to std::mutex (except for mutex::is_locked which is added for checks in debug
+ *  mode). Fulfills the requirements of a mutex according to the c++ standard.
  *
- * @remark implementation adopted from https://en.cppreference.com/w/cpp/atomic/atomic_flag
+ * @remark spin-lock implementation using std::atomic_flag
  */
-class Mutex {
+class mutex {
  public:
-  Mutex() : _flag(false) {}
+  mutex() : _flag(false) {}
+
+  /// not copy-assignable
+  mutex& operator=(mutex&) = delete;
 
   void lock() noexcept {
     auto value = _flag.test_and_set(std::memory_order_acquire);
@@ -34,15 +41,17 @@ class Mutex {
     _flag.notify_one();
   }
 
-  [[nodiscard]] bool is_locked() const noexcept {
-    return _flag.test();
-  }
+  bool try_lock() noexcept { return _flag.test_and_set(std::memory_order_acquire); }
+
+  [[nodiscard]] bool is_locked() const noexcept { return _flag.test(); }
 
  private:
   std::atomic_flag _flag;
 };
 
-class SharedMutex {
+static_assert(concepts::lockable<mutex>, "ipcpp::mutex does not fulfill the requirements of mutex");
+
+class shared_mutex {
  public:
   void lock() noexcept {
     while (true) {
@@ -58,58 +67,44 @@ class SharedMutex {
 
   void unlock() noexcept { _mutex.unlock(); }
 
-  void shared_lock() noexcept {
+  bool try_lock() noexcept { return _mutex.try_lock(); }
+
+  void lock_shared() noexcept {
     _mutex.lock();
     _readers.fetch_add(1, std::memory_order_acq_rel);
     _mutex.unlock();
   }
 
-  void shared_unlock() noexcept {
+  void unlock_shared() noexcept {
     _readers.fetch_sub(1, std::memory_order_acq_rel);
     _readers.notify_all();
   }
 
+  bool try_lock_shared() noexcept {
+    if (_mutex.try_lock()) {
+      _readers.fetch_add(1, std::memory_order_acq_rel);
+      _mutex.unlock();
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  [[nodiscard]] bool is_locked() const noexcept {
+    return _mutex.is_locked();
+  }
+
+  [[nodiscard]] bool is_locked_shared() const noexcept {
+    return _readers.load() > 0;
+  }
+
  private:
   std::atomic_int _readers{0};
-  Mutex _mutex;
+  mutex _mutex;
 };
 
-/**
- * @brief RAII locking of Mutex. Similar to std::unique_lock but only provides basic locking and unlocking.
- */
-template <typename MUTEX>
-// requires (std::is_same_v<MUTEX, Mutex>() || std::is_same_v<MUTEX, SharedMutex>())
-class UniqueLock {
- public:
-  explicit UniqueLock(MUTEX& mutex) : _mutex(mutex) { lock(); }
+static_assert(concepts::shared_mutex<shared_mutex>,
+              "ipcpp::shared_mutex does not fulfill the requirements of shared_mutex");
 
-  UniqueLock(const UniqueLock&) = delete;
-  UniqueLock& operator=(const UniqueLock&) = delete;
-
-  ~UniqueLock() { unlock(); }
-
-  void lock() { _mutex.lock(); }
-
-  void unlock() { _mutex.unlock(); }
-
- private:
-  MUTEX& _mutex;
-};
-
-/**
- * @brief RAII shared locking of SharedMutex. Similar to std::shared_lock but much simpler with less functionality etc.
- */
-class SharedLock {
- public:
-  explicit SharedLock(SharedMutex& mutex) : _mutex(mutex) { _mutex.shared_lock(); }
-
-  SharedLock(const SharedLock&) = delete;
-  SharedLock& operator=(const SharedLock&) = delete;
-
-  ~SharedLock() { _mutex.shared_unlock(); }
-
- private:
-  SharedMutex& _mutex;
-};
 
 }  // namespace ipcpp
