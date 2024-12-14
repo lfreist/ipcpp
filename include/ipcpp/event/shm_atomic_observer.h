@@ -7,12 +7,13 @@
 
 #pragma once
 
+#include <ipcpp/event/notification.h>
 #include <ipcpp/event/observer.h>
 #include <ipcpp/event/shm_notification_memory_layout.h>
 #include <ipcpp/utils/reference_counted.h>
-#include <ipcpp/event/notification.h>
-
 #include <spdlog/spdlog.h>
+
+#include "shm_atomic_notifier.h"
 
 namespace ipcpp::event {
 
@@ -26,8 +27,29 @@ class ShmAtomicObserver final : public Observer_I<T_Notification> {
   typedef Observer_I<T_Notification> observer_base;
 
  public:
-  explicit ShmAtomicObserver(memory_layout shm_notification_memory) noexcept
-      : _memory_layout(shm_notification_memory) {}
+  static std::expected<ShmAtomicObserver, factory_error> create(std::string&& id) {
+    spdlog::debug("ShmAtomicObserver::create(id='{}')", std::string(id));
+    // must be AccessMode::WRITE because of the subscription (increments the subscription counter)
+    if (auto result = shm::shared_memory::open<AccessMode::WRITE>("/" + std::string(id) + ".nrb.ipcpp.shm");
+        result.has_value()) {
+      return ShmAtomicObserver(std::move(result.value()));
+    }
+    spdlog::error("ShmAtomicObserver::create(id='{}'): Failed to open shared memory segment", std::string(id));
+    return std::unexpected(factory_error::SHM_CREATE_FAILED);
+  }
+
+  ShmAtomicObserver(ShmAtomicObserver&& other) noexcept
+      : observer_base(std::move(other)),
+        _mapped_memory(std::move(other._mapped_memory)),
+        _memory_layout(std::move(other._memory_layout)),
+        _last_message_number(other._last_message_number),
+        _initial_message_number(other._initial_message_number),
+        _notifier_down(other._notifier_down) {
+    spdlog::debug("ShmAtomicObserver moved");
+  }
+
+  ShmAtomicObserver(const ShmAtomicObserver&) = delete;
+
   ~ShmAtomicObserver() override = default;
 
   typename observer_base::subscription_return_type subscribe() override {
@@ -57,6 +79,10 @@ class ShmAtomicObserver final : public Observer_I<T_Notification> {
   }
 
  private:
+  explicit ShmAtomicObserver(shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory) noexcept
+      : _mapped_memory(std::move(mapped_memory)), _memory_layout(_mapped_memory.addr()) {
+    spdlog::debug("ShmAtomicObserver::constructed");
+  }
   /**
    * this implementation reads all notifications published since the subscription in sequence
    */
@@ -73,8 +99,8 @@ class ShmAtomicObserver final : public Observer_I<T_Notification> {
     }
     auto msg_counter = _memory_layout.header->message_counter.load(std::memory_order_acquire);
     const auto start_time = std::chrono::high_resolution_clock::now();
-    spdlog::debug("_m_receive_helper: _last_message_number: {}, _initial_message_number: {}, message_counter: {}", _last_message_number,
-                  _initial_message_number, msg_counter);
+    spdlog::debug("_m_receive_helper: _last_message_number: {}, _initial_message_number: {}, message_counter: {}",
+                  _last_message_number, _initial_message_number, msg_counter);
     if (_last_message_number == _initial_message_number) {
       // never read a message before
       if (_initial_message_number == -1) {
@@ -88,9 +114,12 @@ class ShmAtomicObserver final : public Observer_I<T_Notification> {
           spdlog::debug("waiting for message_counter: {}", _last_message_number);
           while (_memory_layout.header->message_counter.load(std::memory_order_acquire) == _last_message_number) {
             std::this_thread::yield();
-            if (timeout.count() > 0 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time) > timeout) {
+            /*
+            if (timeout.count() > 0 && std::chrono::duration_cast<std::chrono::milliseconds>(
+                                           std::chrono::high_resolution_clock::now() - start_time) > timeout) {
               return std::unexpected(observer_base::notification_error_type::TIMEOUT);
             }
+            */
           }
           _last_message_number++;
         }
@@ -114,9 +143,12 @@ class ShmAtomicObserver final : public Observer_I<T_Notification> {
         spdlog::debug("waiting for message number: {}", _last_message_number);
         while (_memory_layout.header->message_counter.load(std::memory_order_acquire) == _last_message_number) {
           std::this_thread::yield();
-          if (timeout.count() > 0 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time) > timeout) {
+          /*
+          if (timeout.count() > 0 && std::chrono::duration_cast<std::chrono::milliseconds>(
+                                         std::chrono::high_resolution_clock::now() - start_time) > timeout) {
             return std::unexpected(observer_base::notification_error_type::TIMEOUT);
           }
+          */
         }
         _last_message_number++;
       }
@@ -137,7 +169,8 @@ class ShmAtomicObserver final : public Observer_I<T_Notification> {
     auto* notification = &_memory_layout.message_buffer[_last_message_number];
     while (notification->message_number != _last_message_number) {
       // the read notification has been overwritten, try the next one
-      spdlog::debug("notification message number: {}, _last_message_number: {}", notification->message_number, _last_message_number);
+      spdlog::debug("notification message number: {}, _last_message_number: {}", notification->message_number,
+                    _last_message_number);
       _last_message_number++;
       if (_last_message_number > _memory_layout.header->message_counter.load(std::memory_order_acquire)) {
         // this point can never be reached: we now that _last_message_number once was a valid message number but has
@@ -154,6 +187,7 @@ class ShmAtomicObserver final : public Observer_I<T_Notification> {
   }
 
  private:
+  shm::MappedMemory<shm::MappingType::SINGLE> _mapped_memory;
   memory_layout _memory_layout;
   std::int64_t _last_message_number = -1;
   /// message number at subscription

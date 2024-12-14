@@ -20,8 +20,8 @@
 namespace ipcpp::event {
 
 struct shm_atomic_notification_header {
-  std::atomic_int64_t message_counter = -1;
-  std::atomic_size_t num_subscribers = 0;
+  alignas(std::hardware_destructive_interference_size) std::atomic_int64_t message_counter = -1;
+  alignas(std::hardware_destructive_interference_size) std::atomic_size_t num_subscribers = 0;
   /// is set when notifier gets destructed
   std::int64_t last_message_counter;
   std::atomic_bool is_active = false;
@@ -61,9 +61,9 @@ struct shm_notification_memory_layout {
 
   shm_notification_memory_layout(const shm_notification_memory_layout& other)
       : shm_notification_memory_layout(reinterpret_cast<std::uintptr_t>(other.header)) {}
-  shm_notification_memory_layout(shm_notification_memory_layout&& other) noexcept
-      : shm_notification_memory_layout(reinterpret_cast<std::uintptr_t>(other.header)) {
-    other.header = nullptr;
+  shm_notification_memory_layout(shm_notification_memory_layout&& other) noexcept : message_buffer(std::move(other.message_buffer)) {
+    std::swap(header, other.header);
+    spdlog::debug("shm_notification_memory_layout moved");
   }
 
   header_type* header = nullptr;

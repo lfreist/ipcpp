@@ -46,12 +46,12 @@ class Broadcaster final : public Publisher_I<T, NotifierT> {
       return std::unexpected(factory_error::NOTIFIER_INITIALIZATION_FAILED);
     }
     notifier.value().accept_subscriptions();
-    auto mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
+    auto mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::open_or_create(
         std::string("/" + id + ".ipcpp.shm"), shm_size);
     if (!mapped_memory.has_value()) {
       return std::unexpected(factory_error::SHM_INITIALIZATION_FAILED);
     }
-    auto mapped_memory_dyn = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
+    auto mapped_memory_dyn = shm::MappedMemory<shm::MappingType::SINGLE>::open_or_create(
         std::string("/" + id + ".ipcpp.dyn.shm"), dyn_shm_size);
     if (!mapped_memory.has_value()) {
       return std::unexpected(factory_error::SHM_INITIALIZATION_FAILED);
@@ -112,7 +112,7 @@ class Broadcaster final : public Publisher_I<T, NotifierT> {
         _mapped_memory(std::move(mapped_memory)),
         _message_buffer(reinterpret_cast<std::uintptr_t>(_mapped_memory.addr()), _mapped_memory.size()),
         _mapped_memory_dyn(std::move(mapped_memory_dyn)) {
-    pool_allocator<uint8_t>::initialize_factory(_mapped_memory_dyn.addr(), _mapped_memory_dyn.size());
+    pool_allocator<uint8_t>::initialize_factory(reinterpret_cast<void*>(_mapped_memory_dyn.addr()), _mapped_memory_dyn.size());
     if constexpr (!std::is_void_v<typename base_publisher::notifier_type::notifier_base::subscription_return_type>) {
       base_publisher::_notifier.set_response_data(
           SubscriptionResponseData{.list_size = _mapped_memory.size(), .heap_size = _mapped_memory_dyn.size()});

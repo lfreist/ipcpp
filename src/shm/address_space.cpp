@@ -20,38 +20,31 @@
 
 namespace ipcpp::shm {
 
-// === SharedAddressSpace ==============================================================================================
+// === shared_memory_file ==============================================================================================
 // _____________________________________________________________________________________________________________________
-SharedAddressSpace::SharedAddressSpace(std::string&& path, std::size_t size) : _path(std::move(path)), _size(size) {}
+shared_memory_file::shared_memory_file(std::string&& path, const std::size_t size) : _path(std::move(path)), _size(size) {}
 
 // _____________________________________________________________________________________________________________________
-SharedAddressSpace::~SharedAddressSpace() {
-  if (_start != nullptr) {
-    munmap(_start, _size);
-  }
+shared_memory_file::~shared_memory_file() {
   if (_fd != -1) {
     close(_fd);
   }
 }
 
 // _____________________________________________________________________________________________________________________
-SharedAddressSpace::SharedAddressSpace(SharedAddressSpace&& other) noexcept {
+shared_memory_file::shared_memory_file(shared_memory_file&& other) noexcept {
   _path = std::move(other._path);
-  std::swap(_start, other._start);
   std::swap(_size, other._size);
   std::swap(_fd, other._fd);
 }
 
 // _____________________________________________________________________________________________________________________
-int SharedAddressSpace::fd() const { return _fd; }
+int shared_memory_file::fd() const { return _fd; }
 
 // _____________________________________________________________________________________________________________________
-std::size_t SharedAddressSpace::size() const { return _size; }
+std::size_t shared_memory_file::size() const { return _size; }
 
 // _____________________________________________________________________________________________________________________
-void* SharedAddressSpace::addr() const { return _start; }
-
-// _____________________________________________________________________________________________________________________
-void SharedAddressSpace::unlink() { shm_unlink(_path.c_str()); }
+void shared_memory_file::unlink() const { shm_unlink(_path.c_str()); }
 
 }  // namespace ipcpp::shm

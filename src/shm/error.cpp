@@ -90,10 +90,13 @@ std::ostream& operator<<(std::ostream& os, const MappingError error) {
       break;
     case MappingError::INVALID_HEAP_SIZE:
       os << TO_STRING(MappingError::INVALID_HEAP_SIZE);
-      break;
+    break;
     case MappingError::SHM_ERROR:
       os << TO_STRING(MappingError::SHM_ERROR);
-      break;
+    break;
+    case MappingError::UNKNOWN_MAPPING:
+      os << TO_STRING(MappingError::UNKNOWN_MAPPING);
+    break;
   }
   return os;
 }

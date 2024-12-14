@@ -40,10 +40,11 @@ class ShmAtomicNotifier final : public Notifier_I<T_Notification> {
         _memory_layout.header->message_counter.load(std::memory_order_acquire);
     _memory_layout.header->message_counter.store(-1, std::memory_order_release);
     _memory_layout.header->is_active.store(false, std::memory_order_release);
+    _mapped_memory.release();
   }
 
   static std::expected<ShmAtomicNotifier, factory_error> create(std::string&& id, const std::size_t shm_size_bytes) {
-    auto expected_mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
+    auto expected_mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::open_or_create(
         "/" + std::move(id) + ".nrb.ipcpp.shm", shm_size_bytes);
     if (!expected_mapped_memory.has_value()) {
       return std::unexpected(factory_error::SHM_CREATE_FAILED);
@@ -66,7 +67,7 @@ class ShmAtomicNotifier final : public Notifier_I<T_Notification> {
  private:
   explicit ShmAtomicNotifier(shm::MappedMemory<shm::MappingType::SINGLE>&& mapped_memory)
       : _mapped_memory(std::move(mapped_memory)),
-        _memory_layout(reinterpret_cast<std::uintptr_t>(_mapped_memory.addr()), _mapped_memory.size()) {
+        _memory_layout(_mapped_memory.addr(), _mapped_memory.size()) {
     _memory_layout.header->is_active.store(true, std::memory_order_release);
     spdlog::debug("constructed ShmAtomicNotifier: {}", _memory_layout.header->is_active.load());
   }

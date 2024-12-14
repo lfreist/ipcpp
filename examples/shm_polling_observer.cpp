@@ -25,12 +25,13 @@ struct Message {
 
 int main(int argc, char** argv) {
   spdlog::set_level(spdlog::level::debug);
-  const auto mapped_memory = ipcpp::shm::shared_memory::open_or_create<ipcpp::AccessMode::WRITE>("/shm_notifier.nrb.ipcpp.shm", 4096);
-  const ipcpp::event::shm_notification_memory_layout<ipcpp::reference_counted<Message>,
-                                                     ipcpp::event::shm_atomic_notification_header>
-      buffer(reinterpret_cast<std::uintptr_t>(mapped_memory.addr()));
-  ipcpp::event::ShmAtomicObserver observer(buffer);
-  auto res = observer.subscribe();
+  auto expected_observer = ipcpp::event::ShmAtomicObserver<Message>::create("shm_notifier");
+  if (!expected_observer.has_value()) {
+    std::cerr << "ShmNotifier could not be created" << std::endl;
+    return 1;
+  }
+  auto& observer = expected_observer.value();
+  observer.subscribe();
   while (true) {
     observer.receive(0ms, [](const Message& message) {
       std::cout << "Message received: " << "\n"

@@ -17,13 +17,18 @@
 namespace ipcpp::shm {
 
 struct shared_memory {
+  static consteval std::size_t size_flag_size() { return sizeof(std::size_t); }
+
   template <AccessMode T_Access, MappingType T_Mapping = MappingType::SINGLE>
-  static MappedMemory<T_Mapping> open_or_create(std::string&& shm_id, const std::size_t size_bytes) {
-    auto expected_mapped_memory = MappedMemory<T_Mapping>::template create<T_Access>(std::move(shm_id), size_bytes);
-    if (!expected_mapped_memory) {
-      throw std::runtime_error(std::format("Failed to open mapped memory with error {}", utils::to_string(expected_mapped_memory.error())));
-    }
-    return std::move(expected_mapped_memory.value());
+  static std::expected<MappedMemory<T_Mapping>, error::MappingError> open_or_create(
+      std::string&& shm_id, const std::size_t size_bytes) {
+    return MappedMemory<T_Mapping>::template create<T_Access>(
+        std::move(shm_id), size_bytes + size_flag_size(), size_bytes + size_flag_size());
+  }
+
+  template <AccessMode T_Access, MappingType T_Mapping = MappingType::SINGLE>
+  static std::expected<MappedMemory<T_Mapping>, error::MappingError> open(std::string&& shm_id) {
+    return MappedMemory<T_Mapping>::template open<T_Access>(std::move(shm_id));
   }
 };
 

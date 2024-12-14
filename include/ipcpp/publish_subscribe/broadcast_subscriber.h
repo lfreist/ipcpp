@@ -51,23 +51,24 @@ class BroadcastSubscriber final : Subscriber_I<T_Observer> {
         _mapped_memory_dyn(std::move(other._mapped_memory_dyn)) {}
 
   static std::expected<BroadcastSubscriber, int> create(std::string&& id) {
-    auto notifier = T_Observer::create(std::string("/tmp/" + id + ".ipcpp.sock"));
+    auto notifier = T_Observer::create(std::string(id));
     if (!notifier.has_value()) {
       return std::unexpected(-1);
     }
+    spdlog::debug("BroadcastSubscriber created: subscribing");
     auto expected_result = notifier.value().subscribe();
     if (!expected_result.has_value()) {
       std::cerr << "error: " << expected_result.error() << std::endl;
       exit(1);
     }
-    SubscriptionResponseData result = expected_result.value();
-    auto mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
-        std::string("/" + id + ".ipcpp.shm"), result.list_size);
+    // SubscriptionResponseData result = expected_result.value();
+    auto mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::open<AccessMode::WRITE>(
+        std::string("/" + id + ".ipcpp.shm"));
     if (!mapped_memory.has_value()) {
       return std::unexpected(-2);
     }
-    auto mapped_memory_dyn = shm::MappedMemory<shm::MappingType::SINGLE>::create<AccessMode::WRITE>(
-        std::string("/" + id + ".ipcpp.dyn.shm"), result.heap_size);
+    auto mapped_memory_dyn = shm::MappedMemory<shm::MappingType::SINGLE>::open<AccessMode::WRITE>(
+        std::string("/" + id + ".ipcpp.dyn.shm"));
     if (!mapped_memory_dyn.has_value()) {
       return std::unexpected(-3);
     }
@@ -115,7 +116,7 @@ class BroadcastSubscriber final : Subscriber_I<T_Observer> {
         _mapped_memory(std::move(mapped_memory)),
         _message_buffer(reinterpret_cast<std::uintptr_t>(_mapped_memory.addr()), _mapped_memory.size()),
         _mapped_memory_dyn(std::move(mapped_memory_dyn)) {
-    pool_allocator<uint8_t>::initialize_factory(_mapped_memory_dyn.addr());
+    pool_allocator<uint8_t>::initialize_factory(reinterpret_cast<void*>(_mapped_memory_dyn.addr()));
   }
 
   void _m_clear_message_buffer() {

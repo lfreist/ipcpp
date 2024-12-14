@@ -40,7 +40,8 @@ enum class MappingError {
   MMAP_FAILED,        // mmap failed
   WRONG_ADDRESS,      // mapped to a different address than requested
   INVALID_HEAP_SIZE,  // issue with heap size: won't fit into address space
-  SHM_ERROR
+  SHM_ERROR,
+  UNKNOWN_MAPPING,
 };
 
 std::ostream& operator<<(std::ostream& os, AccessError error);
