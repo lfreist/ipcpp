@@ -23,7 +23,6 @@
 #else
 #pragma message("Logging is disabled");
 #endif
-#include "../../../cmake-build-release-clang/_deps/spdlog-src/include/spdlog/fmt/bundled/base.h"
 
 namespace ipcpp::logging {
 

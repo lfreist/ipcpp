@@ -19,8 +19,11 @@ enum class MessageType {
 
 struct Message {
   std::int64_t timestamp;
-  MessageType message_type;
   ipcpp::vector<char> data;
+
+  Message() : timestamp(ipcpp::utils::timestamp()) {}
+  Message(Message&& other) noexcept : timestamp(ipcpp::utils::timestamp()), data(std::move(other.data)) {}
+
   ~Message() {
     std::cout << " -> Destroying message " << std::string_view(data.data(), data.size()) << std::endl;
   }

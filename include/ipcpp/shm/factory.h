@@ -17,11 +17,11 @@ namespace ipcpp::shm {
 struct shared_memory {
   static consteval std::size_t size_flag_size() { return sizeof(std::size_t); }
 
-  template <AccessMode T_Access, MappingType T_Mapping = MappingType::SINGLE>
+  template <MappingType T_Mapping = MappingType::SINGLE>
   static std::expected<MappedMemory<T_Mapping>, error::MappingError> open_or_create(
       std::string&& shm_id, const std::size_t size_bytes) {
-    return MappedMemory<T_Mapping>::template create<T_Access>(
-        std::move(shm_id), size_bytes + size_flag_size(), size_bytes + size_flag_size());
+    return MappedMemory<T_Mapping>::open_or_create(
+        std::move(shm_id), size_bytes);
   }
 
   template <AccessMode T_Access, MappingType T_Mapping = MappingType::SINGLE>

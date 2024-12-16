@@ -7,8 +7,9 @@
 
 #include <ipcpp/publish_subscribe/subscriber.h>
 #include <ipcpp/event/shm_atomic_observer.h>
+#include <ipcpp/ipcpp.h>
 
-#include <print>
+#include <iostream>
 
 #include "message.h"
 
@@ -44,22 +45,32 @@ int main(int argc, char** argv) {
 }
  */
 
-std::error_code receive_callback(ipcpp::publish_subscribe::Subscriber<int, ipcpp::event::ShmAtomicObserver>::data_access_type& data) {
+std::error_code receive_callback(ipcpp::publish_subscribe::Subscriber<Message, ipcpp::event::ShmAtomicObserver>::data_access_type& data) {
   auto value = data.consume();
-  std::int64_t ts = ipcpp::utils::timestamp();
-  std::println("Received message: {}, ts: {}", *value, ts);
+  const std::int64_t ts = ipcpp::utils::timestamp();
+  std::string_view message(value->data.data(), value->data.size());
+  if (message == "exit") {
+    return {0, std::system_category()};
+  }
+  std::cout  << "latency: " << ts - value->timestamp << " - " << message << std::endl;
   return {};
 }
 
 int main() {
-  ipcpp::publish_subscribe::Subscriber<int, ipcpp::event::ShmAtomicObserver> subscriber("my_id");
+  ipcpp::initialize_dynamic_buffer();
+
+  ipcpp::publish_subscribe::Subscriber<Message, ipcpp::event::ShmAtomicObserver> subscriber("my_id");
   if (const std::error_code error = subscriber.initialize(); error) {
+    std::cerr << "Failed to initialize subscriber" << std::endl;
     return 1;
   }
-  subscriber.subscribe();
+  if (const auto error = subscriber.subscribe(); error) {
+    std::cerr << "Failed to subscribe" << std::endl;
+    return 1;
+  }
   while (true) {
     if (const auto error = subscriber.receive(receive_callback, 0ms); error) {
-      std::println(std::cerr, "Received error");
+      std::cout << "Received error: " << error.category().name() << ": " << error.message() << std::endl;
       break;
     }
   }

@@ -15,6 +15,10 @@
 
 namespace ipcpp {
 
+void wait(std::atomic_flag& flag, bool old, std::memory_order order) {
+  while (flag.test(order) == old) {}
+}
+
 /**
  * @brief mutex implementation according to std::mutex (except for mutex::is_locked which is added for checks in debug
  *  mode). Fulfills the requirements of a mutex according to the c++ standard.
@@ -31,7 +35,7 @@ class mutex {
   void lock() noexcept {
     auto value = _flag.test_and_set(std::memory_order_acquire);
     while (value) {
-      _flag.wait(true, std::memory_order_relaxed);
+      wait(_flag, true, std::memory_order_relaxed);
       value = _flag.test_and_set(std::memory_order_acquire);
     }
   }
