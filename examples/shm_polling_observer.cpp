@@ -10,10 +10,11 @@
 #include <ipcpp/shm/factory.h>
 #include <ipcpp/utils/reference_counted.h>
 #include <ipcpp/utils/utils.h>
-
 #include <spdlog/spdlog.h>
 
 #include <chrono>
+#include <numeric>
+#include <print>
 
 using namespace std::chrono_literals;
 
@@ -24,7 +25,7 @@ struct Message {
 };
 
 int main(int argc, char** argv) {
-  spdlog::set_level(spdlog::level::debug);
+  spdlog::set_level(spdlog::level::warn);
   auto expected_observer = ipcpp::event::ShmAtomicObserver<Message>::create("shm_notifier");
   if (!expected_observer.has_value()) {
     std::cerr << "ShmNotifier could not be created" << std::endl;
@@ -32,11 +33,17 @@ int main(int argc, char** argv) {
   }
   auto& observer = expected_observer.value();
   observer.subscribe();
+  std::vector<std::int64_t> latencies;
   while (true) {
-    observer.receive(0ms, [](const Message& message) {
-      std::cout << "Message received: " << "\n"
-                << "#" << message.message_number << "\n"
-                << "latency: " << ipcpp::utils::timestamp() - message.timestamp << std::endl;
+    auto res = observer.receive(0ms, [&](const Message& message) {
+      auto ts = ipcpp::utils::timestamp();
+      latencies.push_back(ts - message.timestamp);
+      std::println("Received message: {:10}, latency: {:10}ns", message.message_number, ts - message.timestamp);
     });
+    if (!res.has_value()) {
+      std::cerr << "ShmNotifier could not receive message: " << res.error() << std::endl;
+      break;
+    }
   }
+  std::println("Mean Latency: {}ns", std::accumulate(latencies.begin(), latencies.end(), 0.0f) / static_cast<double>(latencies.size()));
 }

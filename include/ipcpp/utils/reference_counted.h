@@ -66,6 +66,9 @@ class reference_counted {
     return data_access(_data, _remaining_accesses);
   }
 
+  T_p& operator*() { return _data; }
+  const T_p& operator*() const { return _data; }
+
  private:
   T_p _data;
   std::atomic_size_t _remaining_accesses;

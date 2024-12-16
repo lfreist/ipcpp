@@ -48,9 +48,9 @@ class Observer_I {
   virtual ~Observer_I() = default;
 
   /// virtual member function to subscribe receiver to sender
-  virtual subscription_return_type subscribe() = 0;
+  virtual std::error_code subscribe() = 0;
   /// virtual member function to unsubscribe receiver from sender
-  virtual std::expected<void, SubscriptionError> cancel_subscription() = 0;
+  virtual std::error_code cancel_subscription() = 0;
 
   virtual std::expected<void, SubscriptionError> pause_subscription() = 0;
 
@@ -73,15 +73,17 @@ class Observer_I {
   auto receive(const std::chrono::milliseconds timeout, F&& callback, Args&&... args)
       -> std::expected<decltype(std::forward<F>(callback)(std::declval<notification_type>(),
                                                           std::forward<Args>(args)...)),
-                       notification_error_type> {
+                       std::error_code> {
     using ReturnType =
         decltype(std::forward<F>(callback)(std::declval<notification_type>(), std::forward<Args>(args)...));
 
     if (!_subscribed) {
-      return std::unexpected(notification_error_type::NOT_SUBSCRIBED);
+      return std::unexpected(std::error_code());
+      // return std::unexpected(notification_error_type::NOT_SUBSCRIBED);
     }
     if (_subscription_paused) {
-      return std::unexpected(notification_error_type::SUBSCRIPTION_PAUSED);
+      return std::unexpected(std::error_code());
+      // return std::unexpected(notification_error_type::SUBSCRIPTION_PAUSED);
     }
 
     std::function<std::any(notification_type)> func =
@@ -96,7 +98,7 @@ class Observer_I {
 
     auto result = _m_receive_helper(func, timeout);
 
-    if (!result) return std::unexpected(result.error());
+    if (!result) return std::unexpected(std::error_code());
     if constexpr (std::is_void_v<ReturnType>) {
       return {};
     } else {
@@ -113,5 +115,16 @@ class Observer_I {
   bool _subscribed = false;
   bool _subscription_paused = false;
 };
+
+namespace concepts {
+
+template <typename T>
+concept is_observer = requires (T observer) {
+  // { observer.receive() } -> std::same_as<std::expected<typename T::notification_type, std::error_code>>;
+  { observer.subscribe() } -> std::same_as<std::error_code>;
+  { observer.cancel_subscription() } -> std::same_as<std::error_code>;
+};
+
+}
 
 }  // namespace ipcpp::event

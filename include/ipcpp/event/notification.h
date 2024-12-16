@@ -19,6 +19,7 @@ enum class NotificationError {
   TIMEOUT_SETUP_ERROR,
   NOT_SUBSCRIBED,
   SUBSCRIPTION_PAUSED,
+  MESSAGE_INVALID,
   UNKNOWN,
 };
 
@@ -45,13 +46,14 @@ inline std::ostream& operator<<(std::ostream& os, const NotificationError error)
     case NotificationError::UNKNOWN:
       os << AS_STRING(NotificationError::UNKNOWN);
       break;
+    case NotificationError::MESSAGE_INVALID:
+      os << AS_STRING(NotificationError::MESSAGE_INVALID);
+      break;
     case NotificationError::NOT_SUBSCRIBED:
       os << AS_STRING(NotificationError::NOT_SUBSCRIBED);
       break;
     case NotificationError::SUBSCRIPTION_PAUSED:
       os << AS_STRING(NotificationError::SUBSCRIPTION_PAUSED);
-      break;
-    default:
       break;
   }
   return os;
@@ -72,10 +74,10 @@ inline std::ostream& operator<<(std::ostream& os, const SubscriptionError info) 
   switch (info) {
     case SubscriptionError::NO_ERROR:
       os << AS_STRING(SubscriptionInfo::NO_ERROR);
-    break;
+      break;
     case SubscriptionError::NOTIFIER_UNREACHABLE:
       os << AS_STRING(SubscriptionInfo::NOTIFIER_UNREACHABLE);
-    break;
+      break;
     case SubscriptionError::OBSERVER_REJECTED:
       os << AS_STRING(SubscriptionInfo::OBSERVER_REJECTED);
       break;

@@ -28,6 +28,11 @@ class ring_buffer {
     std::size_t next_index;
   };
 
+public:
+  static std::size_t required_bytes_for(const std::size_t num_elements) {
+    return utils::align_up(sizeof(_s_header)) + num_elements * sizeof(T_p);
+  }
+
  public:
   ring_buffer(std::uintptr_t start, const std::size_t size) {
     std::ptrdiff_t header_size = utils::align_up(sizeof(_s_header));
@@ -40,10 +45,11 @@ class ring_buffer {
     _buffer = std::span<T_p>(reinterpret_cast<value_type*>(start + header_size), size());
   }
 
-  ring_buffer(const ring_buffer& other) : ring_buffer(reinterpret_cast<std::uintptr_t>(other._header)) {}
-  ring_buffer(ring_buffer&& other) noexcept : ring_buffer(reinterpret_cast<std::uintptr_t>(other._header)) {
-    other._header = nullptr;
-  }
+  ring_buffer(const ring_buffer& other) = default;
+  ring_buffer(ring_buffer&& other) = default;
+
+  ring_buffer& operator=(const ring_buffer& other) = default;
+  ring_buffer& operator=(ring_buffer&& other) noexcept = default;
 
   template <typename... T_Args>
   value_type* emplace(T_Args&&... args) {

@@ -24,7 +24,14 @@ class MappedMemory {
     std::swap(_mapped_region, other._mapped_region);
     std::swap(_size, other._size);
     std::swap(_total_size, other._total_size);
-    spdlog::debug("MappedMemory ({}) moved", _shared_address_space.fd());
+  }
+
+  MappedMemory& operator=(MappedMemory&& other) noexcept {
+    _shared_address_space = std::move(other._shared_address_space);
+    std::swap(_mapped_region, other._mapped_region);
+    std::swap(_size, other._size);
+    std::swap(_total_size, other._total_size);
+    return *this;
   }
 
   ~MappedMemory() {

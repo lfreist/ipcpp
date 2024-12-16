@@ -14,10 +14,9 @@
 
 namespace ipcpp::event {
 
-template <typename NotificationT, typename SubscriptionRetT = void>
+template <typename NotificationT>
 class Notifier_I {
  public:
-  typedef SubscriptionRetT subscription_return_type;
   typedef NotificationT notification_type;
 
  public:
@@ -31,8 +30,21 @@ class Notifier_I {
   virtual void accept_subscriptions() {}
   virtual void reject_subscriptions() {}
 
+  std::string_view identifier() { return _id; }
+
  protected:
   std::string _id;
 };
+
+namespace concepts {
+
+template <typename T>
+concept is_notifier = requires (T notifier, typename T::notification_type notification) {
+ { notifier.notify_observers(notification) } -> std::same_as<void>;
+ { notifier.num_observers() } -> std::convertible_to<std::size_t>;
+ { notifier.identifier() } -> std::convertible_to<std::string_view>;
+};
+
+}
 
 }  // namespace ipcpp::event

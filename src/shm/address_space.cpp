@@ -34,8 +34,18 @@ shared_memory_file::~shared_memory_file() {
 // _____________________________________________________________________________________________________________________
 shared_memory_file::shared_memory_file(shared_memory_file&& other) noexcept {
   _path = std::move(other._path);
+  _access_mode = other._access_mode;
   std::swap(_size, other._size);
   std::swap(_fd, other._fd);
+}
+
+// _____________________________________________________________________________________________________________________
+shared_memory_file& shared_memory_file::operator=(shared_memory_file&& other) noexcept {
+  _path = std::move(other._path);
+  _access_mode = other._access_mode;
+  std::swap(_size, other._size);
+  std::swap(_fd, other._fd);
+  return *this;
 }
 
 // _____________________________________________________________________________________________________________________

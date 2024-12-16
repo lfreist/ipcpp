@@ -22,6 +22,7 @@ class shared_memory_file {
   ~shared_memory_file();
   /// move constructor: needed for SharedAddressSpace::create to make a std::expected<SharedAddressSpace>.
   shared_memory_file(shared_memory_file&& other) noexcept;
+  shared_memory_file& operator=(shared_memory_file&& other) noexcept;
 
   static std::expected<shared_memory_file, error::MemoryError> create(std::string&& path, std::size_t size);
 

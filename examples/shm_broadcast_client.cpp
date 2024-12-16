@@ -5,13 +5,14 @@
  * This file is part of ipcpp.
  */
 
-#include <ipcpp/publish_subscribe/broadcast_subscriber.h>
+#include <ipcpp/publish_subscribe/subscriber.h>
 #include <ipcpp/event/shm_atomic_observer.h>
 
-#include <set>
+#include <print>
 
 #include "message.h"
 
+/*
 bool on_receive_callback(ipcpp::publish_subscribe::BroadcastSubscriber<Message, ipcpp::event::ShmAtomicObserver<ipcpp::publish_subscribe::Notification>>::value_access_type &message) {
   auto data = message.consume();
   if (data->message_type == MessageType::EXIT) {
@@ -41,3 +42,25 @@ int main(int argc, char** argv) {
   }
   return 0;
 }
+ */
+
+std::error_code receive_callback(ipcpp::publish_subscribe::Subscriber<int, ipcpp::event::ShmAtomicObserver>::data_access_type& data) {
+  auto value = data.consume();
+  std::int64_t ts = ipcpp::utils::timestamp();
+  std::println("Received message: {}, ts: {}", *value, ts);
+  return {};
+}
+
+int main() {
+  ipcpp::publish_subscribe::Subscriber<int, ipcpp::event::ShmAtomicObserver> subscriber("my_id");
+  if (const std::error_code error = subscriber.initialize(); error) {
+    return 1;
+  }
+  subscriber.subscribe();
+  while (true) {
+    if (const auto error = subscriber.receive(receive_callback, 0ms); error) {
+      std::println(std::cerr, "Received error");
+      break;
+    }
+  }
+};
