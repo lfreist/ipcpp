@@ -9,8 +9,9 @@
 
 #include <ipcpp/event/notification.h>
 #include <ipcpp/event/notifier.h>
-#include <ipcpp/sock/error.h>
 #include <ipcpp/utils/synchronized.h>
+#include <ipcpp/event/error.h>
+
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -40,17 +41,16 @@ using namespace std::chrono_literals;
  * @tparam NotificationT
  * @tparam SubscriptionDataT
  */
-template <typename NotificationT, typename SubscriptionDataT>
-class DomainSocketNotifier final : Notifier_I<NotificationT, SubscriptionDataT> {
+template <typename NotificationT>
+class DomainSocketNotifier final : Notifier_I<NotificationT> {
  public:
-  typedef Notifier_I<NotificationT, SubscriptionDataT> notifier_base;
+  typedef Notifier_I<NotificationT> notifier_base;
 
  public:
   /// Move constructor needed for DomainSocketNotificationHandler::create()
   DomainSocketNotifier(DomainSocketNotifier&& other) noexcept
       : notifier_base(std::move(other)),
-        _max_observers(other._max_observers),
-        _response_data(std::move(other._response_data)) {
+        _max_observers(other._max_observers) {
     if (other._cancellation_enabled.load()) {
       _cancellation_enabled.store(true);
       _request_processing_thread = std::thread(&DomainSocketNotifier::process_observer_requests, this);
@@ -80,10 +80,6 @@ class DomainSocketNotifier final : Notifier_I<NotificationT, SubscriptionDataT> 
     }
   }
 
-  void set_response_data(typename SubscriptionDataT::data_type&& data) {
-    _response_data = std::move(data);
-  }
-
   /**
    * @brief Create an instance of DomainSocketNotifier using id as socket path and max_num_observers as maximum number
    *  of concurrent observers.
@@ -92,7 +88,7 @@ class DomainSocketNotifier final : Notifier_I<NotificationT, SubscriptionDataT> 
    * @param max_num_observers maximum number of observers
    * @return instance wrapped by std::expected
    */
-  static std::expected<DomainSocketNotifier, factory_error> create(
+  static std::expected<DomainSocketNotifier, std::error_code> create(
       std::string&& id, std::uint16_t max_num_observers = std::numeric_limits<uint16_t>::max()) {
     DomainSocketNotifier self(std::move(id), max_num_observers);
     if (auto result = self.setup_socket(); !result.has_value()) {
@@ -175,10 +171,10 @@ class DomainSocketNotifier final : Notifier_I<NotificationT, SubscriptionDataT> 
    * @brief Set up the subscription request socket
    * @return
    */
-  std::expected<void, factory_error> setup_socket() {
+  std::expected<void, std::error_code> setup_socket() {
     _socket = socket(AF_UNIX, SOCK_STREAM, 0);
     if (_socket == -1) {
-      return std::unexpected(factory_error::SOCKET_CREATION_FAILED);
+      return std::unexpected(std::error_code(static_cast<int>(socket_error_t::create_error), socket_error_category()));
     }
 
     sockaddr_un server_addr{};
@@ -187,11 +183,11 @@ class DomainSocketNotifier final : Notifier_I<NotificationT, SubscriptionDataT> 
     unlink(this->_id.c_str());
 
     if (bind(_socket, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) == -1) {
-      return std::unexpected(factory_error::SOCKET_BIND_FAILED);
+      return std::unexpected(std::error_code(static_cast<int>(socket_error_t::bind_error), socket_error_category()));
     }
 
     if (listen(_socket, _max_observers) == -1) {
-      return std::unexpected(factory_error::SOCKET_LISTEN_FAILED);
+      return std::unexpected(std::error_code(static_cast<int>(socket_error_t::listen_error), socket_error_category()));
     }
 
     timeval timeout{};
@@ -210,9 +206,7 @@ class DomainSocketNotifier final : Notifier_I<NotificationT, SubscriptionDataT> 
     while (_subscription_enabled.load()) {
       if (int client_fd = accept(_socket, nullptr, nullptr); client_fd >= 0) {
         _observer_sockets.wlock()->insert(client_fd);
-        SubscriptionDataT response;
-        response.info = SubscriptionError::NO_ERROR;
-        response.data = _response_data;
+        bool response = true;
         send(client_fd, &response, sizeof(response), 0);
       }
     }
@@ -295,8 +289,6 @@ class DomainSocketNotifier final : Notifier_I<NotificationT, SubscriptionDataT> 
   std::atomic_bool _cancellation_enabled = false;
   std::thread _subscription_processing_thread;
   std::thread _request_processing_thread;
-
-  typename SubscriptionDataT::data_type _response_data{};
 };
 
 }  // namespace ipcpp::event

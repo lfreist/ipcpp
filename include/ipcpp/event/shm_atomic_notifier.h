@@ -38,11 +38,11 @@ class ShmAtomicNotifier final : public Notifier_I<T_Notification> {
     _mapped_memory.release();
   }
 
-  static std::expected<ShmAtomicNotifier, factory_error> create(const std::string& id, const std::size_t shm_size_bytes) {
+  static std::expected<ShmAtomicNotifier, std::error_code> create(const std::string& id, const std::size_t shm_size_bytes) {
     auto expected_mapped_memory = shm::MappedMemory<shm::MappingType::SINGLE>::open_or_create(
         "/" + id + ".nrb.ipcpp.shm", shm_size_bytes);
     if (!expected_mapped_memory.has_value()) {
-      return std::unexpected(factory_error::SHM_CREATE_FAILED);
+      return std::unexpected(expected_mapped_memory.error());
     }
     ShmAtomicNotifier self(std::move(expected_mapped_memory.value()));
 

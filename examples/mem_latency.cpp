@@ -14,47 +14,58 @@
 
 using namespace std::chrono_literals;
 
+constexpr const int num_iterations = 1000000;
+
 inline int64_t timestamp() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-std::vector<int64_t> generate_latencies;
+std::vector<int64_t> generate_latencies(num_iterations);
+
+alignas(64) std::atomic_size_t counter{0};
+alignas(64) std::size_t initial{0};
+alignas(64) std::int64_t sender_timestamp{0};
+alignas(64) std::size_t sink{0};
 
 void signal_handler(int signal)
 {
-  std::println("latency: {}ns", std::accumulate(generate_latencies.begin(), generate_latencies.end(), 0.0f) / static_cast<double>(generate_latencies.size()));
+  std::println("latency: {}ns (counter: {}, initial: {})", std::accumulate(generate_latencies.begin(), generate_latencies.end(), 0.0f) / static_cast<double>(generate_latencies.size()), counter.load(), initial);
+  std::println("sink: {}", sink);
   std::exit(0);
 }
 
-void notifier(std::atomic_size_t& counter, int64_t& sender_timestamp) {
-  while (true) {
-    for (volatile int i = 0; i < 10000; i++) {}
+void notifier() {
+  for (std::size_t j = 0; j < num_iterations; ++j) {
+    for (std::size_t i = 0; i < 10000; ++i) {
+      sink += i;
+      sink -= j % 100;
+    }
     sender_timestamp = timestamp();
     counter.fetch_add(1, std::memory_order_release);
   }
 }
 
-void observer(const std::atomic_size_t& counter, std::size_t& initial, const int64_t& sender_timestamp) {
-  while (true) {
-    if (auto val = counter.load(std::memory_order_acquire); val != initial) {
-      auto ts = timestamp();
-      // std::println("# {}, latency: {}ns", val, ts - sender_timestamp);
-      generate_latencies.push_back(ts - sender_timestamp);
-      initial = val;
+void observer() {
+  for (auto& v : generate_latencies) {
+    while (true) {
+      if (const auto val = counter.load(std::memory_order_acquire); val != initial) {
+        const auto ts = timestamp();
+        v = ts - sender_timestamp;
+        initial = val;
+        break;
+      }
     }
-    // std::this_thread::yield();
   }
 }
 
 int main() {
   std::signal(SIGTERM, signal_handler);
-  generate_latencies.reserve(10000000);
-  alignas(64) std::atomic_size_t counter{0};
-  alignas(64) std::size_t initial{0};
-  alignas(64) std::int64_t sender_timestamp{0};
-  std::thread notifier_thread(notifier, std::ref(counter), std::ref(sender_timestamp));
-  std::thread observer_thread(observer, std::ref(counter), std::ref(initial), std::ref(sender_timestamp));
+  std::thread observer_thread(observer);
+  std::this_thread::sleep_for(100ms);
+  std::thread notifier_thread(notifier);
 
   notifier_thread.join();
   observer_thread.join();
+
+  std::println("latency: {}ns (counter: {}, initial: {})", std::accumulate(generate_latencies.begin(), generate_latencies.end(), 0.0f) / static_cast<double>(generate_latencies.size()), counter.load(), initial);
 }

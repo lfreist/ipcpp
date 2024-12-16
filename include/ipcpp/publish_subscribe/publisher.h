@@ -248,16 +248,16 @@ class Publisher<T_Data, internal::ShmDefault> final : internal::Publisher_I<T_Da
 
   std::error_code initialize() override {
     if (_initialized) {
-      logging::warn("Publisher<'{}'>::setup(): called but already set up", _id);
+      logging::warn("Publisher<'{}'>::setup(): called but already set up", this->_id);
       return {};
     }
     if (const std::error_code error = _m_initialize_message_buffer()) {
-      logging::error("Publisher<'{}'>::setup(): failed to setup message buffer: {}::{}", _id, error.category().name(),
+      logging::error("Publisher<'{}'>::setup(): failed to setup message buffer: {}::{}", this->_id, error.category().name(),
                      error.message(), error.message());
       return error;
     }
     _initialized = true;
-    logging::debug("Publisher<'{}'>::setup(): setup done", _id);
+    logging::debug("Publisher<'{}'>::setup(): setup done", this->_id);
     return {};
   }
 
@@ -267,15 +267,15 @@ class Publisher<T_Data, internal::ShmDefault> final : internal::Publisher_I<T_Da
       case publisher::PublishPolicy::ALWAYS: {
         const std::size_t msg_id = data->message_number;
         _m_notify_observers(msg_id);
-        logging::info("Publisher<'{}'>::publish(): published message id {}", _id, msg_id);
+        logging::info("Publisher<'{}'>::publish(): published message id {}", this->_id, msg_id);
         break;
       }
       case publisher::PublishPolicy::SUBSCRIBED: {
-        logging::critical("Publisher<'{}'>::publish(): Not implemented for PublishPolicy::SUBSCRIBED", _id);
+        logging::critical("Publisher<'{}'>::publish(): Not implemented for PublishPolicy::SUBSCRIBED", this->_id);
         break;
       }
       case publisher::PublishPolicy::TIMED: {
-        logging::critical("Publisher<'{}'>::publish(): Not implemented for PublishPolicy::TIMED", _id);
+        logging::critical("Publisher<'{}'>::publish(): Not implemented for PublishPolicy::TIMED", this->_id);
         break;
       }
     }
@@ -284,7 +284,7 @@ class Publisher<T_Data, internal::ShmDefault> final : internal::Publisher_I<T_Da
   template <typename... T_Args>
   data_access_type* construct_and_get(T_Args&&... args) {
     assert(_initialized);
-    logging::info("Publisher<'{}'>::construct_and_get(): constructed next message", _id);
+    logging::info("Publisher<'{}'>::construct_and_get(): constructed next message", this->_id);
     std::size_t msg_id = _message_buffer->header->message_counter.load(std::memory_order_acquire) + 1;
     return _message_buffer->message_buffer.emplace_at(msg_id, std::forward<T_Args>(args)...,
                                                       _m_num_observers() + (this->_options.history_capacity > 0));
@@ -299,15 +299,15 @@ class Publisher<T_Data, internal::ShmDefault> final : internal::Publisher_I<T_Da
         _message_buffer->message_buffer.emplace_at(msg_id, std::forward<T_Args>(args)...,
                                                    _m_num_observers() + (this->_options.history_capacity > 0));
         _m_notify_observers(msg_id);
-        logging::info("Publisher<'{}'>::publish(): published message at {}", _id, msg_id);
+        logging::info("Publisher<'{}'>::publish(): published message at {}", this->_id, msg_id);
         break;
       }
       case publisher::PublishPolicy::SUBSCRIBED: {
-        logging::critical("Publisher<'{}'>::publish(): Not implemented for PublishPolicy::SUBSCRIBED", _id);
+        logging::critical("Publisher<'{}'>::publish(): Not implemented for PublishPolicy::SUBSCRIBED", this->_id);
         break;
       }
       case publisher::PublishPolicy::TIMED: {
-        logging::critical("Publisher<'{}'>::publish(): Not implemented for PublishPolicy::TIMED", _id);
+        logging::critical("Publisher<'{}'>::publish(): Not implemented for PublishPolicy::TIMED", this->_id);
         break;
       }
     }
@@ -317,16 +317,16 @@ class Publisher<T_Data, internal::ShmDefault> final : internal::Publisher_I<T_Da
   std::error_code _m_initialize_message_buffer() {
     const std::size_t num_bytes = message_buffer_type::required_bytes_for(_options.queue_capacity);
     auto expected_memory =
-        shm::MappedMemory<shm::MappingType::SINGLE>::open_or_create("/" + _id + ".ipcpp.mrb.shm", num_bytes);
+        shm::MappedMemory<shm::MappingType::SINGLE>::open_or_create("/" + this->_id + ".ipcpp.mrb.shm", num_bytes);
     if (!expected_memory.has_value()) {
       // TODO: return error
-      return {};
+      return {1, std::system_category()};
     }
     _message_memory =
         std::make_optional<shm::MappedMemory<shm::MappingType::SINGLE>>(std::move(expected_memory.value()));
     _message_buffer =
         std::make_optional<message_buffer_type>(_message_memory.value().addr(), _message_memory.value().size());
-    logging::info("Publisher<'{}'>::_m_initialize_message_buffer(): created message buffer", _id);
+    logging::info("Publisher<'{}'>::_m_initialize_message_buffer(): created message buffer", this->_id);
     return {};
   }
 
@@ -338,11 +338,10 @@ class Publisher<T_Data, internal::ShmDefault> final : internal::Publisher_I<T_Da
   void _m_notify_observers(std::size_t index) {
     assert(_initialized);
     _message_buffer->header->message_counter.store(index, std::memory_order_release);
-    logging::info("Publisher<'{}'>::_m_notify_observers(): message_id: {}", _id, index);
+    logging::info("Publisher<'{}'>::_m_notify_observers(): message_id: {}", this->_id, index);
   }
 
  private:
-  std::string _id{};
   std::optional<shm::MappedMemory<shm::MappingType::SINGLE>> _message_memory;
   std::optional<message_buffer_type> _message_buffer;
   publisher::Options _options{};

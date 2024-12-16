@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
 std::error_code receive_callback(ipcpp::publish_subscribe::Subscriber<Message, ipcpp::event::ShmAtomicObserver>::data_access_type& data) {
   auto value = data.consume();
   const std::int64_t ts = ipcpp::utils::timestamp();
-  std::string_view message(value->data.data(), value->data.size());
+  const std::string_view message(value->data.data(), value->data.size());
   if (message == "exit") {
     return {0, std::system_category()};
   }
@@ -59,7 +59,7 @@ std::error_code receive_callback(ipcpp::publish_subscribe::Subscriber<Message, i
 int main() {
   ipcpp::initialize_dynamic_buffer();
 
-  ipcpp::publish_subscribe::Subscriber<Message, ipcpp::event::ShmAtomicObserver> subscriber("my_id");
+  ipcpp::publish_subscribe::Subscriber<Message> subscriber("my_id");
   if (const std::error_code error = subscriber.initialize(); error) {
     std::cerr << "Failed to initialize subscriber" << std::endl;
     return 1;

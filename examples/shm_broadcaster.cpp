@@ -52,19 +52,19 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  ipcpp::publish_subscribe::Publisher<Message, ipcpp::event::ShmAtomicNotifier> publisher("my_id");
+  ipcpp::publish_subscribe::Publisher<Message> publisher("my_id");
   if (std::error_code error = publisher.initialize()) {
     return 1;
   }
-  std::cout << "press enter to start" << std::endl;
-  std::string line;
-  std::getline(std::cin, line);
-  std::cout << "publishing data..." << std::endl;
-  for (int i = 0; i < 10; ++i) {
+  while (true) {
     std::cout << "Enter message: ";
+    std::string line;
     std::getline(std::cin, line);
     Message msg;
     msg.data = ipcpp::vector<char>(line.begin(), line.end());
     publisher.publish(std::move(msg));
+    if (line == "exit") {
+      break;
+    }
   }
 }

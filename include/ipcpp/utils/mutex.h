@@ -15,8 +15,17 @@
 
 namespace ipcpp {
 
-void wait(std::atomic_flag& flag, bool old, std::memory_order order) {
-  while (flag.test(order) == old) {}
+inline void wait(const std::atomic_flag& flag, const bool old, const std::memory_order order = std::memory_order_acquire) {
+  while (flag.test(order) == old) {
+    std::this_thread::yield();
+  }
+}
+
+template <typename T> requires std::is_integral_v<T>
+void wait(const std::atomic<T>& value, const T old, const std::memory_order order = std::memory_order_acquire) {
+  while (value.load(order) == old) {
+    std::this_thread::yield();
+  }
 }
 
 /**
@@ -42,7 +51,6 @@ class mutex {
 
   void unlock() noexcept {
     _flag.clear(std::memory_order_release);
-    _flag.notify_one();
   }
 
   bool try_lock() noexcept { return _flag.test_and_set(std::memory_order_acquire); }
@@ -60,12 +68,12 @@ class shared_mutex {
   void lock() noexcept {
     while (true) {
       _mutex.lock();
-      int num_readers = _readers.load(std::memory_order_acquire);
+      const int num_readers = _readers.load(std::memory_order_acquire);
       if (num_readers == 0) {
         break;
       }
       _mutex.unlock();
-      _readers.wait(num_readers);
+      wait(_readers, num_readers, std::memory_order_acquire);
     }
   }
 
@@ -81,7 +89,6 @@ class shared_mutex {
 
   void unlock_shared() noexcept {
     _readers.fetch_sub(1, std::memory_order_acq_rel);
-    _readers.notify_all();
   }
 
   bool try_lock_shared() noexcept {
@@ -89,9 +96,8 @@ class shared_mutex {
       _readers.fetch_add(1, std::memory_order_acq_rel);
       _mutex.unlock();
       return true;
-    } else {
-      return false;
     }
+    return false;
   }
 
   [[nodiscard]] bool is_locked() const noexcept {

@@ -9,7 +9,6 @@
 
 #include <ipcpp/event/notification.h>
 #include <ipcpp/event/observer.h>
-#include <ipcpp/sock/error.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -20,11 +19,10 @@ namespace ipcpp::event {
 
 using namespace std::chrono_literals;
 
-template <typename NotificationT, typename SubscriptionDataT>
-class DomainSocketObserver final : public Observer_I<NotificationT, SubscriptionDataT> {
+template <typename NotificationT>
+class DomainSocketObserver final : public Observer_I<NotificationT> {
  public:
-  typedef sock::domain::Error create_error_type;
-  typedef Observer_I<NotificationT, SubscriptionDataT> observer_base;
+  typedef Observer_I<NotificationT> observer_base;
 
  public:
   /// Move constructor needed for DomainSocketNotificationHandler::create()
@@ -40,7 +38,7 @@ class DomainSocketObserver final : public Observer_I<NotificationT, Subscription
     if (_socket != -1) {
       if (observer_base::is_subscribed()) {
         DomainSocketObserver::cancel_subscription().or_else(
-            [](auto error) -> std::expected<void, SubscriptionError> {
+            [](auto error) -> std::expected<void, std::error_code> {
               return {};
             });
       }
@@ -49,12 +47,12 @@ class DomainSocketObserver final : public Observer_I<NotificationT, Subscription
     }
   }
 
-  static std::expected<DomainSocketObserver, create_error_type> create(std::string&& id) {
+  static std::expected<DomainSocketObserver, std::error_code> create(std::string&& id) {
     DomainSocketObserver self(std::move(id));
     return self;
   }
 
-  typename observer_base::subscription_return_type subscribe() override {
+  std::expected<bool, std::error_code> subscribe() override {
     if (observer_base::is_subscription_paused()) {
       ::shutdown(_socket, SHUT_RDWR);
       close(_socket);
@@ -65,14 +63,14 @@ class DomainSocketObserver final : public Observer_I<NotificationT, Subscription
       return std::unexpected(SubscriptionError::OBSERVER_SETUP_FAILED);
     }
 
-    SubscriptionDataT response;
+    bool response;
     if (recv(_socket, &response, sizeof(response), 0) == -1) {
       return std::unexpected(SubscriptionError::NOTIFIER_UNREACHABLE);
     }
 
-    if (response.info == SubscriptionError::NO_ERROR) {
+    if (response) {
       observer_base::_subscribed = true;
-      return response.data;
+      return true;
     }
     return std::unexpected(response.info);
   }

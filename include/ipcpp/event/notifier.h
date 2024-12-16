@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <ipcpp/event/error.h>
-
 #include <concepts>
 #include <string>
 

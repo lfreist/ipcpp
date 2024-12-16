@@ -24,10 +24,10 @@ class shared_memory_file {
   shared_memory_file(shared_memory_file&& other) noexcept;
   shared_memory_file& operator=(shared_memory_file&& other) noexcept;
 
-  static std::expected<shared_memory_file, error::MemoryError> create(std::string&& path, std::size_t size);
+  static std::expected<shared_memory_file, std::error_code> create(std::string&& path, std::size_t size);
 
   template <AccessMode A>
-  static std::expected<shared_memory_file, error::MemoryError> open(std::string&& path);
+  static std::expected<shared_memory_file, std::error_code> open(std::string&& path);
 
   [[nodiscard]] int fd() const;
   [[nodiscard]] std::size_t size() const;
@@ -47,18 +47,18 @@ class shared_memory_file {
 
 // === implementations =================================================================================================
 // _____________________________________________________________________________________________________________________
-inline std::expected<shared_memory_file, error::MemoryError> shared_memory_file::create(std::string&& path,
+inline std::expected<shared_memory_file, std::error_code> shared_memory_file::create(std::string&& path,
                                                                                  const std::size_t size) {
   shared_memory_file self(std::move(path), size);
   self._access_mode = AccessMode::WRITE;
 
   const int fd = shm_open(self._path.c_str(), O_RDWR | O_CREAT, 0666);
   if (fd == -1) {
-    return std::unexpected(error::MemoryError::CREATION_ERROR);
+    return std::unexpected(std::error_code(static_cast<int>(error_t::creation_error), error_category()));
   }
 
   if (ftruncate(fd, static_cast<__off_t>(self._size)) == -1) {
-    return std::unexpected(error::MemoryError::ALLOCATION_ERROR);
+    return std::unexpected(std::error_code(static_cast<int>(error_t::resize_error), error_category()));
   }
 
   self._fd = fd;
@@ -67,7 +67,7 @@ inline std::expected<shared_memory_file, error::MemoryError> shared_memory_file:
 }
 
 template <AccessMode A>
-std::expected<shared_memory_file, error::MemoryError> shared_memory_file::open(std::string&& path) {
+std::expected<shared_memory_file, std::error_code> shared_memory_file::open(std::string&& path) {
   int o_flags = 0;
   if constexpr (A == AccessMode::WRITE) {
     o_flags = O_RDWR;
@@ -77,12 +77,12 @@ std::expected<shared_memory_file, error::MemoryError> shared_memory_file::open(s
 
   const int fd = shm_open(path.c_str(), o_flags, 0666);
   if (fd == -1) {
-    return std::unexpected(error::MemoryError::CREATION_ERROR);
+    return std::unexpected(std::error_code(static_cast<int>(error_t::open_error), error_category()));
   }
 
   struct stat shm_stat{};
   if (fstat(fd, &shm_stat) == -1) {
-    return std::unexpected(error::MemoryError::CREATION_ERROR);
+    return std::unexpected(std::error_code(static_cast<int>(error_t::file_not_found), error_category()));
   }
 
   shared_memory_file self(std::move(path), shm_stat.st_size);

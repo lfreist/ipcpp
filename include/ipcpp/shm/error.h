@@ -1,51 +1,51 @@
-//
-// Created by lfreist on 16/10/2024.
-//
+/**
+ * Copyright 2024, Leon Freist (https://github.com/lfreist)
+ * Author: Leon Freist <freist.leon@gmail.com>
+ *
+ * This file is part of ipcpp.
+ */
 
 #pragma once
 
 #include <iostream>
 
-namespace ipcpp::shm::error {
+namespace ipcpp::shm {
 
-enum class AccessError {
-  ALREADY_LOCKED_FOR_READ,
-  ALREADY_LOCKED_FOR_WRITE,
-  READ_LOCK_TIMEOUT,
-  WRITE_LOCK_TIMEOUT,
-  UNKNOWN_LOCK_ERROR,
+enum class error_t {
+  success = 0,
+  creation_error,  // shm_open for create fails
+  resize_error,    // ftruncate fails
+  open_error,      // shm_open for open fails
+  file_not_found,
+  mapping_error,  // mmap fails
+  mapped_at_wrong_address,
+  unknown_error,
 };
 
-enum class MemoryError {
-  CREATION_ERROR,    // shm_open fails
-  ALLOCATION_ERROR,  // ftruncate fails
-  MAPPING_ERROR,     // mmap fails
+class error_category final : public std::error_category {
+ public:
+  [[nodiscard]] const char* name() const noexcept override { return "ipcpp::shm::error_t"; }
+  [[nodiscard]] std::string message(int ev) const override {
+    switch (static_cast<error_t>(ev)) {
+      case error_t::success:
+        return "success";
+      case error_t::creation_error:
+        return "creation_error";
+      case error_t::resize_error:
+        return "resize_error";
+      case error_t::open_error:
+        return "open_error";
+      case error_t::file_not_found:
+        return "file_not_found";
+      case error_t::mapping_error:
+        return "mapping_error";
+      case error_t::mapped_at_wrong_address:
+        return "mapped_at_wrong_address";
+      case error_t::unknown_error:
+        return "unknown_error";
+    }
+    return "unlisted_error";
+  }
 };
 
-enum class MappingError {
-  // mmap error codes - errno is set to one of these errors (probably EINVAL)
-  //  read mmap(2) documentation for further details
-  MMAP_EACCES = EACCES,
-  MMAP_EAGAIN = EAGAIN,
-  MMAP_EBADF = EBADF,
-  MMAP_EEXIST = EEXIST,
-  MMAP_EINVAL = EINVAL,
-  MMAP_ENFILE = ENFILE,
-  MMAP_ENODEV = ENODEV,
-  MMAP_ENOMEM = ENOMEM,
-  MMAP_EOVERFLOW = EOVERFLOW,
-  MMAP_EPERM = EPERM,
-  MMAP_ETXTBSY = ETXTBSY,
-  // custom error codes:
-  MMAP_FAILED,        // mmap failed
-  WRONG_ADDRESS,      // mapped to a different address than requested
-  INVALID_HEAP_SIZE,  // issue with heap size: won't fit into address space
-  SHM_ERROR,
-  UNKNOWN_MAPPING,
-};
-
-std::ostream& operator<<(std::ostream& os, AccessError error);
-std::ostream& operator<<(std::ostream& os, MemoryError error);
-std::ostream& operator<<(std::ostream& os, MappingError error);
-
-}
+}  // namespace ipcpp::shm

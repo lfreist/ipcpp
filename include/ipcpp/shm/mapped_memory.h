@@ -6,12 +6,11 @@
 
 #include <ipcpp/shm/address_space.h>
 #include <ipcpp/shm/error.h>
+#include <spdlog/spdlog.h>
 
 #include <cassert>
 #include <cstdint>
 #include <memory>
-
-#include <spdlog/spdlog.h>
 
 namespace ipcpp::shm {
 
@@ -43,9 +42,10 @@ class MappedMemory {
   }
 
   template <AccessMode A>
-  static std::expected<MappedMemory, error::MappingError> open(shared_memory_file&& shared_address_space) {
+  static std::expected<MappedMemory, std::error_code> open(shared_memory_file&& shared_address_space) {
     if constexpr (MT == MappingType::SINGLE) {
-      spdlog::debug("MappedMemory<MAPPING::SINGLE>::create<{}>(shared_memory_file={})", static_cast<int>(A), shared_address_space.fd());
+      spdlog::debug("MappedMemory<MAPPING::SINGLE>::create<{}>(shared_memory_file={})", static_cast<int>(A),
+                    shared_address_space.fd());
       MappedMemory self(std::move(shared_address_space));
       self._size = self._shared_address_space.size();
       self._total_size = self._shared_address_space.size();
@@ -58,7 +58,8 @@ class MappedMemory {
 
       return self;
     } else if constexpr (MT == MappingType::DOUBLE) {
-      spdlog::debug("MappedMemory<MAPPING::DOUBLE>::create<{}>(shared_memory_file={})", static_cast<int>(A), shared_address_space.fd());
+      spdlog::debug("MappedMemory<MAPPING::DOUBLE>::create<{}>(shared_memory_file={})", static_cast<int>(A),
+                    shared_address_space.fd());
       MappedMemory self(std::move(shared_address_space));
       self._size = self._shared_address_space.size();
       self._total_size = self._shared_address_space.size() + self._shared_address_space.size();
@@ -79,50 +80,44 @@ class MappedMemory {
       return self;
     } else {
       spdlog::error("MappedMemory::create() called with invalid MappingType {}", static_cast<int>(MT));
-      return std::unexpected(error::MappingError::UNKNOWN_MAPPING);
+      return std::unexpected(std::error_code(static_cast<int>(error_t::mapping_error), error_category()));
     }
   }
 
-  static std::expected<MappedMemory, error::MappingError> open_or_create(std::string&& shm_id, const std::size_t size) {
+  static std::expected<MappedMemory, std::error_code> open_or_create(std::string&& shm_id, const std::size_t size) {
     if constexpr (MT == MappingType::SINGLE) {
       spdlog::debug("MappedMemory<MAPPING::SINGLE>::create(shm_id='{}', size={})", std::string(shm_id), size);
       auto shm_result = shared_memory_file::create(std::move(shm_id), size);
       if (!shm_result.has_value()) {
-        return std::unexpected(error::MappingError::SHM_ERROR);
+        return std::unexpected(shm_result.error());
       }
       return MappedMemory::open<AccessMode::WRITE>(std::move(shm_result.value()));
-    } else if constexpr (MT == MappingType::DOUBLE) {
+    } else /*if constexpr (MT == MappingType::DOUBLE)*/ {
       spdlog::debug("MappedMemory<MAPPING::DOUBLE>::create(shm_id='{}', size={})", std::string(shm_id), size);
       auto shm_result = shared_memory_file::create(std::move(shm_id), size);
       if (!shm_result.has_value()) {
-        return std::unexpected(error::MappingError::SHM_ERROR);
+        return std::unexpected(shm_result.error());
       }
       return MappedMemory::open<AccessMode::WRITE>(std::move(shm_result.value()));
-    } else {
-      spdlog::error("MappedMemory::create() called with invalid MappingType {}", static_cast<int>(MT));
-      return std::unexpected(error::MappingError::UNKNOWN_MAPPING);
     }
   }
 
   template <AccessMode A>
-  static std::expected<MappedMemory, error::MappingError> open(std::string&& shm_id) {
+  static std::expected<MappedMemory, std::error_code> open(std::string&& shm_id) {
     if constexpr (MT == MappingType::SINGLE) {
       spdlog::debug("MappedMemory<MAPPING::SINGLE>::open(shm_id='{}')", std::string(shm_id));
       auto shm_result = shared_memory_file::open<A>(std::move(shm_id));
       if (!shm_result.has_value()) {
-        return std::unexpected(error::MappingError::SHM_ERROR);
+        return std::unexpected(shm_result.error());
       }
       return MappedMemory::open<A>(std::move(shm_result.value()));
-    } else if constexpr (MT == MappingType::DOUBLE) {
+    } else /*if constexpr (MT == MappingType::DOUBLE)*/ {
       spdlog::debug("MappedMemory<MAPPING::DOUBLE>::open(shm_id='{}')", std::string(shm_id));
       auto shm_result = shared_memory_file::open<A>(std::move(shm_id));
       if (!shm_result.has_value()) {
-        return std::unexpected(error::MappingError::SHM_ERROR);
+        return std::unexpected(shm_result.error());
       }
       return MappedMemory::open<A>(std::move(shm_result.value()));
-    } else {
-      spdlog::error("MappedMemory::open() called with invalid MappingType {}", static_cast<int>(MT));
-      return std::unexpected(error::MappingError::UNKNOWN_MAPPING);
     }
   }
 
@@ -144,14 +139,13 @@ class MappedMemory {
 
   [[nodiscard]] std::uintptr_t addr() const { return _mapped_region; }
 
-
  private:
   explicit MappedMemory(shared_memory_file&& shared_address_space)
       : _shared_address_space(std::move(shared_address_space)) {}
 
   template <AccessMode A>
-  static std::expected<void*, error::MappingError> map_memory(std::size_t expected_size, void* start_addr, int fd,
-                                                              std::size_t offset);
+  static std::expected<void*, std::error_code> map_memory(std::size_t expected_size, void* start_addr, int fd,
+                                                          std::size_t offset);
 
   std::uintptr_t _mapped_region = 0;
   std::size_t _size = 0;
@@ -163,9 +157,8 @@ class MappedMemory {
 // _____________________________________________________________________________________________________________________
 template <MappingType MT>
 template <AccessMode A>
-std::expected<void*, error::MappingError> MappedMemory<MT>::map_memory(const std::size_t expected_size,
-                                                                                   void* start_addr, const int fd,
-                                                                                   const std::size_t offset) {
+std::expected<void*, std::error_code> MappedMemory<MT>::map_memory(const std::size_t expected_size, void* start_addr,
+                                                                   const int fd, const std::size_t offset) {
   int protect_flags = PROT_READ;
   if constexpr (A == AccessMode::WRITE) {
     protect_flags |= PROT_WRITE;
@@ -186,11 +179,11 @@ std::expected<void*, error::MappingError> MappedMemory<MT>::map_memory(const std
   void* const mapped_region = ::mmap(start_addr, expected_size, protect_flags, flags, fd, static_cast<__off_t>(offset));
 
   if (mapped_region == MAP_FAILED) {
-    return std::unexpected(static_cast<error::MappingError>(errno));
+    return std::unexpected(std::error_code(static_cast<int>(error_t::mapping_error), error_category()));
   }
 
   if (start_addr && start_addr != mapped_region) {
-    return std::unexpected(error::MappingError::WRONG_ADDRESS);
+    return std::unexpected(std::error_code(static_cast<int>(error_t::mapped_at_wrong_address), error_category()));
   }
 
   return mapped_region;

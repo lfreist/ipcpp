@@ -25,13 +25,13 @@ struct subscription_return_type_helper;
 // Specialization for `void`
 template <typename SubscriptionRetT>
 struct subscription_return_type_helper<SubscriptionRetT, std::enable_if_t<std::is_void_v<SubscriptionRetT>>> {
-  using type = std::expected<void, SubscriptionError>;
+  using type = std::expected<void, std::error_code>;
 };
 
 // Specialization for non-void types with `data_type`
 template <typename SubscriptionRetT>
 struct subscription_return_type_helper<SubscriptionRetT, std::enable_if_t<!std::is_void_v<SubscriptionRetT>>> {
-  using type = std::expected<typename SubscriptionRetT::data_type, SubscriptionError>;
+  using type = std::expected<typename SubscriptionRetT::data_type, std::error_code>;
 };
 }
 
@@ -39,9 +39,7 @@ template <typename NotificationT, typename SubscriptionRetT = void>
 class Observer_I {
  public:
   typedef NotificationT notification_type;
-  typedef NotificationError notification_error_type;  // defined in notification.h
-
-  using subscription_return_type = typename internal::subscription_return_type_helper<SubscriptionRetT>::type;
+  typedef typename internal::subscription_return_type_helper<SubscriptionRetT>::type subscription_return_type;
 
  public:
   Observer_I() = default;
@@ -52,9 +50,9 @@ class Observer_I {
   /// virtual member function to unsubscribe receiver from sender
   virtual std::error_code cancel_subscription() = 0;
 
-  virtual std::expected<void, SubscriptionError> pause_subscription() = 0;
+  virtual std::expected<void, std::error_code> pause_subscription() = 0;
 
-  virtual std::expected<void, SubscriptionError> resume_subscription() = 0;
+  virtual std::expected<void, std::error_code> resume_subscription() = 0;
 
   [[nodiscard]] bool is_subscribed() const noexcept { return _subscribed; }
   [[nodiscard]] bool is_subscription_paused() const noexcept { return _subscription_paused; }
@@ -78,12 +76,10 @@ class Observer_I {
         decltype(std::forward<F>(callback)(std::declval<notification_type>(), std::forward<Args>(args)...));
 
     if (!_subscribed) {
-      return std::unexpected(std::error_code());
-      // return std::unexpected(notification_error_type::NOT_SUBSCRIBED);
+      return std::unexpected(std::error_code(static_cast<int>(error_t::not_subscribed), error_category()));
     }
     if (_subscription_paused) {
-      return std::unexpected(std::error_code());
-      // return std::unexpected(notification_error_type::SUBSCRIPTION_PAUSED);
+      return std::unexpected(std::error_code(static_cast<int>(error_t::subscription_paused), error_category()));
     }
 
     std::function<std::any(notification_type)> func =
@@ -108,7 +104,7 @@ class Observer_I {
 
  protected:
   /// virtual member function to handle received notifications
-  virtual std::expected<std::any, notification_error_type> _m_receive_helper(
+  virtual std::expected<std::any, std::error_code> _m_receive_helper(
       const std::function<std::any(notification_type)>& callback, std::chrono::milliseconds timeout) = 0;
 
  protected:
@@ -120,7 +116,6 @@ namespace concepts {
 
 template <typename T>
 concept is_observer = requires (T observer) {
-  // { observer.receive() } -> std::same_as<std::expected<typename T::notification_type, std::error_code>>;
   { observer.subscribe() } -> std::same_as<std::error_code>;
   { observer.cancel_subscription() } -> std::same_as<std::error_code>;
 };

@@ -11,12 +11,6 @@
 
 #include <iostream>
 
-enum class MessageType {
-  EXIT,
-  ERROR,
-  REGULAR
-};
-
 struct Message {
   std::int64_t timestamp;
   ipcpp::vector<char> data;
