@@ -1,6 +1,3 @@
-add_executable(main main.cpp)
-target_link_libraries(main PRIVATE spdlog::spdlog)
-
 # --- publish/subscribe ------------------------------------------------------------------------------------------------
 add_executable(shm_broadcaster shm_broadcaster.cpp)
 target_link_libraries(shm_broadcaster PUBLIC shm spdlog::spdlog)

@@ -45,6 +45,12 @@ class shared_memory_file {
   std::size_t _size = 0U;
 };
 
+#ifdef _MSVC_LANG
+
+
+
+#else
+
 // === implementations =================================================================================================
 // _____________________________________________________________________________________________________________________
 inline std::expected<shared_memory_file, std::error_code> shared_memory_file::create(std::string&& path,
@@ -92,5 +98,7 @@ std::expected<shared_memory_file, std::error_code> shared_memory_file::open(std:
 
   return self;
 }
+
+#endif
 
 }
