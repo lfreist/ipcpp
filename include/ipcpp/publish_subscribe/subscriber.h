@@ -112,7 +112,7 @@ public:
 private:
   std::error_code _m_initialize_message_buffer() {
     auto expected_memory =
-        shm::MappedMemory<shm::MappingType::SINGLE>::open<AccessMode::WRITE>("/" + this->_id + ".ipcpp.mrb.shm");
+        shm::MappedMemory<shm::MappingType::SINGLE>::open("/" + this->_id + ".ipcpp.mrb.shm", AccessMode::WRITE);
     if (!expected_memory.has_value()) {
       // TODO: return error
       return {};
@@ -212,7 +212,7 @@ public:
 private:
   std::error_code _m_initialize_message_buffer() {
     auto expected_memory =
-        shm::MappedMemory<shm::MappingType::SINGLE>::open<AccessMode::WRITE>("/" + this->_id + ".ipcpp.mrb.shm");
+        shm::MappedMemory<shm::MappingType::SINGLE>::open("/" + this->_id + ".ipcpp.mrb.shm", AccessMode::WRITE);
     if (!expected_memory.has_value()) {
       // TODO: return error
       return {1, std::system_category()};

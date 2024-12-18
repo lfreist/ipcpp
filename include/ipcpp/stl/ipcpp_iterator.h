@@ -24,7 +24,7 @@ class normal_iterator {
   typedef std::iterator_traits<T_Iterator> traits_type;
 
   template <typename T_Iter>
-  using convertible_from = std::enable_if_t<std::is_convertible<T_Iter, T_Iterator>::value>;
+  using convertible_from = std::enable_if_t<std::is_convertible_v<T_Iter, T_Iterator>>;
 
  public:
   typedef T_Iterator iterator_type;
@@ -42,7 +42,7 @@ class normal_iterator {
 
   template <typename T_Iter, typename = convertible_from<T_Iter>>
   constexpr normal_iterator(const normal_iterator<T_Iter, T_Container>& i) noexcept
-      : _m_current(i.base()) {}
+  : _m_current(i.base()) {}
 
   // Forward iterator requirements
   constexpr reference operator*() const noexcept { return *_m_current; }

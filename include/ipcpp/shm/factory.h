@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <ipcpp/shm/address_space.h>
+#include <ipcpp/shm/shared_memory_file.h>
 #include <ipcpp/shm/mapped_memory.h>
 
 #include <string>
@@ -22,9 +22,9 @@ struct shared_memory {
         std::move(shm_id), size_bytes);
   }
 
-  template <AccessMode T_Access = AccessMode::WRITE, MappingType T_Mapping = MappingType::SINGLE>
-  static std::expected<MappedMemory<T_Mapping>, std::error_code> open(std::string&& shm_id) {
-    return MappedMemory<T_Mapping>::template open<T_Access>(std::move(shm_id));
+  template <MappingType T_Mapping = MappingType::SINGLE>
+  static std::expected<MappedMemory<T_Mapping>, std::error_code> open(std::string&& shm_id, const AccessMode access_mode = AccessMode::READ) {
+    return MappedMemory<T_Mapping>::open(std::move(shm_id), access_mode);
   }
 };
 

@@ -31,7 +31,7 @@ class ShmAtomicObserver final : public Observer_I<T_Notification> {
   static std::expected<ShmAtomicObserver, std::error_code> create(std::string&& id) {
     spdlog::debug("ShmAtomicObserver::create(id='{}')", std::string(id));
     // must be AccessMode::WRITE because of the subscription (increments the subscription counter)
-    if (auto result = shm::shared_memory::open<AccessMode::WRITE>("/" + std::string(id) + ".nrb.ipcpp.shm");
+    if (auto result = shm::shared_memory::open("/" + std::string(id) + ".nrb.ipcpp.shm", AccessMode::WRITE);
         result.has_value()) {
       return ShmAtomicObserver(std::move(result.value()));
     } else {

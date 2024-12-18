@@ -22,8 +22,6 @@ struct Message {
 };
 
 int main(int argc, char** argv) {
-  spdlog::set_level(spdlog::level::debug);
-  spdlog::info("Hello World!");
   auto expected_notifier = ipcpp::event::ShmAtomicNotifier<Message>::create("shm_notifier", 4096);
   if (!expected_notifier) {
     std::cerr << "Failed to create shm_notifier" << std::endl;

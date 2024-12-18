@@ -19,6 +19,7 @@ enum class error_t {
   file_not_found,
   mapping_error,  // mmap fails
   mapped_at_wrong_address,
+  access_error,
   unknown_error,
 };
 
@@ -41,6 +42,8 @@ class error_category final : public std::error_category {
         return "mapping_error";
       case error_t::mapped_at_wrong_address:
         return "mapped_at_wrong_address";
+      case error_t::access_error:
+        return "access_error";
       case error_t::unknown_error:
         return "unknown_error";
     }

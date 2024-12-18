@@ -1,1 +1,1 @@
-add_library(vector vector.cpp)
+add_library(stl vector.cpp)

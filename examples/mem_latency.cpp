@@ -14,58 +14,54 @@
 
 using namespace std::chrono_literals;
 
-constexpr const int num_iterations = 1000000;
-
 inline int64_t timestamp() {
-  return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
+      .count();
 }
 
-std::vector<int64_t> generate_latencies(num_iterations);
+constexpr std::size_t num_elements = 100'000;
 
-alignas(64) std::atomic_size_t counter{0};
-alignas(64) std::size_t initial{0};
-alignas(64) std::int64_t sender_timestamp{0};
-alignas(64) std::size_t sink{0};
+std::array<int64_t, num_elements * 2> generate_latencies;
 
-void signal_handler(int signal)
-{
-  std::println("latency: {}ns (counter: {}, initial: {})", std::accumulate(generate_latencies.begin(), generate_latencies.end(), 0.0f) / static_cast<double>(generate_latencies.size()), counter.load(), initial);
-  std::println("sink: {}", sink);
-  std::exit(0);
-}
+alignas(64) std::atomic_int64_t ts{0};
 
-void notifier() {
-  for (std::size_t j = 0; j < num_iterations; ++j) {
-    for (std::size_t i = 0; i < 10000; ++i) {
-      sink += i;
-      sink -= j % 100;
-    }
-    sender_timestamp = timestamp();
-    counter.fetch_add(1, std::memory_order_release);
-  }
-}
-
-void observer() {
-  for (auto& v : generate_latencies) {
+void starter() {
+  for (std::size_t i = 0; i < num_elements; ++i) {
+    std::int64_t l_ts = timestamp();
+    ts.store(l_ts, std::memory_order_release);
     while (true) {
-      if (const auto val = counter.load(std::memory_order_acquire); val != initial) {
-        const auto ts = timestamp();
-        v = ts - sender_timestamp;
-        initial = val;
+      if (const auto val = ts.load(std::memory_order_acquire); val != l_ts) {
+        l_ts = timestamp();
+        generate_latencies[i + num_elements] = l_ts - val;
         break;
       }
     }
   }
 }
 
+void responder() {
+  std::int64_t last_l_ts = ts.load(std::memory_order_acquire);
+  for (std::size_t i = 0; i < num_elements; ++i) {
+    while (true) {
+      if (const auto val = ts.load(std::memory_order_acquire); val != last_l_ts) {
+        const auto l_ts = timestamp();
+        generate_latencies[i] = l_ts - val;
+        break;
+      }
+    }
+    last_l_ts = timestamp();
+    ts.store(last_l_ts, std::memory_order_release);
+  }
+}
+
 int main() {
-  std::signal(SIGTERM, signal_handler);
-  std::thread observer_thread(observer);
+  std::thread observer_thread(responder);
   std::this_thread::sleep_for(100ms);
-  std::thread notifier_thread(notifier);
+  std::thread notifier_thread(starter);
 
-  notifier_thread.join();
   observer_thread.join();
+  notifier_thread.join();
 
-  std::println("latency: {}ns (counter: {}, initial: {})", std::accumulate(generate_latencies.begin(), generate_latencies.end(), 0.0f) / static_cast<double>(generate_latencies.size()), counter.load(), initial);
+  std::println("latency: {}ns", std::accumulate(generate_latencies.begin(), generate_latencies.end(), 0.0f) /
+                                    static_cast<double>(generate_latencies.size()));
 }

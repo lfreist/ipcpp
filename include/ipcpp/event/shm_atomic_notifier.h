@@ -12,6 +12,7 @@
 #include <ipcpp/shm/factory.h>
 #include <ipcpp/utils/reference_counted.h>
 #include <spdlog/spdlog.h>
+#include <ipcpp/shm/mapped_memory.h>
 
 #include <expected>
 

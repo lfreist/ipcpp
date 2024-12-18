@@ -14,7 +14,7 @@ namespace ipcpp {
 inline bool initialize_dynamic_buffer(const std::size_t size = 0) {
   if (size == 0) {
     while (true) {
-      static const auto expected_memory = shm::shared_memory::open<AccessMode::WRITE>("/ipcpp.dyn.shm");
+      static const auto expected_memory = shm::shared_memory::open("/ipcpp.dyn.shm", AccessMode::WRITE);
       if (expected_memory.has_value()) {
         pool_allocator<std::uint8_t>::initialize_factory(reinterpret_cast<void*>(expected_memory.value().addr()),
                                                          expected_memory.value().size());

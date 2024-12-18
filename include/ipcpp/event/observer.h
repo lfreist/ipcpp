@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <ipcpp/event/notification.h>
 #include <ipcpp/event/error.h>
 
 #include <any>

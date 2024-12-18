@@ -81,6 +81,6 @@ class socket_error_category final : public std::error_category {
     }
     return "unlisted_error";
   }
-}
+};
 
 }  // namespace ipcpp::event

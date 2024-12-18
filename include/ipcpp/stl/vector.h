@@ -282,28 +282,32 @@ class vector {
   }
 
   iterator erase(iterator pos) {
+    return erase(const_iterator(pos));
+  }
+  iterator erase(const_iterator pos) {
     if ((pos + 1) == end()) {
       std::destroy_at(std::addressof(*pos));
       _m_data._m_finish -= sizeof(value_type);
       return end();
     }
     difference_type offset = pos - begin();
-    _m_move_to(pos + 1, end(), pos);
+    _m_move_to(pos + 1, cend(), pos);
     _m_data._m_finish -= sizeof(value_type);
     return begin() + offset;
   }
-  iterator erase(const_iterator pos) { return erase(iterator(pos)); }
   iterator erase(iterator first, iterator last) {
+    return erase(const_iterator(first), const_iterator(last));
+  }
+  iterator erase(const_iterator first, const_iterator last) {
     difference_type offset = first - begin();
     difference_type len = last - first;
     if (len <= 0) {
-      return last;
+      return iterator(begin() + (last - cbegin()));
     }
-    _m_move_to(last, end(), first);
+    _m_move_to(last, cend(), first);
     _m_data._m_finish -= len * sizeof(value_type);
     return begin() + offset;
   }
-  iterator erase(const_iterator first, const_iterator last) { return erase(iterator(first), iterator(last)); }
 
   void push_back(const value_type& v) {
     if (_m_data._m_finish != _m_data._m_end_of_storage) {
