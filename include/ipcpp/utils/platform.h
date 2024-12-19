@@ -7,7 +7,7 @@
 
 #pragma once
 
-#if defined(unix) || defined(__unix) || defined(__unix__)
+#if defined(unix) || defined(__unix) || defined(__unix__) || defined(__LINUX__)
 #define IPCPP_UNIX
 #endif
 #if defined(__APPLE__)

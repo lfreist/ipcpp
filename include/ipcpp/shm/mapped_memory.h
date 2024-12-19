@@ -7,10 +7,15 @@
 #include <ipcpp/shm/error.h>
 #include <ipcpp/shm/shared_memory_file.h>
 #include <ipcpp/utils/logging.h>
+#include <ipcpp/utils/platform.h>
 
 #include <cassert>
 #include <cstdint>
 #include <memory>
+
+#ifdef IPCPP_UNIX
+#include <sys/mman.h>
+#endif
 
 namespace ipcpp::shm {
 
