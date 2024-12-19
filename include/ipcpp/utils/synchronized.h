@@ -8,6 +8,7 @@
 #pragma once
 
 #include <ipcpp/utils/concepts.h>
+#include <ipcpp/utils/platform.h>
 
 #include <atomic>
 #include <concepts>
@@ -18,10 +19,10 @@ namespace ipcpp {
 
 // --- Forward Declarations --------------------------------------------------------------------------------------------
 template <typename S, bool is_shared, bool is_const>
-class LockedPtrAccess;
+class IPCPP_API LockedPtrAccess;
 
 // --- Tag Types -------------------------------------------------------------------------------------------------------
-struct ConstructWithMutex {};
+struct IPCPP_API ConstructWithMutex {};
 
 /**
  * Synchronizes an object: Attaches a mutex to a given type and only allows locked access to this type.
@@ -34,7 +35,7 @@ struct ConstructWithMutex {};
  */
 template <typename T, typename M = std::shared_mutex>
   requires concepts::lockable<M> && std::is_move_assignable_v<T> && std::is_move_constructible_v<T>
-class synchronized {
+class IPCPP_API synchronized {
   template <typename S, bool is_shared, bool is_const>
   friend class LockedPtrAccess;
 
@@ -163,7 +164,7 @@ class synchronized {
  * @tparam is_const [bool] - indicates const qualification of underlying type
  */
 template <typename S, bool is_shared_lock, bool is_const>
-class LockedPtrAccess {
+class IPCPP_API LockedPtrAccess {
   template <typename T, typename M>
     requires concepts::lockable<M> && std::is_move_assignable_v<T> && std::is_move_constructible_v<T>
   friend class synchronized;

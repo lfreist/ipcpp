@@ -13,9 +13,12 @@
 #include <thread>
 #include <mutex>
 
+#ifdef __linux__
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#endif
+
 #include <cassert>
 #include <climits>
 #include <cstdint>
@@ -122,6 +125,8 @@ class shared_mutex {
 static_assert(concepts::shared_mutex<shared_mutex>,
               "ipcpp::shared_mutex does not fulfill the requirements of shared_mutex");
 
+#ifdef __linux__
+
 class futex {
 public:
   futex() : _flag(UNLOCKED) {}
@@ -214,5 +219,7 @@ class shared_futex {
   /// -1: exclusive lock, >0: shared locks, 0: free
   alignas(std::hardware_destructive_interference_size) std::atomic<int32_t> _state;
 };
+
+#endif
 
 }  // namespace ipcpp

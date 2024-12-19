@@ -6,11 +6,13 @@
 #include <fcntl.h>
 #include <ipcpp/shm/error.h>
 #include <ipcpp/types.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include <iostream>
+
+#ifdef _MSVC_LANG
+#include <windows.h>
+#endif
 
 namespace ipcpp::shm {
 
@@ -18,6 +20,12 @@ namespace ipcpp::shm {
  * RAII class for opening/creating a shared memory file
 */
 class shared_memory_file {
+ public:
+#ifdef __linux__
+  typedef int native_handle_t;
+#else
+  typedef HANDLE native_handle_t;
+#endif
  public:
   ~shared_memory_file();
   shared_memory_file(shared_memory_file&& other) noexcept;
@@ -41,7 +49,7 @@ class shared_memory_file {
   AccessMode _access_mode = AccessMode::READ;
   std::string _path;
   /// fd for unix, HANDLE for windows
-  int _native_handle = -1;
+  native_handle_t _native_handle = reinterpret_cast<native_handle_t>(0);
   std::size_t _size = 0U;
 };
 

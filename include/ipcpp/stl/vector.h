@@ -9,15 +9,17 @@
 #include <ipcpp/stl/allocator.h>
 #include <ipcpp/stl/concepts.h>
 #include <ipcpp/stl/ipcpp_iterator.h>
+#include <ipcpp/utils/platform.h>
 
 #include <concepts>
 #include <format>
 #include <utility>
+#include <memory>
 
 namespace ipcpp {
 
 template <typename T_p, typename T_Allocator = ipcpp::pool_allocator<T_p>>
-class vector {
+class IPCPP_API vector {
   // ___________________________________________________________________________________________________________________
  public:
   typedef allocator_traits<T_Allocator> alloc_traits;
@@ -61,6 +63,17 @@ class vector {
     _m_copy_initialize(other.size(), other.data());
   }
   vector(vector&&) noexcept = default;
+  template <typename T_Allocator2>
+  explicit vector(vector<value_type, T_Allocator2>&& other)
+    requires std::is_move_constructible_v<value_type> &&
+             std::is_same_v<typename allocator_type::value_type, typename T_Allocator2::value_type> &&
+             (!std::is_same_v<allocator_type, T_Allocator2>)
+  {
+    _m_create_storage(other.size());
+    _m_move_initialize(other.data(), other.data() + other.size());
+    other.clear();
+    other.shrink_to_fit();
+  }
   vector(std::initializer_list<value_type> l) : vector(l.begin(), l.end()) {}
 
   template <typename T_InputIt>
@@ -281,9 +294,7 @@ class vector {
     return insert(pos, value_type(std::forward<T_Args>(args)...));
   }
 
-  iterator erase(iterator pos) {
-    return erase(const_iterator(pos));
-  }
+  iterator erase(iterator pos) { return erase(const_iterator(pos)); }
   iterator erase(const_iterator pos) {
     if ((pos + 1) == end()) {
       std::destroy_at(std::addressof(*pos));
@@ -295,9 +306,7 @@ class vector {
     _m_data._m_finish -= sizeof(value_type);
     return begin() + offset;
   }
-  iterator erase(iterator first, iterator last) {
-    return erase(const_iterator(first), const_iterator(last));
-  }
+  iterator erase(iterator first, iterator last) { return erase(const_iterator(first), const_iterator(last)); }
   iterator erase(const_iterator first, const_iterator last) {
     difference_type offset = first - begin();
     difference_type len = last - first;
@@ -437,6 +446,16 @@ class vector {
   }
 
   template <typename T_Iterator>
+  void _m_move_initialize(T_Iterator first, T_Iterator last) {
+    T_Iterator cur = first;
+    size_type i = 0;
+    for (; cur != last; ++i, ++cur) {
+      _m_construct_at(_m_start_ptr() + i, value_type(std::move(*cur)));
+      _m_data._m_finish += sizeof(value_type);
+    }
+  }
+
+  template <typename T_Iterator>
   value_type* _m_uninitialized_move(T_Iterator src_start, T_Iterator src_end, T_Iterator dst_start) {
     value_type* finish = std::addressof(*dst_start);
     for (T_Iterator cur = src_start; cur != src_end; ++cur, ++dst_start) {
@@ -556,7 +575,7 @@ class vector {
   }
 
  private:  // ----------------------------------------------------------------------------------------------------------
-  struct vector_data {
+  struct IPCPP_API vector_data {
     difference_type _m_start;
     difference_type _m_finish;
     difference_type _m_end_of_storage;

@@ -22,7 +22,7 @@ shared_memory_file::shared_memory_file(std::string&& path, const std::size_t siz
 
 // _____________________________________________________________________________________________________________________
 shared_memory_file::~shared_memory_file() {
-  if (_native_handle != -1) {
+  if (_native_handle != 0) {
     close(_native_handle);
   }
 }

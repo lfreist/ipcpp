@@ -7,10 +7,10 @@
 
 #include <atomic>
 #include <chrono>
-#include <csignal>
 #include <numeric>
-#include <print>
 #include <thread>
+#include <iostream>
+#include <array>
 
 using namespace std::chrono_literals;
 
@@ -62,6 +62,6 @@ int main() {
   observer_thread.join();
   notifier_thread.join();
 
-  std::println("latency: {}ns", std::accumulate(generate_latencies.begin(), generate_latencies.end(), 0.0f) /
-                                    static_cast<double>(generate_latencies.size()));
+  std::cout << "latency: " << std::accumulate(generate_latencies.begin(), generate_latencies.end(), 0.0f) /
+                                    static_cast<double>(generate_latencies.size()) << "ns" << std::endl;
 }

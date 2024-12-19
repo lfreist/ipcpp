@@ -9,6 +9,8 @@
 
 #include <ipcpp/stl/allocator.h>
 
+#include <memory>
+
 namespace ipcpp {
 
 template <typename T_Alloc>
@@ -114,7 +116,11 @@ struct allocator_traits {
   template <typename T_p, typename... T_Args>
     requires std::is_constructible_v<T_p, T_Args...>
   static constexpr void construct(T_p* p, T_Args&&... args) noexcept(std::is_nothrow_constructible_v<T_p, T_Args...>) {
+#ifdef _MSC_VER
+    ::new ((void*)p) T_p(std::forward<T_Args>(args)...);
+#else
     std::construct_at(p, std::forward<T_Args>(args)...);
+#endif
   }
 
   template <typename T_p>

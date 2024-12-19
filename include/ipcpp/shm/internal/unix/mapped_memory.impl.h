@@ -49,18 +49,18 @@ void MappedMemory<MT>::msync(const bool sync) const {
 template <MappingType MT>
 std::expected<std::uintptr_t, std::error_code> MappedMemory<MT>::map_memory(const std::size_t expected_size,
                                                                             const std::uintptr_t start_addr,
-                                                                            const int fd, const std::size_t offset,
+                                                                            const shared_memory_file::native_handle_t file_handle, const std::size_t offset,
                                                                             const AccessMode access_mode) {
   const int protect_flags = (access_mode == AccessMode::WRITE) ? PROT_READ | PROT_WRITE : PROT_READ;
 
   int flags = start_addr ? MAP_FIXED : 0;
-  if (fd) {
+  if (file_handle) {
     flags |= MAP_SHARED_VALIDATE;
   } else {
     flags |= MAP_SHARED | MAP_ANONYMOUS;
   }
 
-  void* const mapped_region = ::mmap(reinterpret_cast<void*>(start_addr), expected_size, protect_flags, flags, fd,
+  void* const mapped_region = ::mmap(reinterpret_cast<void*>(start_addr), expected_size, protect_flags, flags, file_handle,
                                      static_cast<__off_t>(offset));
 
   if (mapped_region == MAP_FAILED) {

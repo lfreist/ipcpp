@@ -8,6 +8,7 @@
 #pragma once
 
 #include <ipcpp/utils/mutex.h>
+#include <ipcpp/utils/platform.h>
 
 #include <cassert>
 
@@ -42,7 +43,7 @@ void* allocator_factory_base::_singleton_process_addr = nullptr;
  * offset: byte distance from _memory, used for AllocatorListNodes
  */
 template <typename T_p>
-class pool_allocator : public detail::allocator_factory_base {
+class IPCPP_API pool_allocator : public detail::allocator_factory_base {
  public:
   typedef T_p value_type;
   typedef std::size_t size_type;
@@ -52,7 +53,7 @@ class pool_allocator : public detail::allocator_factory_base {
   typedef const T_p* const_pointer;
 
  private:
-  struct Header {
+  struct IPCPP_API Header {
     const size_type size;
     difference_type list_head_offset;
     mutex mutex_;
@@ -288,7 +289,7 @@ class pool_allocator : public detail::allocator_factory_base {
    * @return
    */
   [[nodiscard]] value_type* offset_to_pointer(difference_type offset) const noexcept {
-    if (offset < 0 || offset > _header->size) {
+    if (offset < 0 || static_cast<size_type>(offset) > _header->size) {
       return nullptr;
     }
     return reinterpret_cast<value_type*>(reinterpret_cast<uint8_t*>(_memory) + offset);

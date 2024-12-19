@@ -7,7 +7,5 @@
 
 #ifdef __linux__
 #include "unix/mapped_memory.impl.cpp"
-#elif
-
 #else
 #endif

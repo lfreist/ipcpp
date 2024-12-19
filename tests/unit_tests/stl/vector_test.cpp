@@ -10,8 +10,9 @@
 #include <ipcpp/stl/allocator.h>
 
 #include <list>
+#include <algorithm>
 
-constexpr static std::size_t allocator_mem_size = 4096;
+constexpr static std::size_t allocator_mem_size = 8192;
 static uint8_t alloc_mem[allocator_mem_size];
 
 struct CustomType {
@@ -166,10 +167,6 @@ TEST(ipcpp_vector, copy_constructor) {
   }
 
   {
-    ipcpp::vector<std::unique_ptr<int>> original;
-    original.push_back(std::make_unique<int>(10));
-    original.push_back(std::make_unique<int>(20));
-
     // Cannot copy std::unique_ptr, so this tests that copy is unavailable
     static_assert(!std::is_copy_constructible_v<ipcpp::vector<std::unique_ptr<int>>>);
   }
@@ -197,6 +194,8 @@ TEST(ipcpp_vector, move_constructor) {
     EXPECT_EQ(moved.size(), 5);
     EXPECT_GE(moved.capacity(), 5);
     EXPECT_EQ(moved, (ipcpp::vector<int>{1, 2, 3, 4, 5}));
+    EXPECT_EQ(original.size(), 0);
+    EXPECT_EQ(original.capacity(), 0);
   }
 
   {
@@ -205,6 +204,8 @@ TEST(ipcpp_vector, move_constructor) {
     EXPECT_EQ(moved.size(), 3);
     EXPECT_GE(moved.capacity(), 3);
     EXPECT_EQ(moved, ipcpp::vector<double>({3.14, 2.71, 1.61}));
+    EXPECT_EQ(original.size(), 0);
+    EXPECT_EQ(original.capacity(), 0);
   }
 
   {
@@ -213,6 +214,8 @@ TEST(ipcpp_vector, move_constructor) {
     EXPECT_EQ(moved.size(), 3);
     EXPECT_GE(moved.capacity(), 3);
     EXPECT_EQ(moved, (ipcpp::vector<std::string>{"one", "two", "three"}));
+    EXPECT_EQ(original.size(), 0);
+    EXPECT_EQ(original.capacity(), 0);
   }
 
   {
@@ -221,6 +224,8 @@ TEST(ipcpp_vector, move_constructor) {
     EXPECT_EQ(moved.size(), 2);
     EXPECT_GE(moved.capacity(), 2);
     EXPECT_EQ(moved, (ipcpp::vector<CustomType>{{1, 2.5}, {3, 4.5}}));
+    EXPECT_EQ(original.size(), 0);
+    EXPECT_EQ(original.capacity(), 0);
   }
 
   {
@@ -231,6 +236,8 @@ TEST(ipcpp_vector, move_constructor) {
     EXPECT_EQ(moved.size(), 2);
     EXPECT_EQ(*moved[0], 10);
     EXPECT_EQ(*moved[1], 20);
+    EXPECT_EQ(original.size(), 0);
+    EXPECT_EQ(original.capacity(), 0);
   }
 
   {
@@ -239,6 +246,8 @@ TEST(ipcpp_vector, move_constructor) {
     EXPECT_EQ(moved.size(), 5);
     EXPECT_GE(moved.capacity(), 5);
     EXPECT_EQ(moved, (ipcpp::vector<int, std::allocator<int>>{1, 2, 3, 4, 5}));
+    EXPECT_EQ(original.size(), 0);
+    EXPECT_EQ(original.capacity(), 0);
   }
 
   {
@@ -247,6 +256,8 @@ TEST(ipcpp_vector, move_constructor) {
     EXPECT_EQ(moved.size(), 5);
     EXPECT_GE(moved.capacity(), 5);
     EXPECT_EQ(moved, (ipcpp::vector<int>{1, 2, 3, 4, 5}));
+    EXPECT_EQ(original.size(), 0);
+    EXPECT_EQ(original.capacity(), 0);
   }
 }
 

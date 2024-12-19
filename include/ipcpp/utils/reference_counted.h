@@ -8,13 +8,14 @@
 #pragma once
 
 #include <ipcpp/utils/mutex.h>
+#include <ipcpp/utils/platform.h>
 
 #include <cstdint>
 
 namespace ipcpp {
 
 template <typename T_p>
-class reference_counted {
+class IPCPP_API reference_counted {
  public:
   typedef T_p value_type;
   typedef T_p* pointer;

@@ -1,10 +1,11 @@
 include(FetchContent)
-
+set(gtest_force_shared_crt on)
 FetchContent_Declare(
         googletest
-        URL https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz
-        DOWNLOAD_EXTRACT_TIMESTAMP OFF
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG HEAD
 )
+
 FetchContent_MakeAvailable(googletest)
 
 add_subdirectory(stl)

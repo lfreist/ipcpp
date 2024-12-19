@@ -8,6 +8,7 @@
 #pragma once
 
 #include <ipcpp/stl/concepts.h>
+#include <ipcpp/utils/platform.h>
 
 #include <compare>
 #include <concepts>
@@ -16,8 +17,51 @@
 
 namespace ipcpp {
 
+namespace detail {
+
+template <typename T_p>
+concept boolean_testable_impl = std::convertible_to<T_p, bool>;
+
+template <typename T_p>
+concept boolean_testable = boolean_testable_impl<T_p> && requires(T_p&& t) {
+  { !static_cast<T_p&&>(t) } -> boolean_testable_impl;
+};
+
+template <typename T_p, typename U_p>
+inline static constexpr bool S_noexcept(const T_p* t = nullptr, const U_p* u = nullptr) {
+  if constexpr (std::three_way_comparable_with<T_p, U_p>)
+    return noexcept(*t <=> *u);
+  else
+    return noexcept(*t < *u) && noexcept(*u < *t);
+}
+
+template <typename T_p, typename U_p>
+[[nodiscard]]
+inline constexpr auto synth3way(const T_p& t, const U_p& u) noexcept(S_noexcept<T_p, U_p>())
+  requires requires {
+    { t < u } -> boolean_testable;
+    { u < t } -> boolean_testable;
+  }
+{
+  if constexpr (std::three_way_comparable_with<T_p, U_p>)
+    return t <=> u;
+  else {
+    if (t < u)
+      return std::weak_ordering::less;
+    else if (u < t)
+      return std::weak_ordering::greater;
+    else
+      return std::weak_ordering::equivalent;
+  }
+}
+
+template <typename T_p, typename U_p = T_p>
+using synth3way_t = decltype(detail::synth3way(std::declval<T_p&>(), std::declval<U_p&>()));
+
+}  // namespace detail
+
 template <typename T_Iterator, typename T_Container>
-class normal_iterator {
+class IPCPP_API normal_iterator {
  protected:
   T_Iterator _m_current;
 
@@ -34,15 +78,12 @@ class normal_iterator {
   typedef typename traits_type::reference reference;
   typedef typename traits_type::pointer pointer;
 
-  using iterator_concept = std::__detail::__iter_concept<T_Iterator>;
-
   constexpr normal_iterator() noexcept : _m_current(T_Iterator()) {}
 
   explicit constexpr normal_iterator(const T_Iterator& i) noexcept : _m_current(i) {}
 
   template <typename T_Iter, typename = convertible_from<T_Iter>>
-  constexpr normal_iterator(const normal_iterator<T_Iter, T_Container>& i) noexcept
-  : _m_current(i.base()) {}
+  constexpr normal_iterator(const normal_iterator<T_Iter, T_Container>& i) noexcept : _m_current(i.base()) {}
 
   // Forward iterator requirements
   constexpr reference operator*() const noexcept { return *_m_current; }
@@ -98,11 +139,11 @@ constexpr bool operator==(const normal_iterator<T_IteratorL, T_Container>& lhs,
 
 template <typename T_IteratorL, typename T_IteratorR, typename T_Container>
 [[nodiscard]]
-constexpr std::__detail::__synth3way_t<T_IteratorR, T_IteratorL> operator<=>(
+constexpr detail::synth3way_t<T_IteratorL, T_IteratorR> operator<=>(
     const normal_iterator<T_IteratorL, T_Container>& lhs,
-    const normal_iterator<T_IteratorR, T_Container>& rhs) noexcept(noexcept(std::__detail::__synth3way(lhs.base(),
-                                                                                                       rhs.base()))) {
-  return std::__detail::__synth3way(lhs.base(), rhs.base());
+    const normal_iterator<T_IteratorR, T_Container>& rhs) noexcept(noexcept(detail::synth3way(lhs.base(),
+                                                                                              rhs.base()))) {
+  return detail::synth3way(lhs.base(), rhs.base());
 }
 
 template <typename T_Iterator, typename T_Container>
@@ -119,16 +160,15 @@ constexpr bool operator==(const normal_iterator<T_Iterator, T_Container>& lhs,
 
 template <typename T_Iterator, typename T_Container>
 [[nodiscard]]
-constexpr std::__detail::__synth3way_t<T_Iterator> operator<=>(
+constexpr detail::synth3way_t<T_Iterator> operator<=>(
     const normal_iterator<T_Iterator, T_Container>& lhs,
-    const normal_iterator<T_Iterator, T_Container>& rhs) noexcept(noexcept(std::__detail::__synth3way(lhs.base(),
-                                                                                                      rhs.base()))) {
-  return std::__detail::__synth3way(lhs.base(), rhs.base());
+    const normal_iterator<T_Iterator, T_Container>& rhs) noexcept(noexcept(detail::synth3way(lhs.base(), rhs.base()))) {
+  return detail::synth3way(lhs.base(), rhs.base());
 }
 
 template <typename T_IteratorL, typename T_IteratorR, typename T_Container>
 [[nodiscard]] constexpr inline auto operator-(const normal_iterator<T_IteratorL, T_Container>& lhs,
-                                                const normal_iterator<T_IteratorR, T_Container>& rhs) noexcept
+                                              const normal_iterator<T_IteratorR, T_Container>& rhs) noexcept
     -> decltype(lhs.base() - rhs.base()) {
   return lhs.base() - rhs.base();
 }
@@ -145,7 +185,5 @@ template <typename T_Iterator, typename T_Container>
     const normal_iterator<T_Iterator, T_Container>& i) noexcept {
   return normal_iterator<T_Iterator, T_Container>(i.base() + n);
 }
-
-
 
 }  // namespace ipcpp

@@ -55,7 +55,7 @@ class MappedMemory {
   explicit MappedMemory(shared_memory_file&& shm_file);
 
   static std::expected<std::uintptr_t, std::error_code> map_memory(std::size_t expected_size, std::uintptr_t start_addr,
-                                                                   int fd, std::size_t offset, AccessMode access_mode);
+                                                                   shared_memory_file::native_handle_t file_handle, std::size_t offset, AccessMode access_mode);
 
   std::uintptr_t _mapped_region = 0;
   std::size_t _size = 0;
