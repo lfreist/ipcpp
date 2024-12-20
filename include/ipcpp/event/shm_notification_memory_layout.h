@@ -43,8 +43,9 @@ struct shm_notification_memory_layout {
     template <typename... T_Args>
     explicit message_type(const std::int64_t msg_number, T_Args&&... args)
         : message(std::forward<T_Args>(args)...), message_number(msg_number) {}
-    T_Message message;
-    std::int64_t message_number;
+    message_type() = default;
+    T_Message message{};
+    std::int64_t message_number = -1;
   };
   typedef T_Header header_type;
 

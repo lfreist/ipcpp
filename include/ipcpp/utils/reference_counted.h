@@ -23,20 +23,17 @@ class IPCPP_API reference_counted {
 
   class data_access {
    public:
-    data_access(reference data, std::atomic_size_t& remaining_accesses) : _data(data), _remaining_access_ref(remaining_accesses) {}
+    data_access(reference data, std::atomic_size_t& remaining_accesses)
+        : _data(data), _remaining_access_ref(remaining_accesses) {}
     ~data_access() {
       if (_remaining_access_ref.fetch_sub(1) == 1) {
         std::destroy_at(std::addressof(_data));
       }
     }
 
-    value_type* operator ->() {
-      return &_data;
-    }
+    value_type* operator->() { return &_data; }
 
-    const value_type* operator->() const {
-      return &_data;
-    }
+    const value_type* operator->() const { return &_data; }
 
     value_type& operator*() { return _data; }
     const value_type& operator*() const { return _data; }
@@ -47,11 +44,13 @@ class IPCPP_API reference_counted {
   };
 
  public:
-  reference_counted(T_p&& data, std::size_t max_num_accesses)
+  reference_counted(T_p&& data, const std::size_t max_num_accesses)
       : _data(std::move(data)), _remaining_accesses(max_num_accesses) {}
 
-  reference_counted(const T_p& data, std::size_t max_num_accesses)
+  reference_counted(const T_p& data, const std::size_t max_num_accesses)
       : _data(data), _remaining_accesses(max_num_accesses) {}
+
+ reference_counted() : _remaining_accesses(0) {}
 
   reference_counted(const reference_counted&) = delete;
   reference_counted& operator=(const reference_counted&) = delete;
@@ -63,12 +62,12 @@ class IPCPP_API reference_counted {
    * @brief Calling consume returns a data_access that may destroy _data on its destruction
    * @return
    */
-  data_access consume() {
-    return data_access(_data, _remaining_accesses);
-  }
+  data_access consume() { return data_access(_data, _remaining_accesses); }
 
   T_p& operator*() { return _data; }
   const T_p& operator*() const { return _data; }
+
+  std::size_t remaining_accesses() const { return _remaining_accesses.load(std::memory_order_acquire); }
 
  private:
   T_p _data;

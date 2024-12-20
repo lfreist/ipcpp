@@ -53,6 +53,7 @@ std::error_code receive_callback(ipcpp::publish_subscribe::Subscriber<Message, i
     return {1, std::system_category()};
   }
   std::cout  << "latency: " << ts - value->timestamp << " - " << message << std::endl;
+  std::this_thread::sleep_for(5s);
   return {};
 }
 

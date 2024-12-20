@@ -39,6 +39,9 @@ public:
     std::ptrdiff_t header_size = utils::align_up(sizeof(_s_header));
     _header = std::construct_at(reinterpret_cast<_s_header*>(start), header_size, size - header_size, 0);
     _buffer = std::span<T_p>(reinterpret_cast<value_type*>(start + header_size), (size - header_size) / sizeof(value_type));
+    for (auto& val : _buffer) {
+      std::construct_at(&val);
+    }
   }
 
   explicit ring_buffer(std::uintptr_t start) : _header(reinterpret_cast<_s_header*>(start)) {

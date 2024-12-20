@@ -11,9 +11,9 @@
 #include <ipcpp/utils/io.h>
 */
 #include <ipcpp/event/shm_atomic_notifier.h>
+#include <ipcpp/ipcpp.h>
 #include <ipcpp/publish_subscribe/notification.h>
 #include <ipcpp/publish_subscribe/publisher.h>
-#include <ipcpp/ipcpp.h>
 
 #include <iostream>
 
@@ -54,6 +54,7 @@ int main(int argc, char** argv) {
   }
 
   ipcpp::publish_subscribe::Publisher<Message> publisher("my_id");
+  publisher.set_queue_capacity(4);
   if (std::error_code error = publisher.initialize()) {
     return 1;
   }
@@ -63,7 +64,9 @@ int main(int argc, char** argv) {
     std::getline(std::cin, line);
     Message msg;
     msg.data = ipcpp::vector<char>(line.begin(), line.end());
-    publisher.publish(std::move(msg));
+    if (!publisher.publish(std::move(msg))) {
+      std::cerr << "Message not published!" << std::endl;
+    }
     if (line == "exit") {
       break;
     }
