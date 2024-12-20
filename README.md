@@ -1,12 +1,23 @@
 # ipcpp: Interprocess Communication Framework with Dynamic Memory Management
 
-**ipcpp** is a modern C++23 framework for fast and reliable interprocess communication (IPC). It simplifies data sharing between processes through event-driven and publish/subscribe patterns, with seamless shared memory management.
+**ipcpp** is a multi-platform (Linux and Windows) interprocess communication (IPC) framework written in C++23.
+It simplifies data sharing between processes through event-driven and publish/subscribe patterns, with seamless shared
+memory management.
+
+ipcpp main focuses are
+- low latency: shared memory IPC works at < 2µs (from publishing to accessing data!)
+- multi-platform API: When using the default public API, you can use one code base for Windows and Linux (macOS and Android are planned)
+- extensibility: You can implement your own notifier/observer patterns and use them with ipcpp's public API
+- dynamically sized data structures: ipcpp/stl provides a set of standard-C++-like containers that allow dynamically
+  sized data typed in your shared data (the total size of the shared memory is still pre-allocated at runtime and cannot
+  be resized)
 
 ## Key Features
-- **Event Notification**: Lightweight event-driven communication using Unix domain sockets.
+
+- **Event Notification**: Lightweight event-driven communication using Unix domain sockets (Linux) or shared memory (Linux and Windows).
 - **Publish/Subscribe**:
     - Shared memory-based communication for real-time data sharing.
-    - Automatic resource management using broadcast publishers and subscribers.
+    - Automatic resource management using publishers and subscribers - no manual allocations/deallocations needed.
 - **Shared Memory Containers**:
     - **`ipcpp::vector`**: A `std::vector`-adopted container for shared memory with dynamic allocations
     - Supports dynamic resizing and efficient cross-process access.
@@ -27,40 +38,44 @@ The following example demonstrates a broadcaster publishing messages and a clien
 struct Message {
   std::int64_t timestamp;
   ipcpp::vector<char> data;
+  
+  Message() : timestamp(ipcpp::utils::timestamp()) {}
+  Message(Message&& other) noexcept : timestamp(ipcpp::utils::timestamp()), data(std::move(other.data)) {}
 };
 ```  
 
-#### 2. **Broadcaster (Publisher)**
+#### 2. **Publisher (shared memory notifications)**
 
 ```cpp  
-#include <ipcpp/publish_subscribe/broadcast_publisher.h>
-#include <ipcpp/utils/io.h>
-#include <spdlog/spdlog.h>
+#include <ipcpp/event/shm_atomic_notifier.h>
+#include <ipcpp/publish_subscribe/publisher.h>
+#include <ipcpp/ipcpp.h>
+
+#include <iostream>
 
 #include "message.h"
 
-int main() {
-  auto expected_broadcaster = ipcpp::publish_subscribe::Broadcaster<Message>::create(
-      "broadcaster", 10, 2048, 4096);  // Shared memory buffer configuration
+int main(int argc, char** argv) {
+  spdlog::set_level(spdlog::level::debug);
+  if (!ipcpp::initialize_dynamic_buffer(4096 * 4096)) {
+    std::cerr << "Failed to initialize buffer" << std::endl;
+    return 1;
+  }
 
-  if (expected_broadcaster.has_value()) {
-    auto& broadcaster = expected_broadcaster.value();
-    while (true) {
-      Message message{.timestamp = ipcpp::utils::timestamp(), .data = ipcpp::vector<char>()};
-      std::cout << "Enter message: ";
-      while (true) {
-        char c;
-        std::cin.get(c);
-        if (c == '\n') {
-          break;
-        }
-        message.data.push_back(c);
-      }
-      broadcaster.publish(message);
-      spdlog::info("Published: {}", std::string_view(message.data.data(), message.data.size()));
+  ipcpp::publish_subscribe::Publisher<Message> publisher("my_id");
+  if (std::error_code error = publisher.initialize()) {
+    return 1;
+  }
+  while (true) {
+    std::cout << "Enter message: ";
+    std::string line;
+    std::getline(std::cin, line);
+    Message msg;
+    msg.data = ipcpp::vector<char>(line.begin(), line.end());
+    publisher.publish(std::move(msg));
+    if (line == "exit") {
+      break;
     }
-  } else {
-    std::cerr << "Failed to create broadcaster." << std::endl;
   }
 }
 ```  
@@ -68,27 +83,45 @@ int main() {
 #### 3. **Client (Subscriber)**
 
 ```cpp  
-#include <ipcpp/publish_subscribe/broadcast_subscriber.h>
-#include <spdlog/spdlog.h>
+#include <ipcpp/publish_subscribe/subscriber.h>
+#include <ipcpp/event/shm_atomic_observer.h>
+#include <ipcpp/ipcpp.h>
+
+#include <iostream>
 
 #include "message.h"
 
-int main() {
-  auto expected_subscriber = ipcpp::publish_subscribe::BroadcastSubscriber<Message>::create("broadcaster");
+std::error_code receive_callback(ipcpp::publish_subscribe::Subscriber<Message, ipcpp::event::ShmAtomicObserver>::data_access_type& data) {
+  auto value = data.consume();
+  const std::int64_t ts = ipcpp::utils::timestamp();
+  const std::string_view message(value->data.data(), value->data.size());
+  if (message == "exit") {
+    return {1, std::system_category()};
+  }
+  std::cout  << "latency: " << ts - value->timestamp << " - " << message << std::endl;
+  return {};
+}
 
-  if (!expected_subscriber.has_value()) {
-    std::cerr << "Error creating subscriber: " << expected_subscriber.error() << std::endl;
+int main() {
+  spdlog::set_level(spdlog::level::debug);
+  ipcpp::initialize_dynamic_buffer();
+
+  ipcpp::publish_subscribe::Subscriber<Message> subscriber("my_id");
+  if (const std::error_code error = subscriber.initialize(); error) {
+    std::cerr << "Failed to initialize subscriber" << std::endl;
     return 1;
   }
-
-  auto& subscriber = expected_subscriber.value();
-  spdlog::info("Listening for messages...");
-  subscriber.on_receive([](ipcpp::publish_subscribe::BroadcastSubscriber<Message>::Data<ipcpp::AccessMode::READ>& data) {
-    std::cout << "Received: " << std::string_view(data.data().data.data(), data.data().data.size()) << std::endl;
-  });
-
-  return 0;
-}
+  if (const auto error = subscriber.subscribe(); error) {
+    std::cerr << "Failed to subscribe" << std::endl;
+    return 1;
+  }
+  while (true) {
+    if (const auto error = subscriber.receive(receive_callback, 0ms); error) {
+      std::cout << "received exit message" << std::endl;
+      break;
+    }
+  }
+};
 ```  
 
 ---
@@ -102,12 +135,5 @@ mkdir build && cd build
 cmake ..
 make
 ```
-
----
-
-## Roadmap
-- **Allocator Traits**: Enhanced flexibility for `ipcpp` allocators.
-- **Language Bindings**: Support for Python and Rust.
-- **Additional Patterns**: Request/Response, Pipes, and more.
 
 ---
