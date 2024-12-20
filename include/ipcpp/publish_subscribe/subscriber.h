@@ -212,7 +212,7 @@ public:
 private:
   std::error_code _m_initialize_message_buffer() {
     auto expected_memory =
-        shm::MappedMemory<shm::MappingType::SINGLE>::open("/" + this->_id + ".ipcpp.mrb.shm", AccessMode::WRITE);
+        shm::MappedMemory<shm::MappingType::SINGLE>::open(utils::path_from_shm_id(this->_id + ".ipcpp.mrb.shm"), AccessMode::WRITE);
     if (!expected_memory.has_value()) {
       // TODO: return error
       return {1, std::system_category()};

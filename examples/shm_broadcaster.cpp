@@ -47,6 +47,7 @@ ipcpp::event::ShmAtomicNotifier<ipcpp::publish_subscribe::Notification>>::create
 */
 
 int main(int argc, char** argv) {
+  spdlog::set_level(spdlog::level::debug);
   if (!ipcpp::initialize_dynamic_buffer(4096 * 4096)) {
     std::cerr << "Failed to initialize buffer" << std::endl;
     return 1;

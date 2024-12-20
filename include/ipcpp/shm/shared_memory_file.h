@@ -3,14 +3,12 @@
 //
 
 #pragma once
-#include <fcntl.h>
-#include <ipcpp/shm/error.h>
+
 #include <ipcpp/types.h>
-#include <sys/stat.h>
+#include <ipcpp/utils/platform.h>
 
-#include <iostream>
-
-#ifdef _MSVC_LANG
+#ifdef IPCPP_WINDOWS
+#define NOMINMAX
 #include <windows.h>
 #endif
 
@@ -19,7 +17,7 @@ namespace ipcpp::shm {
 /**
  * RAII class for opening/creating a shared memory file
 */
-class shared_memory_file {
+class IPCPP_API shared_memory_file {
  public:
 #ifdef __linux__
   typedef int native_handle_t;
@@ -32,11 +30,11 @@ class shared_memory_file {
   shared_memory_file& operator=(shared_memory_file&& other) noexcept;
 
   static std::expected<shared_memory_file, std::error_code> create(std::string&& path, std::size_t size);
-  static std::expected<shared_memory_file, std::error_code> open(std::string&& path, AccessMode mode = AccessMode::WRITE);
+  static std::expected<shared_memory_file, std::error_code> open(std::string&& path, AccessMode access_mode = AccessMode::WRITE);
 
-  [[nodiscard]] std::string_view name() const;
+  [[nodiscard]] const std::string& name() const;
   [[nodiscard]] std::size_t size() const;
-  [[nodiscard]] int native_handle() const;
+  [[nodiscard]] native_handle_t native_handle() const;
 
   void unlink() const;
 

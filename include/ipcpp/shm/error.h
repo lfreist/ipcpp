@@ -18,6 +18,7 @@ enum class error_t {
   open_error,      // shm_open for open fails
   file_not_found,
   mapping_error,  // mmap fails
+  anonymous_mapping_not_allowed,  // for windows, a file handle must be provided for memory mappings
   mapped_at_wrong_address,
   access_error,
   unknown_error,
@@ -40,6 +41,8 @@ class error_category final : public std::error_category {
         return "file_not_found";
       case error_t::mapping_error:
         return "mapping_error";
+      case error_t::anonymous_mapping_not_allowed:
+        return "anonymous_mapping_not_allowed";
       case error_t::mapped_at_wrong_address:
         return "mapped_at_wrong_address";
       case error_t::access_error:

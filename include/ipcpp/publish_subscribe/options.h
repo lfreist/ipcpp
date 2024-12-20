@@ -63,27 +63,27 @@ namespace subscriber {
 * WaitStrategy defines how the subscriber is waiting for new messages to be published.
 */
 enum class WaitStrategy {
-  POLLING,   // always poll for new messages
-  BLOCKING,  // always block when waiting for new messages
-  ADAPTIVE,  // use polling or blocking determined by heuristics
-  HYBRID     // poll for a specific time, then swap to blocking if no message was received
+  polling,   // always poll for new messages
+  blocking,  // always block when waiting for new messages
+  adaptive,  // use polling or blocking determined by heuristics
+  hybrid     // poll for a specific time, then swap to blocking if no message was received
 };
 
 /**
 * ReceivePolicy defines what message is read on on_receive calls.
 */
 enum class ReceivePolicy {
-  ALL,     // read oldest not yet read message -> receive all messages in FIFO manner
-  LATEST,  // only read the latest published message -> live stream
-  HISTORY  // read oldest nmot yet read message in history (there are few usecases for this!)
+  all,     // read oldest not yet read message -> receive all messages in FIFO manner
+  latest,  // only read the latest published message -> live stream
+  history  // read oldest nmot yet read message in history (there are few usecases for this!)
 };
 
 /**
 * OnSubscribeReceivePolicy defines what message is read first after subscribing.
 */
 enum class OnSubscribeReceivePolicy {
-  LATEST,   // start with latest published message (refers to the latest published message at subscription, NOT at first on_receive call)!
-  HISTORY,  // start with history in FIFO manner
+  latest,   // start with latest published message (refers to the latest published message at subscription, NOT at first on_receive call)!
+  history,  // start with history in FIFO manner
 };
 
 /**
@@ -92,17 +92,17 @@ enum class OnSubscribeReceivePolicy {
 *  subscriber.
 */
 enum class OnInvalidatedReadPolicy {
-  ERROR,            // throw an error (error::invalidated_message_read)
-  SKIP_ONE,         // skip the current message
-  SKIP_TO_LATEST,   // continue with reading latest published message
-  SKIP_TO_HISTORY,  // continue with reading history (FIFO)
+  error,            // throw an error (error::invalidated_message_read)
+  skip_one,         // skip the current message
+  skip_to_latest,   // continue with reading latest published message
+  skip_to_history,  // continue with reading history (FIFO)
 };
 
 struct Options {
-  WaitStrategy wait_strategy = WaitStrategy::ADAPTIVE;
-  ReceivePolicy receive_policy = ReceivePolicy::ALL;
-  OnSubscribeReceivePolicy on_subscribe_policy = OnSubscribeReceivePolicy::LATEST;
-  OnInvalidatedReadPolicy on_invalidated_read_policy = OnInvalidatedReadPolicy::ERROR;
+  WaitStrategy wait_strategy = WaitStrategy::adaptive;
+  ReceivePolicy receive_policy = ReceivePolicy::all;
+  OnSubscribeReceivePolicy on_subscribe_policy = OnSubscribeReceivePolicy::latest;
+  OnInvalidatedReadPolicy on_invalidated_read_policy = OnInvalidatedReadPolicy::error;
 };
 
 }

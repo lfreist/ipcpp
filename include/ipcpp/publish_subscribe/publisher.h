@@ -317,7 +317,7 @@ class Publisher<T_Data, internal::ShmDefault> final : internal::Publisher_I<T_Da
   std::error_code _m_initialize_message_buffer() {
     const std::size_t num_bytes = message_buffer_type::required_bytes_for(_options.queue_capacity);
     auto expected_memory =
-        shm::MappedMemory<shm::MappingType::SINGLE>::open_or_create("/" + this->_id + ".ipcpp.mrb.shm", num_bytes);
+        shm::MappedMemory<shm::MappingType::SINGLE>::open_or_create(utils::path_from_shm_id(this->_id + ".ipcpp.mrb.shm"), num_bytes);
     if (!expected_memory.has_value()) {
       // TODO: return error
       return {1, std::system_category()};

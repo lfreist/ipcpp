@@ -50,13 +50,14 @@ std::error_code receive_callback(ipcpp::publish_subscribe::Subscriber<Message, i
   const std::int64_t ts = ipcpp::utils::timestamp();
   const std::string_view message(value->data.data(), value->data.size());
   if (message == "exit") {
-    return {0, std::system_category()};
+    return {1, std::system_category()};
   }
   std::cout  << "latency: " << ts - value->timestamp << " - " << message << std::endl;
   return {};
 }
 
 int main() {
+  spdlog::set_level(spdlog::level::debug);
   ipcpp::initialize_dynamic_buffer();
 
   ipcpp::publish_subscribe::Subscriber<Message> subscriber("my_id");
@@ -70,7 +71,7 @@ int main() {
   }
   while (true) {
     if (const auto error = subscriber.receive(receive_callback, 0ms); error) {
-      std::cout << "Received error: " << error.category().name() << ": " << error.message() << std::endl;
+      std::cout << "received exit message" << std::endl;
       break;
     }
   }

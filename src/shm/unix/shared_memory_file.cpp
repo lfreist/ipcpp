@@ -5,11 +5,28 @@
  * This file is part of ipcpp.
  */
 
+#include <ipcpp/utils/platform.h>
+
+#ifdef IPCPP_UNIX
+
+#include <ipcpp/shm/shared_memory_file.h>
+
+#include <sys/mman.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+
+namespace ipcpp::shm {
+
 // _____________________________________________________________________________________________________________________
-int shared_memory_file::native_handle() const {
-  return _native_handle;
+shared_memory_file::~shared_memory_file() {
+  if (_native_handle != 0) {
+    close(_native_handle);
+  }
 }
 
+// _____________________________________________________________________________________________________________________
+void shared_memory_file::unlink() const { shm_unlink(_path.c_str()); }
 
 // _____________________________________________________________________________________________________________________
 std::expected<shared_memory_file, std::error_code> shared_memory_file::create(std::string&& path,
@@ -32,8 +49,8 @@ std::expected<shared_memory_file, std::error_code> shared_memory_file::create(st
 }
 
 // _____________________________________________________________________________________________________________________
-std::expected<shared_memory_file, std::error_code> shared_memory_file::open(std::string&& path, const AccessMode mode) {
-  const int o_flags = (mode == AccessMode::WRITE) ? O_RDWR : O_RDONLY;
+std::expected<shared_memory_file, std::error_code> shared_memory_file::open(std::string&& path, const AccessMode access_mode) {
+  const int o_flags = (access_mode == AccessMode::WRITE) ? O_RDWR : O_RDONLY;
 
   const int fd = shm_open(path.c_str(), o_flags, 0666);
   if (fd == -1) {
@@ -46,9 +63,13 @@ std::expected<shared_memory_file, std::error_code> shared_memory_file::open(std:
   }
 
   shared_memory_file self(std::move(path), shm_stat.st_size);
-  self._access_mode = mode;
+  self._access_mode = access_mode;
 
   self._native_handle = fd;
 
   return self;
 }
+
+}
+
+#endif

@@ -1,28 +1,26 @@
-//
-// Created by lfreist on 17/10/2024.
-//
+/**
+ * Copyright 2024, Leon Freist (https://github.com/lfreist)
+ * Author: Leon Freist <freist.leon@gmail.com>
+ *
+ * This file is part of ipcpp.
+ *
+ */
 
 #pragma once
 
-#include <ipcpp/shm/error.h>
-#include <ipcpp/shm/shared_memory_file.h>
-#include <ipcpp/utils/logging.h>
 #include <ipcpp/utils/platform.h>
+#include <ipcpp/shm/shared_memory_file.h>
 
-#include <cassert>
 #include <cstdint>
-#include <memory>
-
-#ifdef IPCPP_UNIX
-#include <sys/mman.h>
-#endif
+#include <expected>
+#include <system_error>
 
 namespace ipcpp::shm {
 
 enum class MappingType { SINGLE, DOUBLE };
 
 template <MappingType MT = MappingType::SINGLE>
-class MappedMemory {
+class IPCPP_API MappedMemory {
  public:
   MappedMemory(MappedMemory&& other) noexcept;
 
@@ -42,25 +40,14 @@ class MappedMemory {
 
   void msync(bool sync) const;
 
-  void release() noexcept {
-    _mapped_region = 0;
-    _size = 0;
-  }
+  void release() noexcept;
 
-  template <typename T>
-  T* data(const std::size_t offset = 0) {
-    return reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(addr()) + offset);
-  }
+  [[nodiscard]] std::size_t size() const;
 
-  [[nodiscard]] std::size_t size() const { return _size; }
-
-  [[nodiscard]] std::uintptr_t addr() const { return _mapped_region; }
+  [[nodiscard]] std::uintptr_t addr() const;
 
  private:
   explicit MappedMemory(shared_memory_file&& shm_file);
-
-  static std::expected<std::uintptr_t, std::error_code> map_memory(std::size_t expected_size, std::uintptr_t start_addr,
-                                                                   shared_memory_file::native_handle_t file_handle, std::size_t offset, AccessMode access_mode);
 
   std::uintptr_t _mapped_region = 0;
   std::size_t _size = 0;
@@ -68,8 +55,9 @@ class MappedMemory {
   shared_memory_file _shm_file;
 };
 
-#ifdef __linux__
-#include "internal/unix/mapped_memory.impl.h"
-#endif
+// _____________________________________________________________________________________________________________________
+std::expected<std::uintptr_t, std::error_code> IPCPP_API _map_memory(std::size_t expected_size, std::uintptr_t start_addr,
+                                                           shared_memory_file::native_handle_t file_handle,
+                                                           std::size_t offset, AccessMode access_mode);
 
 }  // namespace ipcpp::shm

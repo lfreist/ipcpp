@@ -4,6 +4,7 @@
  *
  * This file is part of ipcpp.
  */
+#pragma once
 
 #include <ipcpp/stl/alloc_traits.h>
 #include <ipcpp/stl/allocator.h>
@@ -11,14 +12,14 @@
 #include <ipcpp/stl/ipcpp_iterator.h>
 #include <ipcpp/utils/platform.h>
 
-#include <concepts>
+#include <algorithm>
 #include <format>
-#include <utility>
 #include <memory>
+#include <utility>
 
 namespace ipcpp {
 
-template <typename T_p, typename T_Allocator = ipcpp::pool_allocator<T_p>>
+template <typename T_p, typename T_Allocator = pool_allocator<T_p>>
 class IPCPP_API vector {
   // ___________________________________________________________________________________________________________________
  public:
@@ -478,7 +479,7 @@ class IPCPP_API vector {
     if (max_size() - size() < n) {
       throw std::length_error(std::format("{}: length_error: max_size: {}, size: {}", caller, max_size(), size()));
     }
-    const size_type len = size() + std::max(size(), n);
+    const size_type len = size() + std::max<>(size(), n);
     return (len < size() || len > max_size()) ? max_size() : len;
   }
 
