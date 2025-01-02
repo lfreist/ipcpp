@@ -14,13 +14,6 @@ inline function definitions for function declared in the regular header.
 ## `.cpp` - Regular Source Files
 `.cpp` is the extension for regular source files. These files are added to CMake targets and compiled.
 
-## `-.impl.cpp` - Implementation Source Files
-Implementation source files contain internal implementation details. They are used to provide platform dependant
-function definitions. E.g. for `MappedMemory`, we have a `mapped_memory.cpp` that contains all function definitions of
-functions declared in `mapped_memory.h` and `mapped_memory.impl.cpp` that contains function definitions for functions
-that need platform dependant code: `MappedMemory::map_memory()` for example. These files are `#included` at the end of
-their corresponding regular source file.
-
 ---
 
 # Folder Structure

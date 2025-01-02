@@ -30,6 +30,12 @@ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     set(MAIN_PROJECT ON)
 endif ()
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(LOGGING_LEVEL=LOG_LEVEL_DEBUG)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_compile_definitions(LOGGING_LEVEL=LOG_LEVEL_OFF)
+endif()
+
 include(FetchContent)
 
 FetchContent_Declare(

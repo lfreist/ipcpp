@@ -1,20 +1,21 @@
 /**
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
- * 
+ *
  * This file is part of ipcpp.
  */
 
 #pragma once
 
+#include <ipcpp/event/observer.h>
 #include <ipcpp/event/shm_notification_memory_layout.h>
+#include <ipcpp/publish_subscribe/error.h>
 #include <ipcpp/publish_subscribe/options.h>
 #include <ipcpp/shm/mapped_memory.h>
-#include <ipcpp/shm/ring_buffer.h>
+#include <ipcpp/topic.h>
 #include <ipcpp/utils/logging.h>
-#include <ipcpp/utils/reference_counted.h>
-#include <ipcpp/event/observer.h>
-#include <ipcpp/publish_subscribe/error.h>
+#include <ipcpp/publish_subscribe/message.h>
+#include <ipcpp/publish_subscribe/message_queue.h>
 
 #include <string>
 
@@ -22,212 +23,143 @@ namespace ipcpp::publish_subscribe {
 
 namespace internal {
 
-template <typename...>
 struct ShmDefault {};
 
-template <typename T_Data>
-class Subscriber_I {
-  public:
-   explicit Subscriber_I(std::string&& identifier) : _id(std::move(identifier)) {}
-   Subscriber_I(std::string&& identifier, const subscriber::Options& options) : _id(std::move(identifier)), _options(options) {}
-   virtual ~Subscriber_I() = default;
+}  // namespace internal
 
-   Subscriber_I& set_options(const subscriber::Options& options) {
-     if (_initialized) {
-       logging::warn("Subscriber<'{}'>::set_options(): called but Publisher already set up", _id);
-     } else {
-       _options = options;
-     }
-     return *this;
-   }
-
-   virtual std::error_code initialize() = 0;
-   virtual std::error_code subscribe() = 0;
-   virtual std::error_code cancel_subscription() = 0;
-
-   protected:
-    std::string _id;
-    subscriber::Options _options{};
-    bool _initialized = false;
-};
-
-}
-
-template <typename T_Data, template <typename...> typename T_Observer = internal::ShmDefault>
-requires(event::concepts::is_observer<T_Observer<std::size_t>> ||
-           std::is_same_v<T_Observer<std::size_t>, internal::ShmDefault<std::size_t>>)
-class Subscriber final : public internal::Subscriber_I<T_Data> {
-public:
+template <typename T_Data, typename T_Observer = internal::ShmDefault>
+class Subscriber final {
+ public:
   typedef T_Data data_type;
-  typedef reference_counted<T_Data> data_access_type;
-  typedef T_Observer<std::size_t> observer_type;
+  typedef ps::Message<T_Data> data_access_type;
+  typedef T_Observer observer_type;
 
-  public:
-   using internal::Subscriber_I<T_Data>::Subscriber_I;
+ public:
+  static std::expected<Subscriber, std::error_code> create(const std::string& topic_id,
+                                                           const subscriber::Options& options) {
+    auto e_topic = get_topic(topic_id);
+    if (!e_topic) {
+      return std::unexpected(e_topic.error());
+    }
+    auto e_message_queue = ps::shm_message_queue<data_access_type>::read_at(e_topic.value()->shm().addr());
+    if (!e_message_queue) {
+      return std::unexpected(e_message_queue.error());
+    }
+    std::string notifications_topic_id(topic_id + "_notifications");
+    auto e_observer = T_Observer::create(notifications_topic_id);
+    if (!e_observer) {
+      return std::unexpected(e_observer.error());
+    }
 
-  std::error_code initialize() override {
-    assert(!this->_initialized);
-    if (this->_initialized) {
-      logging::warn("Subscriber<'{}'>::initialize(): called but already set up", this->_id);
-      return {};
-    }
-    if (const std::error_code error = _m_initialize_message_buffer()) {
-      logging::error("Subscriber<'{}'>::initialize(): failed to initialize message buffer: {}::{}", this->_id,
-                     error.category().name(), error.message(), error.message());
-      return error;
-    }
-    if (const std::error_code error = _m_initialize_observer()) {
-      logging::error("Subscriber<'{}'>::initialize(): failed to initialize observer: {}::{}", this->_id, error.category().name(),
-                     error.message(), error.message());
-      return error;
-    }
-    this->_initialized = true;
-    logging::debug("Subscriber<'{}'>::initialize(): initialization done", this->_id);
-    return {};
+    Subscriber self(std::move(e_topic.value()), options);
+    self._message_queue = std::make_unique<ps::shm_message_queue>(std::move(e_message_queue.value()));
+    self._observer = std::make_unique<T_Observer>(std::move(e_observer.value()));
+
+    return self;
   }
 
-  std::error_code receive(std::function<std::error_code(data_access_type&)> callback, const std::chrono::milliseconds timeout) {
-    assert(this->_initialized);
-    auto expected_notification = _observer->receive(timeout, [](std::size_t n) { return n; });
-    if (!expected_notification.has_value()) {
-      logging::warn("Subscriber<'{}'>::receive(): observer received error", this->_id);
-      // TODO: return error
-      return {};
+  std::error_code receive(std::function<std::error_code(const T_Data&)> callback) {
+    std::uint64_t msg_id = _observer->receive();
+    data_access_type& wrapped_data = _message_queue->operator[](msg_id);
+    const auto& o_data = wrapped_data.consume();
+    if (!o_data) {
+      return std::error_code(1, std::system_category());
     }
-    std::size_t index = expected_notification.value();
-    data_access_type& data = _message_buffer->operator[](index);
-    return callback(data);
+    return callback(*o_data.value());
   }
 
-  std::error_code subscribe() override {
-    assert(this->_initialized);
+  std::error_code subscribe() {
     return _observer->subscribe();
   }
 
-  std::error_code cancel_subscription() override {
-    assert(this->_initialized);
+  std::error_code cancel_subscription() {
     return _observer->cancel_subscription();
   }
 
-private:
-  std::error_code _m_initialize_message_buffer() {
-    auto expected_memory =
-        shm::MappedMemory<shm::MappingType::SINGLE>::open("/" + this->_id + ".ipcpp.mrb.shm", AccessMode::WRITE);
-    if (!expected_memory.has_value()) {
-      // TODO: return error
-      return {};
-    }
-    _message_memory =
-        std::make_optional<shm::MappedMemory<shm::MappingType::SINGLE>>(std::move(expected_memory.value()));
-    _message_buffer = std::make_optional<shm::ring_buffer<reference_counted<T_Data>>>(_message_memory.value().addr());
-    logging::info("Subscriber<'{}'>::_m_initialize_message_buffer(): opened message buffer", this->_id);
-    return {};
-  }
-  std::error_code _m_initialize_observer() {
-    auto expected_observer = observer_type::create(std::string(this->_id));
-    if (!expected_observer.has_value()) {
-      // TODO: return error
-      return {};
-    }
-    _observer = std::make_unique<observer_type>(std::move(expected_observer.value()));
-    logging::info("Subscriber<'{}'>::_m_initialize_observer(): created observer", this->_id);
-    return {};
-  }
+ private:
+  Subscriber(Topic&& topic, const subscriber::Options& options) : _topic(std::move(topic)), _options(options) {}
 
-private:
-  std::optional<shm::MappedMemory<shm::MappingType::SINGLE>> _message_memory;
-  std::optional<shm::ring_buffer<reference_counted<T_Data>>> _message_buffer;
+ private:
+  Topic _topic = nullptr;
+  std::unique_ptr<ps::shm_message_queue<data_access_type>> _message_queue = nullptr;
+  subscriber::Options _options;
   std::unique_ptr<observer_type> _observer = nullptr;
 };
 
 template <typename T_Data>
-class Subscriber<T_Data, internal::ShmDefault> final : public internal::Subscriber_I<T_Data> {
-public:
+class Subscriber<T_Data, internal::ShmDefault> final {
+ public:
   typedef T_Data data_type;
-  typedef reference_counted<T_Data> data_access_type;
-  typedef event::shm_notification_memory_layout<reference_counted<T_Data>, event::shm_atomic_notification_header>
-      message_buffer_type;
+  typedef ps::Message<T_Data> data_access_type;
 
-  public:
-   using internal::Subscriber_I<T_Data>::Subscriber_I;
+ public:
+  static std::expected<Subscriber, std::error_code> create(const std::string& topic_id,
+                                                           const subscriber::Options& options = {}) {
+    auto e_topic = get_topic(topic_id);
+    if (!e_topic) {
+      return std::unexpected(e_topic.error());
+    }
+    auto e_message_queue = ps::shm_message_queue<data_access_type>::read_at(e_topic.value()->shm().addr());
+    if (!e_message_queue) {
+      return std::unexpected(e_message_queue.error());
+    }
 
-  std::error_code initialize() override {
-    assert(!this->_initialized);
-    if (this->_initialized) {
-      logging::warn("Subscriber<'{}'>::initialize(): called but already set up", this->_id);
-      return {};
-    }
-    if (const std::error_code error = _m_initialize_message_buffer()) {
-      logging::error("Subscriber<'{}'>::initialize(): failed to initialize message buffer: {}::{}", this->_id,
-                     error.category().name(), error.message(), error.message());
-      return error;
-    }
-    this->_initialized = true;
-    logging::debug("Subscriber<'{}'>::initialize(): initialization done", this->_id);
-    return {};
+    Subscriber self(std::move(e_topic.value()), options);
+    self._message_queue = std::make_unique<ps::shm_message_queue<data_access_type>>(std::move(e_message_queue.value()));
+
+    return self;
   }
 
-  std::error_code receive(std::function<std::error_code(data_access_type&)> callback, const std::chrono::milliseconds timeout) {
-    assert(this->_initialized);
-    volatile std::int64_t received_message_number = 0;
+  std::error_code receive(std::function<std::error_code(const T_Data&)> callback) {
+    std::uint64_t received_message_number = 0;
     while (true) {
-      received_message_number = _message_buffer->header->message_counter.load(std::memory_order_relaxed);
-      if (received_message_number != _last_message_id) {
+      received_message_number = _message_queue->header()->message_id.next.load(std::memory_order_acquire);
+      if (received_message_number != _next_message_id) {
         break;
       }
       std::this_thread::yield();
     }
-    if (received_message_number == -1) {
-      logging::warn("Subscriber<'{}'>::receive(): Publisher down", this->_id);
-      return {0, std::system_category()};
-    }
-    _last_message_id++;
-    auto* notification = &_message_buffer->message_buffer[_last_message_id];
-    if (notification->message_number != _last_message_id) {
-      logging::error("Subscriber<'{}'>::receive(): Message invalid: message number mismatch (received: {}, actual: {})", this->_id, _last_message_id, notification->message_number);
+    std::uint64_t msg_id = _next_message_id;
+    _next_message_id++;
+    if (received_message_number == std::numeric_limits<std::uint64_t>::max()) {
+      logging::warn("Subscriber<'{}'>::receive(): Publisher down", this->_topic->id());
       return {1, std::system_category()};
     }
-    logging::debug("Subscriber<'{}'>::receive(): received message id {}", this->_id, notification->message_number);
-    auto& data = notification->message;
-    return callback(data);
+    auto& wrapped_message = _message_queue->operator[](msg_id);
+    logging::debug("Subscriber<'{}'>::receive(): received next message: assumed #{}, actual #{}", this->_topic->id(),
+                   msg_id, wrapped_message.message_id());
+    if (wrapped_message.message_id() != msg_id) {
+      logging::error("Subscriber<'{}'>::receive(): Message invalid: message number mismatch (received: {}, actual: {})",
+                     this->_topic->id(), msg_id, wrapped_message.message_id());
+      return {2, std::system_category()};
+    }
+    auto o_data = wrapped_message.consume();
+    if (!o_data) {
+      return {3, std::system_category()};
+    }
+    return callback(*o_data.value());
   }
 
-  std::error_code subscribe() override {
-    assert(this->_initialized);
-    if (!this->_initialized) {
-      return {1, std::system_category()};
-    }
-    _message_buffer->header->num_subscribers.fetch_add(1, std::memory_order_release);
-    _last_message_id = _message_buffer->header->message_counter.load(std::memory_order_acquire);
+  std::error_code subscribe() {
+    _message_queue->header()->num_subscribers.fetch_add(1, std::memory_order_release);
+    _next_message_id = _message_queue->header()->message_id.next.load(std::memory_order_acquire);
     return {};
   }
 
-  std::error_code cancel_subscription() override {
-    assert(this->_initialized);
-    _message_buffer->header->num_subscribers.fetch_sub(1, std::memory_order_release);
+  std::error_code cancel_subscription() {
+    _message_queue->header()->num_subscribers.fetch_sub(1, std::memory_order_release);
     // TODO: decrease reference counters for messages not yet read
     return {};
   }
 
-private:
-  std::error_code _m_initialize_message_buffer() {
-    auto expected_memory =
-        shm::MappedMemory<shm::MappingType::SINGLE>::open(utils::path_from_shm_id(this->_id + ".ipcpp.mrb.shm"), AccessMode::WRITE);
-    if (!expected_memory.has_value()) {
-      // TODO: return error
-      return {1, std::system_category()};
-    }
-    _message_memory =
-        std::make_optional<shm::MappedMemory<shm::MappingType::SINGLE>>(std::move(expected_memory.value()));
-    _message_buffer = std::make_optional<message_buffer_type>(_message_memory.value().addr());
-    logging::info("Subscriber<'{}'>::_m_initialize_message_buffer(): opened message buffer", this->_id);
-    return {};
-  }
+ private:
+  Subscriber(Topic&& topic, const subscriber::Options& options) : _topic(std::move(topic)), _options(options) {}
 
-private:
-  std::optional<shm::MappedMemory<shm::MappingType::SINGLE>> _message_memory;
-  std::optional<message_buffer_type> _message_buffer;
-  std::int64_t _last_message_id = -1;
+ private:
+  Topic _topic = nullptr;
+  std::unique_ptr<ps::shm_message_queue<data_access_type>> _message_queue = nullptr;
+  subscriber::Options _options;
+  std::uint64_t _next_message_id = 0;
 };
 
-}
+}  // namespace ipcpp::publish_subscribe

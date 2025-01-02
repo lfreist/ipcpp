@@ -25,7 +25,7 @@ struct CustomType {
 };
 
 TEST(ipcpp_vector, default_constructor) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec;
     EXPECT_TRUE(vec.empty());
@@ -79,7 +79,7 @@ TEST(ipcpp_vector, default_constructor) {
 }
 
 TEST(ipcpp_vector, constructor_size_value) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec(5, 42);
     EXPECT_EQ(vec.size(), 5);
@@ -125,7 +125,7 @@ TEST(ipcpp_vector, constructor_size_value) {
 }
 
 TEST(ipcpp_vector, copy_constructor) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> original{1, 2, 3, 4, 5};
     ipcpp::vector<int> copy(original);
@@ -187,7 +187,7 @@ TEST(ipcpp_vector, copy_constructor) {
 }
 
 TEST(ipcpp_vector, move_constructor) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> original{1, 2, 3, 4, 5};
     ipcpp::vector<int> moved(std::move(original));
@@ -262,7 +262,7 @@ TEST(ipcpp_vector, move_constructor) {
 }
 
 TEST(ipcpp_vector, constructor_initializer_list) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
     EXPECT_EQ(vec.size(), 5);
@@ -307,7 +307,7 @@ TEST(ipcpp_vector, constructor_initializer_list) {
 }
 
 TEST(ipcpp_vector, constructor_iterator) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> source{1, 2, 3, 4, 5};
     ipcpp::vector<int> vec(source.begin(), source.end());
@@ -379,7 +379,7 @@ struct Tracker {
 };
 
 TEST(ipcpp_vector, destructor) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<Tracker> vec(5);
     EXPECT_EQ(Tracker::active_count, 5);
@@ -412,7 +412,7 @@ TEST(ipcpp_vector, destructor) {
 }
 
 TEST(ipcpp_vector, move_assign_operator) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> source{1, 2, 3, 4, 5};
     ipcpp::vector<int> target;
@@ -468,7 +468,7 @@ TEST(ipcpp_vector, move_assign_operator) {
 }
 
 TEST(ipcpp_vector, copy_assign_operator) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> source{1, 2, 3, 4, 5};
     ipcpp::vector<int> target;
@@ -538,7 +538,7 @@ TEST(ipcpp_vector, copy_assign_operator) {
 }
 
 TEST(ipcpp_vector, ilist_assign_operator) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec;
     vec = {1, 2, 3, 4, 5};
@@ -595,7 +595,7 @@ TEST(ipcpp_vector, ilist_assign_operator) {
 }
 
 TEST(ipcpp_vector, assign_size_value) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec;
     vec.assign(5, 42);
@@ -644,7 +644,7 @@ TEST(ipcpp_vector, assign_size_value) {
 }
 
 TEST(ipcpp_vector, assign_iterator) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> source{1, 2, 3, 4, 5};
     ipcpp::vector<int> vec;
@@ -727,7 +727,7 @@ TEST(ipcpp_vector, assign_iterator) {
 }
 
 TEST(ipcpp_vector, assign_initializer_list) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec;
     vec.assign({1, 2, 3, 4, 5});
@@ -784,7 +784,7 @@ TEST(ipcpp_vector, assign_initializer_list) {
 }
 
 TEST(ipcpp_vector, operator_at) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     EXPECT_EQ(vec[0], 10);
@@ -875,7 +875,7 @@ TEST(ipcpp_vector, operator_at) {
 }
 
 TEST(ipcpp_vector, at) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     EXPECT_EQ(vec.at(0), 10);
@@ -1025,7 +1025,7 @@ TEST(ipcpp_vector, at) {
 }
 
 TEST(ipcpp_vector, front) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     EXPECT_EQ(vec.front(), 10);
@@ -1076,7 +1076,7 @@ TEST(ipcpp_vector, front) {
 }
 
 TEST(ipcpp_vector, back) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     EXPECT_EQ(vec.back(), 50);
@@ -1145,7 +1145,7 @@ TEST(ipcpp_vector, back) {
 }
 
 TEST(ipcpp_vector, data) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     int* data_ptr = vec.data();
@@ -1224,7 +1224,7 @@ TEST(ipcpp_vector, data) {
 }
 
 TEST(ipcpp_vector, begin) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto it = vec.begin();
@@ -1309,7 +1309,7 @@ TEST(ipcpp_vector, begin) {
 }
 
 TEST(ipcpp_vector, cbegin) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     const ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto it = vec.cbegin();
@@ -1376,7 +1376,7 @@ TEST(ipcpp_vector, cbegin) {
 }
 
 TEST(ipcpp_vector, rbegin) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto rit = vec.rbegin();
@@ -1461,7 +1461,7 @@ TEST(ipcpp_vector, rbegin) {
 }
 
 TEST(ipcpp_vector, end) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto it = vec.end();
@@ -1552,7 +1552,7 @@ TEST(ipcpp_vector, end) {
 }
 
 TEST(ipcpp_vector, cend) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     const ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto it = vec.cend();
@@ -1625,7 +1625,7 @@ TEST(ipcpp_vector, cend) {
 }
 
 TEST(ipcpp_vector, crbegin) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     const ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto rit = vec.crbegin();
@@ -1692,7 +1692,7 @@ TEST(ipcpp_vector, crbegin) {
 }
 
 TEST(ipcpp_vector, crend) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     const ipcpp::vector<int> vec{10, 20, 30, 40, 50};
     auto rit = vec.crend();
@@ -1765,7 +1765,7 @@ TEST(ipcpp_vector, crend) {
 }
 
 TEST(ipcpp_vector, empty) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec;
     EXPECT_TRUE(vec.empty());
@@ -1823,7 +1823,7 @@ TEST(ipcpp_vector, empty) {
 }
 
 TEST(ipcpp_vector, size) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec;
     EXPECT_EQ(vec.size(), 0);
@@ -1901,7 +1901,7 @@ TEST(ipcpp_vector, size) {
 }
 
 TEST(ipcpp_vector, max_size) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec;
     EXPECT_EQ(vec.max_size(), ipcpp::pool_allocator<int>::get_singleton().max_size());
@@ -1929,7 +1929,7 @@ TEST(ipcpp_vector, max_size) {
 }
 
 TEST(ipcpp_vector, reserve_capacity) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec;
     EXPECT_EQ(vec.capacity(), 0);
@@ -2027,7 +2027,7 @@ TEST(ipcpp_vector, reserve_capacity) {
 }
 
 TEST(ipcpp_vector, shrink_to_fit) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec;
     vec.reserve(10);
@@ -2099,7 +2099,7 @@ TEST(ipcpp_vector, shrink_to_fit) {
 }
 
 TEST(ipcpp_vector, clear) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
     EXPECT_EQ(vec.size(), 5);
@@ -2176,7 +2176,7 @@ TEST(ipcpp_vector, clear) {
 }
 
 TEST(ipcpp_vector, insert_const_iterator) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
 
@@ -2262,7 +2262,7 @@ TEST(ipcpp_vector, insert_const_iterator) {
 }
 
 TEST(ipcpp_vector, insert_const_iterator_rvalue) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
 
@@ -2345,7 +2345,7 @@ TEST(ipcpp_vector, insert_const_iterator_rvalue) {
 }
 
 TEST(ipcpp_vector, insert_count_value) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
   // Insert multiple values in the middle
   {
     ipcpp::vector<int> vec{1, 2, 6, 7};
@@ -2410,7 +2410,7 @@ TEST(ipcpp_vector, insert_count_value) {
 }
 
 TEST(ipcpp_vector, insert_input_iterators) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Insert a range of integers in the middle
   {
@@ -2492,7 +2492,7 @@ TEST(ipcpp_vector, insert_input_iterators) {
 }
 
 TEST(ipcpp_vector, insert_initializer_list) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Insert initializer list in the middle
   {
@@ -2551,7 +2551,7 @@ TEST(ipcpp_vector, insert_initializer_list) {
 }
 
 TEST(ipcpp_vector, emplace) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   {
     ipcpp::vector<int> vec{1, 2, 3, 4, 5};
@@ -2626,7 +2626,7 @@ TEST(ipcpp_vector, emplace) {
 }
 
 TEST(ipcpp_vector, erase_iterator) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Erase a single element from the middle
   {
@@ -2691,7 +2691,7 @@ TEST(ipcpp_vector, erase_iterator) {
 }
 
 TEST(ipcpp_vector, erase_first_last_iterator) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // erase front
   {
@@ -2801,7 +2801,7 @@ TEST(ipcpp_vector, erase_first_last_iterator) {
 }
 
 TEST(ipcpp_vector, push_back_rvalue) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Push back single element
   {
@@ -2850,7 +2850,7 @@ TEST(ipcpp_vector, push_back_rvalue) {
 }
 
 TEST(ipcpp_vector, push_back_reference) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Push back single element
   {
@@ -2882,7 +2882,7 @@ TEST(ipcpp_vector, push_back_reference) {
 }
 
 TEST(ipcpp_vector, emplace_back) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Emplace back single element
   {
@@ -2942,7 +2942,7 @@ TEST(ipcpp_vector, emplace_back) {
 }
 
 TEST(ipcpp_vector, pop_back) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Pop back from a vector with multiple elements
   {
@@ -2993,7 +2993,7 @@ TEST(ipcpp_vector, pop_back) {
 }
 
 TEST(ipcpp_vector, resize) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Resize to a larger size with default value
   {
@@ -3066,7 +3066,7 @@ TEST(ipcpp_vector, resize) {
 }
 
 TEST(ipcpp_vector, resize_with_value) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Resize to a larger size with a specified value
   {
@@ -3139,7 +3139,7 @@ TEST(ipcpp_vector, resize_with_value) {
 }
 
 TEST(ipcpp_vector, swap) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Swap two vectors of equal size
   {
@@ -3196,7 +3196,7 @@ TEST(ipcpp_vector, swap) {
 }
 
 TEST(ipcpp_vector, operator_equal) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Compare two equal vectors
   {
@@ -3250,7 +3250,7 @@ TEST(ipcpp_vector, operator_equal) {
 }
 
 TEST(ipcpp_vector, operator_spaceship) {
-  ipcpp::pool_allocator<int>::initialize_factory(alloc_mem, allocator_mem_size);
+  ipcpp::pool_allocator<int>::initialize_factory(reinterpret_cast<std::uintptr_t>(alloc_mem), allocator_mem_size);
 
   // Compare vectors that are equal
   {

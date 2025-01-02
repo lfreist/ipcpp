@@ -15,8 +15,6 @@
 #include <cstdint>
 #include <mutex>
 
-#include "spdlog/spdlog.h"
-
 namespace ipcpp::event {
 
 struct shm_atomic_notification_header {

@@ -28,15 +28,9 @@ class IPCPP_API MappedMemory {
 
   ~MappedMemory();
 
-  static std::expected<MappedMemory, std::error_code> open_or_create(shared_memory_file&& shm_file);
-
-  static std::expected<MappedMemory, std::error_code> open_or_create(std::string&& shm_id, std::size_t size);
-
-  static std::expected<MappedMemory, std::error_code> open(shared_memory_file&& shm_file,
+  static std::expected<MappedMemory, std::error_code> create(std::string_view shm_id, std::size_t min_size);
+  static std::expected<MappedMemory, std::error_code> open(std::string_view shm_id,
                                                            AccessMode access_mode = AccessMode::WRITE);
-
-  static std::expected<MappedMemory, std::error_code> open(std::string&& shm_id,
-                                                           AccessMode access_mode = AccessMode::READ);
 
   void msync(bool sync) const;
 
@@ -48,6 +42,10 @@ class IPCPP_API MappedMemory {
 
  private:
   explicit MappedMemory(shared_memory_file&& shm_file);
+
+  static std::expected<MappedMemory, std::error_code> create(shared_memory_file&& shm_file);
+  static std::expected<MappedMemory, std::error_code> open(shared_memory_file&& shm_file,
+                                                           AccessMode access_mode = AccessMode::WRITE);
 
   std::uintptr_t _mapped_region = 0;
   std::size_t _size = 0;

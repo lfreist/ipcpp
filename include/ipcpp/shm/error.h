@@ -16,6 +16,7 @@ enum class error_t {
   creation_error,  // shm_open for create fails
   resize_error,    // ftruncate fails
   open_error,      // shm_open for open fails
+  size_error,      // file exists but its size is smaller than min_size
   file_not_found,
   mapping_error,  // mmap fails
   anonymous_mapping_not_allowed,  // for windows, a file handle must be provided for memory mappings
@@ -37,6 +38,8 @@ class error_category final : public std::error_category {
         return "resize_error";
       case error_t::open_error:
         return "open_error";
+      case error_t::size_error:
+        return "size_error";
       case error_t::file_not_found:
         return "file_not_found";
       case error_t::mapping_error:

@@ -10,11 +10,13 @@
 #ifdef IPCPP_UNIX
 
 #include <ipcpp/shm/shared_memory_file.h>
+#include <ipcpp/utils/utils.h>
 
 #include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 namespace ipcpp::shm {
 
@@ -23,6 +25,9 @@ shared_memory_file::~shared_memory_file() {
   if (_native_handle != 0) {
     close(_native_handle);
   }
+  if (_was_created) {
+    unlink();
+  }
 }
 
 // _____________________________________________________________________________________________________________________
@@ -30,20 +35,24 @@ void shared_memory_file::unlink() const { shm_unlink(_path.c_str()); }
 
 // _____________________________________________________________________________________________________________________
 std::expected<shared_memory_file, std::error_code> shared_memory_file::create(std::string&& path,
-                                                                              const std::size_t size) {
+                                                                              std::size_t size) {
+  size = utils::align_up(size, getpagesize());
   shared_memory_file self(std::move(path), size);
   self._access_mode = AccessMode::WRITE;
+
+  shm_unlink(self._path.c_str());
 
   const int fd = shm_open(self._path.c_str(), O_RDWR | O_CREAT, 0666);
   if (fd == -1) {
     return std::unexpected(std::error_code(static_cast<int>(error_t::creation_error), error_category()));
   }
 
-  if (ftruncate(fd, static_cast<__off_t>(self._size)) == -1) {
+  if (ftruncate(fd, static_cast<std::int64_t>(self._size)) == -1) {
     return std::unexpected(std::error_code(static_cast<int>(error_t::resize_error), error_category()));
   }
 
   self._native_handle = fd;
+  self._was_created = true;
 
   return self;
 }

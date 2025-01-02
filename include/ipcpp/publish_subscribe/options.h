@@ -21,8 +21,8 @@ namespace publisher {
 *  subscriber is too slow and uses the subscriber::ReceivePolicy::ALL.
 */
 enum class BackpressurePolicy {
-  BLOCK,          // the publisher blocks until the next slot is free
-  REMOVE_OLDEST,  // the next slot in the message buffer is overwritten and its previous message gets invalidated
+  block,          // the publisher blocks until the next slot is free
+  remove_oldest,  // the next slot in the message buffer is overwritten and its previous message gets invalidated
                   //  note: it is likely that the slow subscriber is currently reading this message. In this case, the
                   //   next slot gets invalidated so that the subscriber uses its subscriber::OnInvalidatedReadPolicy
                   //   when trying to read the next message. Once the subscriber has released the slot, it gets
@@ -33,25 +33,19 @@ enum class BackpressurePolicy {
 * PublishPolicy defines when data are actually published
 */
 enum class PublishPolicy {
-  ALWAYS,
-  SUBSCRIBED,  // only publish data when a subscription is active.
-               // Note: If a history of size >= 1 is configured, PublishPolicy::SUBSCRIBED is equal to ALWAYS
-  TIMED,       // only published when a timer has expired since the last publish
+  always,
+  subscribed,  // only publish data when a subscription is active.
+               // Note: If a history of size >= 1 is configured, PublishPolicy::subscribed is equal to always
+  timed,       // only published when a timer has expired since the last publish
 };
 
-/**
-* QueueCapacity is the type of a value defining the number of message slots
-*/
-typedef std::size_t QueueCapacity;
-
-typedef std::size_t HistoryCapacity;
 
 struct Options {
-  BackpressurePolicy backpressure_policy = BackpressurePolicy::BLOCK;
-  PublishPolicy publish_policy = PublishPolicy::ALWAYS;
-  std::chrono::milliseconds timed_publish_interval = 0ms;
-  QueueCapacity queue_capacity = 64;
-  HistoryCapacity history_capacity = 0;
+  BackpressurePolicy backpressure_policy = BackpressurePolicy::block;
+  PublishPolicy publish_policy = PublishPolicy::always;
+  std::chrono::nanoseconds timed_publish_interval = 0ms;
+  std::size_t queue_capacity = 64;
+  std::size_t history_capacity = 0;
   std::size_t max_num_observers = 0;  // 0 is uncapped
 };
 
@@ -74,7 +68,7 @@ enum class WaitStrategy {
 */
 enum class ReceivePolicy {
   all,     // read oldest not yet read message -> receive all messages in FIFO manner
-  latest,  // only read the latest published message -> live stream
+  latest,  // only read the next published message -> live stream
   history  // read oldest nmot yet read message in history (there are few usecases for this!)
 };
 
@@ -82,7 +76,7 @@ enum class ReceivePolicy {
 * OnSubscribeReceivePolicy defines what message is read first after subscribing.
 */
 enum class OnSubscribeReceivePolicy {
-  latest,   // start with latest published message (refers to the latest published message at subscription, NOT at first on_receive call)!
+  latest,   // start with next published message (refers to the next published message at subscription, NOT at first on_receive call)!
   history,  // start with history in FIFO manner
 };
 
@@ -94,7 +88,7 @@ enum class OnSubscribeReceivePolicy {
 enum class OnInvalidatedReadPolicy {
   error,            // throw an error (error::invalidated_message_read)
   skip_one,         // skip the current message
-  skip_to_latest,   // continue with reading latest published message
+  skip_to_latest,   // continue with reading next published message
   skip_to_history,  // continue with reading history (FIFO)
 };
 

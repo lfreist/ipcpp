@@ -7,39 +7,46 @@
 
 #pragma once
 
+#include <ipcpp/types.h>
 #include <ipcpp/utils/mutex.h>
-#include <ipcpp/utils/platform.h>
 
 #include <cstdint>
+#include <utility>
 
 namespace ipcpp {
 
 template <typename T_p>
-class IPCPP_API reference_counted {
+class reference_counted {
  public:
-  typedef T_p value_type;
-  typedef T_p* pointer;
-  typedef T_p& reference;
-
+  template <AccessMode T_AM = AccessMode::READ>
   class data_access {
    public:
-    data_access(reference data, std::atomic_size_t& remaining_accesses)
-        : _data(data), _remaining_access_ref(remaining_accesses) {}
+    data_access(std::optional<T_p>& data, std::atomic_size_t& remaining_accesses)
+        : _data(data), _remaining_access_ref(remaining_accesses) {
+      assert(data.has_value());
+    }
     ~data_access() {
-      if (_remaining_access_ref.fetch_sub(1) == 1) {
-        std::destroy_at(std::addressof(_data));
+      if (_remaining_access_ref.fetch_sub(1, std::memory_order_release) == 1) {
+        _data.reset();
       }
     }
 
-    value_type* operator->() { return &_data; }
+    T_p* operator->()
+      requires(T_AM == AccessMode::WRITE)
+    {
+      return &_data.value();
+    }
+    const T_p* operator->() const { return &_data.value(); }
 
-    const value_type* operator->() const { return &_data; }
-
-    value_type& operator*() { return _data; }
-    const value_type& operator*() const { return _data; }
+    T_p& operator*()
+      requires(T_AM == AccessMode::WRITE)
+    {
+      return _data.value();
+    }
+    const T_p& operator*() const { return _data.value(); }
 
    private:
-    value_type& _data;
+    std::optional<T_p>& _data;
     std::atomic_size_t& _remaining_access_ref;
   };
 
@@ -50,7 +57,7 @@ class IPCPP_API reference_counted {
   reference_counted(const T_p& data, const std::size_t max_num_accesses)
       : _data(data), _remaining_accesses(max_num_accesses) {}
 
- reference_counted() : _remaining_accesses(0) {}
+  reference_counted() : _remaining_accesses(0) {}
 
   reference_counted(const reference_counted&) = delete;
   reference_counted& operator=(const reference_counted&) = delete;
@@ -62,16 +69,30 @@ class IPCPP_API reference_counted {
    * @brief Calling consume returns a data_access that may destroy _data on its destruction
    * @return
    */
-  data_access consume() { return data_access(_data, _remaining_accesses); }
+  std::optional<data_access<AccessMode::READ>> consume() {
+    if (_data.has_value()) {
+      return data_access<AccessMode::READ>(_data, _remaining_accesses);
+    }
+    return std::nullopt;
+  }
 
-  T_p& operator*() { return _data; }
-  const T_p& operator*() const { return _data; }
+  void reset() { _data.reset(); }
 
-  std::size_t remaining_accesses() const { return _remaining_accesses.load(std::memory_order_acquire); }
+  template <typename... T_Args>
+  void emplace(std::size_t remaining_accesses, T_Args&&... args) {
+    _data.reset();
+    _remaining_accesses = remaining_accesses;
+    _data = T_p(std::forward<T_Args>(args)...);
+  }
+
+  std::optional<T_p>& operator*() { return _data; }
+  const std::optional<T_p>& operator*() const { return _data; }
+
+  [[nodiscard]] std::size_t remaining_accesses() const { return _remaining_accesses.load(std::memory_order_acquire); }
 
  private:
-  T_p _data;
-  std::atomic_size_t _remaining_accesses;
+  std::optional<T_p> _data;
+  alignas(std::hardware_destructive_interference_size) std::atomic_size_t _remaining_accesses;
 };
 
 }  // namespace ipcpp

@@ -23,6 +23,7 @@ shared_memory_file::shared_memory_file(shared_memory_file&& other) noexcept {
   _access_mode = other._access_mode;
   std::swap(_size, other._size);
   std::swap(_native_handle, other._native_handle);
+  std::swap(_was_created, other._was_created);
 }
 
 // _____________________________________________________________________________________________________________________
@@ -31,6 +32,7 @@ shared_memory_file& shared_memory_file::operator=(shared_memory_file&& other) no
   _access_mode = other._access_mode;
   std::swap(_size, other._size);
   std::swap(_native_handle, other._native_handle);
+  std::swap(_was_created, other._was_created);
   return *this;
 }
 

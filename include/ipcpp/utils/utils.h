@@ -25,14 +25,4 @@ std::string to_string(T& value) {
   return ss.str();
 }
 
-inline std::string path_from_shm_id(const std::string_view shm_id) {
-#ifdef IPCPP_UNIX
-  return std::string("/") + std::string(shm_id);
-#elifdef IPCPP_WINDOWS
-  return std::string("Global:") + std::string(shm_id);
-#else
-  return {};
-#endif
-}
-
 }

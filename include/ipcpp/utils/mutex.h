@@ -51,10 +51,22 @@ class mutex {
   }
 
   void unlock() noexcept {
+    assert(_flag.load(std::memory_order_acquire));
     _flag.store(false, std::memory_order_release);
   }
 
   bool try_lock() noexcept { return !_flag.exchange(true, std::memory_order_acquire); }
+  bool try_lock(int retries) noexcept {
+    if (!_flag.exchange(true, std::memory_order_acquire)) {
+      return true;
+    }
+    for (; retries > 0; --retries) {
+      if (!_flag.exchange(true, std::memory_order_acquire)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   [[nodiscard]] bool is_locked() const noexcept { return _flag.load(std::memory_order_acquire); }
 
@@ -68,58 +80,91 @@ class shared_mutex {
  public:
   void lock() noexcept {
     while (true) {
-      _mutex.lock();
-      const int num_readers = _readers.load(std::memory_order_acquire);
-      if (num_readers == 0) {
+      std::int64_t expected = 0;
+      if (_flag.compare_exchange_weak(expected, -1, std::memory_order_acq_rel)) {
         break;
       }
-      _mutex.unlock();
-      wait(_readers, num_readers, std::memory_order_acquire);
+      std::this_thread::yield();
     }
   }
 
-  void unlock() noexcept { _mutex.unlock(); }
+  void unlock() noexcept {
+    assert(_flag.load(std::memory_order_acquire) == -1);
+    _flag.store(0, std::memory_order_release);
+  }
 
   bool try_lock() noexcept {
-    if (_mutex.try_lock()) {
-      if (_readers.load(std::memory_order_acquire) == 0) {
-        return true;
-      }
-      _mutex.unlock();
-    }
-    return false;
+    std::int64_t expected = 0;
+    return _flag.compare_exchange_weak(expected, -1, std::memory_order_acq_rel);
   }
 
   void lock_shared() noexcept {
-    _mutex.lock();
-    _readers.fetch_add(1, std::memory_order_acq_rel);
-    _mutex.unlock();
+    while (true) {
+      std::int64_t expected = _flag.load(std::memory_order_acquire);
+      if (expected == -1) {
+        std::this_thread::yield();
+        continue;
+      }
+      if (_flag.compare_exchange_weak(expected, expected + 1, std::memory_order_acq_rel)) {
+        break;
+      }
+    }
   }
 
   void unlock_shared() noexcept {
-    _readers.fetch_sub(1, std::memory_order_acq_rel);
+    assert(_flag.load(std::memory_order_acquire) > 0);
+    _flag.fetch_sub(1, std::memory_order_release);
   }
 
   bool try_lock_shared() noexcept {
-    if (_mutex.try_lock()) {
-      _readers.fetch_add(1, std::memory_order_acq_rel);
-      _mutex.unlock();
-      return true;
+    std::int64_t expected = _flag.load(std::memory_order_acquire);
+    if (expected == -1) {
+      return false;
+    }
+    return _flag.compare_exchange_weak(expected, expected + 1, std::memory_order_acq_rel);
+  }
+
+  [[nodiscard]] bool is_locked() const noexcept {
+    return _flag.load(std::memory_order_acquire) == -1;
+  }
+
+  [[nodiscard]] bool is_locked_shared() const noexcept {
+    return _flag.load(std::memory_order_acquire) > 0;
+  }
+
+  /**
+   * @warning only use with care. we use it in single writer, multiple reader contexts to bypass the following issue:
+   *  - reader 0 acquires lock
+   *  - reader 1 acquires lock but between loading and writing the flag, reader 0 (or another reader) changes the value
+   *    so that compare_exchange does not work anymore
+   *  For our use case, we consider this a workaround: the time between reading and writing the value is quite short and
+   *  retrying the process has very good chances to work as expected. However it is still possible, that it fails for
+   *  every retry. In this case, we have a false negative shared lock!
+   *
+   *  When setting retries to ((max_num_subscribers * 2) + 1), at least one retry will work since there are only
+   *   (max_num_subscribers * 2) reader side changes to _flag possible. While it is still possible, that in between the
+   *   writer acquires an exclusive lock even though the reader tried to access it first, this case is considered an
+   *   acceptable edge case because we dont give guarantees about the minimum lifetime of a shared chunk.
+   *   If it is absolutely necessary that a reader reads a chunk, the writer should be configured in a way that it
+   *   blocks on back pressure.
+   */
+  bool try_lock_shared(int retries) noexcept {
+    for (int r = 0; r < (retries + 1); ++r) {
+      std::int64_t expected = _flag.load(std::memory_order_acquire);
+      if (expected == -1) {
+        // for our needs, we can immediately return if a writer holds the lock
+        return false;
+      }
+      if (_flag.compare_exchange_weak(expected, expected + 1, std::memory_order_acq_rel)) {
+        return true;
+      }
     }
     return false;
   }
 
-  [[nodiscard]] bool is_locked() const noexcept {
-    return _mutex.is_locked();
-  }
-
-  [[nodiscard]] bool is_locked_shared() const noexcept {
-    return _readers.load() > 0;
-  }
-
  private:
-  alignas(std::hardware_destructive_interference_size) std::atomic_int _readers{0};
-  mutex _mutex;
+  /// -1: read locked, 0: free, >0: write locked
+  alignas(std::hardware_destructive_interference_size) std::atomic_int64_t _flag{0};
 };
 
 static_assert(concepts::shared_mutex<shared_mutex>,

@@ -6,8 +6,10 @@
  */
 
 #include <ipcpp/shm/mapped_memory.h>
-#include <ipcpp/utils/utils.h>
 #include <ipcpp/utils/logging.h>
+#include <ipcpp/utils/utils.h>
+
+#include <cstring>
 
 namespace ipcpp::shm {
 // === member function definitions: platform unspecific implementation =================================================
@@ -91,17 +93,16 @@ std::expected<MappedMemory<MappingType::SINGLE>, std::error_code> MappedMemory<M
   } else {
     return std::unexpected(result.error());
   }
-
   return self;
 }
 
 // _____________________________________________________________________________________________________________________
 template <>
 std::expected<MappedMemory<MappingType::SINGLE>, std::error_code> MappedMemory<MappingType::SINGLE>::open(
-    std::string&& shm_id, const AccessMode access_mode) {
+    std::string_view shm_id, const AccessMode access_mode) {
   logging::debug("MappedMemory<MAPPING::SINGLE>::open(shm_id='{}', access_mode={})", std::string(shm_id),
                  static_cast<int>(access_mode));
-  auto shm_result = shared_memory_file::open(std::move(shm_id), access_mode);
+  auto shm_result = shared_memory_file::open(std::string(shm_id), access_mode);
   if (!shm_result.has_value()) {
     return std::unexpected(shm_result.error());
   }
@@ -140,10 +141,10 @@ std::expected<MappedMemory<MappingType::DOUBLE>, std::error_code> MappedMemory<M
 // _____________________________________________________________________________________________________________________
 template <>
 std::expected<MappedMemory<MappingType::DOUBLE>, std::error_code> MappedMemory<MappingType::DOUBLE>::open(
-    std::string&& shm_id, const AccessMode access_mode) {
-  logging::debug("MappedMemory<MAPPING::DOUBLE>::open(shm_id='{}', access_mode={})", std::string(shm_id),
+    std::string_view shm_id, const AccessMode access_mode) {
+  logging::debug("MappedMemory<MAPPING::DOUBLE>::open(shm_id='{}', access_mode={})", shm_id,
                  static_cast<int>(access_mode));
-  auto shm_result = shared_memory_file::open(std::move(shm_id), access_mode);
+  auto shm_result = shared_memory_file::open(std::string(shm_id), access_mode);
   if (!shm_result.has_value()) {
     return std::unexpected(shm_result.error());
   }
@@ -153,10 +154,10 @@ std::expected<MappedMemory<MappingType::DOUBLE>, std::error_code> MappedMemory<M
 // ___ open_or_create __________________________________________________________________________________________________
 // _____________________________________________________________________________________________________________________
 template <>
-std::expected<MappedMemory<MappingType::SINGLE>, std::error_code> MappedMemory<MappingType::SINGLE>::open_or_create(
-    std::string&& shm_id, const std::size_t size) {
-  logging::debug("MappedMemory<MAPPING::DOUBLE>::create(shm_id='{}', size={})", std::string(shm_id), size);
-  auto shm_result = shared_memory_file::create(std::move(shm_id), size);
+std::expected<MappedMemory<MappingType::SINGLE>, std::error_code> MappedMemory<MappingType::SINGLE>::create(
+    std::string_view shm_id, const std::size_t min_size) {
+  logging::debug("MappedMemory<MAPPING::DOUBLE>::create(shm_id='{}', min_size={})", shm_id, min_size);
+  auto shm_result = shared_memory_file::create(std::string(shm_id), min_size);
   if (!shm_result.has_value()) {
     return std::unexpected(shm_result.error());
   }
@@ -165,7 +166,7 @@ std::expected<MappedMemory<MappingType::SINGLE>, std::error_code> MappedMemory<M
 
 // _____________________________________________________________________________________________________________________
 template <>
-std::expected<MappedMemory<MappingType::SINGLE>, std::error_code> MappedMemory<MappingType::SINGLE>::open_or_create(
+std::expected<MappedMemory<MappingType::SINGLE>, std::error_code> MappedMemory<MappingType::SINGLE>::create(
     shared_memory_file&& shm_file) {
   logging::debug("MappedMemory<MAPPING::DOUBLE>::create(shm_file='{}')", shm_file.name());
   return open(std::move(shm_file), AccessMode::WRITE);
@@ -173,10 +174,10 @@ std::expected<MappedMemory<MappingType::SINGLE>, std::error_code> MappedMemory<M
 
 // _____________________________________________________________________________________________________________________
 template <>
-std::expected<MappedMemory<MappingType::DOUBLE>, std::error_code> MappedMemory<MappingType::DOUBLE>::open_or_create(
-    std::string&& shm_id, const std::size_t size) {
-  logging::debug("MappedMemory<MAPPING::DOUBLE>::create(shm_id='{}', size={})", std::string(shm_id), size);
-  auto shm_result = shared_memory_file::create(utils::path_from_shm_id(shm_id), size);
+std::expected<MappedMemory<MappingType::DOUBLE>, std::error_code> MappedMemory<MappingType::DOUBLE>::create(
+    std::string_view shm_id, const std::size_t min_size) {
+  logging::debug("MappedMemory<MAPPING::DOUBLE>::create(shm_id='{}', min_size={})", shm_id, min_size);
+  auto shm_result = shared_memory_file::create(std::string(shm_id), min_size);
   if (!shm_result.has_value()) {
     return std::unexpected(shm_result.error());
   }
@@ -185,7 +186,7 @@ std::expected<MappedMemory<MappingType::DOUBLE>, std::error_code> MappedMemory<M
 
 // _____________________________________________________________________________________________________________________
 template <>
-std::expected<MappedMemory<MappingType::DOUBLE>, std::error_code> MappedMemory<MappingType::DOUBLE>::open_or_create(
+std::expected<MappedMemory<MappingType::DOUBLE>, std::error_code> MappedMemory<MappingType::DOUBLE>::create(
     shared_memory_file&& shm_file) {
   logging::debug("MappedMemory<MAPPING::DOUBLE>::create(shm_file='{}')", shm_file.name());
   return open(std::move(shm_file), AccessMode::WRITE);

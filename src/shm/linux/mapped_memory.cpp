@@ -16,7 +16,7 @@
 
 namespace ipcpp::shm {
 
-// === private definition: map_memory: unix (posix) implementation =====================================================
+// === private definition: map_memory: linux (posix) implementation =====================================================
 // _____________________________________________________________________________________________________________________
 std::expected<std::uintptr_t, std::error_code> _map_memory(const std::size_t expected_size,
                                                            const std::uintptr_t start_addr,

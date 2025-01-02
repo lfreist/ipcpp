@@ -6,11 +6,34 @@
  */
 
 #pragma once
+#include <ipcpp/topic.h>
 
 #include <concepts>
 #include <string>
 
 namespace ipcpp::event {
+
+namespace internal {
+
+template <typename NotificationT>
+class Notifier_I {
+ public:
+  typedef NotificationT notification_type;
+
+ public:
+  Notifier_I(const TopicEntry& topic) : _topic(topic) {}
+  Notifier_I(TopicEntry&& topic) : _topic(std::move(topic)) {}
+  virtual ~Notifier_I() = default;
+
+  virtual void notify_observers(notification_type notification) = 0;
+
+  [[nodiscard]] virtual std::size_t num_observers() const = 0;
+
+ protected:
+  TopicEntry _topic;
+};
+
+}
 
 template <typename NotificationT>
 class Notifier_I {
@@ -34,15 +57,11 @@ class Notifier_I {
   std::string _id;
 };
 
-namespace concepts {
-
 template <typename T>
 concept is_notifier = requires (T notifier, typename T::notification_type notification) {
  { notifier.notify_observers(notification) } -> std::same_as<void>;
  { notifier.num_observers() } -> std::convertible_to<std::size_t>;
  { notifier.identifier() } -> std::convertible_to<std::string_view>;
 };
-
-}
 
 }  // namespace ipcpp::event

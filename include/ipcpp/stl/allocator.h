@@ -9,8 +9,11 @@
 
 #include <ipcpp/utils/mutex.h>
 #include <ipcpp/utils/platform.h>
+#include <ipcpp/topic.h>
+#include <ipcpp/utils/logging.h>
 
 #include <cassert>
+#include <memory>
 
 namespace ipcpp {
 
@@ -23,10 +26,10 @@ namespace detail {
  */
 class allocator_factory_base {
  protected:
-  static void* _singleton_process_addr;
+  static std::uintptr_t _singleton_process_addr;
 };
 
-void* allocator_factory_base::_singleton_process_addr = nullptr;
+std::uintptr_t allocator_factory_base::_singleton_process_addr = 0;
 
 }  // namespace detail
 
@@ -83,9 +86,9 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
    * @param addr
    * @param size
    */
-  static void initialize_factory(void* addr, size_type size) {
+  static void initialize_factory(std::uintptr_t addr, size_type size) {
     static pool_allocator<uint8_t> allocator(addr, size);
-    allocator_factory_base::_singleton_process_addr = addr;
+    _singleton_process_addr = addr;
   }
   /**
    * @brief Initializes the static instance of this allocator. After initialization, get_singleton() returns a
@@ -97,7 +100,9 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
    *
    * @param addr
    */
-  static void initialize_factory(void* addr) { allocator_factory_base::_singleton_process_addr = addr; }
+  static void initialize_factory(std::uintptr_t addr) { _singleton_process_addr = addr; }
+
+  static bool factory_initialized() { return _singleton_process_addr != 0; }
 
   /**
    * @brief builds and returns a local wrapper for DynamicAllocator at AllocatorFactoryBase::_singleton_process_addr.
@@ -110,11 +115,11 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
    * @return
    */
   static pool_allocator get_singleton() {
-    if (allocator_factory_base::_singleton_process_addr == nullptr) {
+    if (_singleton_process_addr == 0) {
       throw std::runtime_error(
           "Allocator Factory not initialized. Call DynamicAllocator<T_p>::initialize_factory first.");
     }
-    return pool_allocator<T_p>(allocator_factory_base::_singleton_process_addr);
+    return pool_allocator<T_p>(_singleton_process_addr);
   }
 
   /**
@@ -131,10 +136,10 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
    * @param addr
    * @param size
    */
-  pool_allocator(void* addr, size_type size)
-      : _header(new(addr) Header{.size = size, .list_head_offset = 0}),
-        _memory(reinterpret_cast<uint8_t*>(addr) + align_up(sizeof(Header))) {
-    new (_memory) AllocatorListNode{.size = size - align_up(sizeof(Header)) - align_up(sizeof(AllocatorListNode)),
+  pool_allocator(std::uintptr_t addr, size_type size)
+      : _header(new(reinterpret_cast<void*>(addr)) Header{.size = size, .list_head_offset = 0}),
+        _memory(addr + align_up(sizeof(Header))) {
+    new (reinterpret_cast<void*>(_memory)) AllocatorListNode{.size = size - align_up(sizeof(Header)) - align_up(sizeof(AllocatorListNode)),
                                     .next_offset = invalid_offset,
                                     .prev_offset = invalid_offset,
                                     .is_free = true};
@@ -148,9 +153,9 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
    *
    * @param addr
    */
-  explicit pool_allocator(void* addr)
+  explicit pool_allocator(std::uintptr_t addr)
       : _header(reinterpret_cast<Header*>(addr)),
-        _memory(reinterpret_cast<uint8_t*>(addr) + align_up(sizeof(Header))) {}
+        _memory(addr + align_up(sizeof(Header))) {}
 
   /// default trivially copyable and movable
   pool_allocator(pool_allocator&& other) noexcept = default;
@@ -168,7 +173,7 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
    * @param n
    * @return
    */
-  pointer allocate(size_type n = 1) { return _m_allocate_from_list_ptr(n * sizeof(value_type)); }
+  pointer allocate(size_type n = 1) { return _m_allocate_from_list_ptr(n * sizeof(value_type)).first; }
 
   /**
    * @brief Allocate n value_types and return the offset of their address to _memory.
@@ -309,7 +314,7 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
 
  private:
   std::pair<pointer, size_type> _m_allocate_from_list_ptr(size_type bytes) {
-    assert(_header->mutex__.is_locked());
+    assert(_header->mutex_.is_locked());
     auto* node = reinterpret_cast<AllocatorListNode*>(offset_to_pointer(_header->list_head_offset));
     while (true) {
       if (node->is_free && node->size >= bytes) {
@@ -322,7 +327,7 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
                          node->size - bytes - align_up(sizeof(AllocatorListNode)));
           node->size = bytes;
         }
-        return {reinterpret_cast<pointer>(reinterpret_cast<uint8_t>(node) +
+        return {reinterpret_cast<pointer>(reinterpret_cast<uint8_t*>(node) +
                                           static_cast<difference_type>(align_up(sizeof(AllocatorListNode)))),
                 node->size};
       } else {
@@ -377,7 +382,6 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
     assert(_header->mutex_.is_locked());
     difference_type next_offset = node->next_offset;
     node->next_offset = new_nodes_offset;
-    auto p = pointer_to_offset(node);
     new (offset_to_pointer(new_nodes_offset)) AllocatorListNode{
         .size = new_nodes_size, .next_offset = next_offset, .prev_offset = pointer_to_offset(node), .is_free = true};
     if (next_offset != invalid_offset) {
@@ -455,7 +459,7 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
   /// located in provided memory right before _memory. aligned at 16 _m_num_bytes
   Header* _header = nullptr;
   /// located in provided memory right after aligned _header
-  void* _memory = nullptr;
+  std::uintptr_t _memory = 0;
 };
 
 }  // namespace ipcpp

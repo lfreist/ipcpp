@@ -19,10 +19,10 @@ namespace ipcpp {
 
 // --- Forward Declarations --------------------------------------------------------------------------------------------
 template <typename S, bool is_shared, bool is_const>
-class IPCPP_API LockedPtrAccess;
+class LockedPtrAccess;
 
 // --- Tag Types -------------------------------------------------------------------------------------------------------
-struct IPCPP_API ConstructWithMutex {};
+struct ConstructWithMutex {};
 
 /**
  * Synchronizes an object: Attaches a mutex to a given type and only allows locked access to this type.
@@ -31,11 +31,11 @@ struct IPCPP_API ConstructWithMutex {};
  *  Only implements most basic functionality of folly::synchronized
  *
  * @tparam T - Thy underlying type
- * @tparam M - A Lockable type (c.f. fcore/concepts.h). Defaults to std::shared_mutex
+ * @tparam M - A Lockable type. Defaults to std::shared_mutex
  */
 template <typename T, typename M = std::shared_mutex>
   requires concepts::lockable<M> && std::is_move_assignable_v<T> && std::is_move_constructible_v<T>
-class IPCPP_API synchronized {
+class synchronized {
   template <typename S, bool is_shared, bool is_const>
   friend class LockedPtrAccess;
 
@@ -164,7 +164,7 @@ class IPCPP_API synchronized {
  * @tparam is_const [bool] - indicates const qualification of underlying type
  */
 template <typename S, bool is_shared_lock, bool is_const>
-class IPCPP_API LockedPtrAccess {
+class LockedPtrAccess {
   template <typename T, typename M>
     requires concepts::lockable<M> && std::is_move_assignable_v<T> && std::is_move_constructible_v<T>
   friend class synchronized;

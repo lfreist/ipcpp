@@ -46,9 +46,10 @@ class IPCPP_API shared_memory_file {
  private:
   AccessMode _access_mode = AccessMode::READ;
   std::string _path;
-  /// fd for unix, HANDLE for windows
+  /// fd for linux, HANDLE for windows
   native_handle_t _native_handle = reinterpret_cast<native_handle_t>(0);
   std::size_t _size = 0U;
+  bool _was_created = false;
 };
 
 }
