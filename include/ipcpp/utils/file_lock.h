@@ -7,6 +7,10 @@
 
 #pragma once
 
+#include <ipcpp/utils/platform.h>
+
+#ifdef IPCPP_UNIX
+
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -170,3 +174,99 @@ class shared_file_lock {
 };
 
 }  // namespace ipcpp
+
+#else
+
+namespace ipcpp {
+
+class file_lock {
+ public:
+  explicit file_lock(const std::string& name) {
+  }
+
+  ~file_lock() {
+  }
+
+  // Exclusive lock (write lock)
+  void lock() const {
+  }
+
+  // Shared lock (read lock)
+  void lock_shared() const {
+  }
+
+  // Unlock the file
+  void unlock() const {
+
+  }
+
+  // Unlock the file for shared locks
+  void unlock_shared() const {
+    unlock();  // Shared and exclusive locks are both released by the same unlock operation
+  }
+
+  // Try to acquire an exclusive lock (write lock) without blocking
+  [[nodiscard]] bool try_lock() const {
+    return true;
+  }
+
+ private:
+  std::string filePath_;
+  int fd_;
+};
+
+class unique_file_lock {
+ public:
+  explicit unique_file_lock(file_lock& handle) : _handle(handle) { _handle.lock(); }
+
+  ~unique_file_lock() { _handle.unlock(); }
+
+  void lock() const {
+    _handle.lock();
+  }
+
+  void unlock() const {
+    _handle.unlock();
+  }
+
+  [[nodiscard]] bool try_lock() const {
+    return _handle.try_lock();
+  }
+
+ private:
+  file_lock& _handle;
+};
+
+class shared_file_lock {
+ public:
+  explicit shared_file_lock(file_lock& handle) : _handle(handle) { _handle.lock_shared(); }
+
+  ~shared_file_lock() { _handle.unlock_shared(); }
+
+  void lock() const {
+    _handle.lock();
+  }
+
+  void lock_shared() const {
+    _handle.lock_shared();
+  }
+
+  void unlock() const {
+    _handle.unlock();
+  }
+
+  [[nodiscard]] bool try_lock() const {
+    return _handle.try_lock();
+  }
+
+  [[nodiscard]] bool try_lock_shared() const {
+    return true;
+  }
+
+ private:
+  file_lock& _handle;
+};
+
+}  // namespace ipcpp
+
+#endif

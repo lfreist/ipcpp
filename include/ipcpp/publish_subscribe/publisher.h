@@ -189,7 +189,7 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
  public:
   static std::expected<Publisher, std::error_code> create(const std::string& topic_id,
                                                           const publisher::Options& options = {}) {
-    auto e_topic = get_topic(topic_id, numeric::ceil_to_power_of_two(options.queue_capacity * sizeof(T_Data)));
+    auto e_topic = get_topic(topic_id, numeric::ceil_to_power_of_two(ps::shm_message_queue<data_access_type>::required_size_bytes(options.queue_capacity)));
     if (!e_topic) {
       return std::unexpected(e_topic.error());
     }
