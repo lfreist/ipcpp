@@ -4,8 +4,8 @@
  *
  * This file is part of ipcpp.
  */
-#include <ipcpp/publish_subscribe/fifo_publisher.h>
-#include <ipcpp/publish_subscribe/fifo_subscriber.h>
+#include <ipcpp/publish_subscribe/real_time_publisher.h>
+#include <ipcpp/publish_subscribe/real_time_subscriber.h>
 #include <ipcpp/publish_subscribe/real_time_publisher.h>
 #include <ipcpp/utils/utils.h>
 
@@ -26,13 +26,13 @@ struct Message {
 };
 
 void a2b() {
-  auto publisher_a2b = ipcpp::publish_subscribe::Publisher<Message>::create("topic_a2b");
+  auto publisher_a2b = ipcpp::ps::RealTimePublisher<Message>::create("topic_a2b");
   if (!publisher_a2b.has_value()) {
     std::cerr << "publisher_a2b: " << publisher_a2b.error().message() << std::endl;
     exit(1);
   }
   std::this_thread::sleep_for(1s);
-  auto subscriber_b2a = ipcpp::publish_subscribe::Subscriber<Message>::create("topic_b2a");
+  auto subscriber_b2a = ipcpp::ps::RealTimeSubscriber<Message>::create("topic_b2a");
   if (!subscriber_b2a.has_value()) {
     std::cerr << "subscriber_b2a: " << subscriber_b2a.error().message() << std::endl;
     exit(1);
@@ -43,20 +43,28 @@ void a2b() {
   benchmark_start_barrier.arrive_and_wait();
 
   for (std::size_t i = 0; i < num_iterations; ++i) {
-    publisher_a2b->publish(i);
-    subscriber_b2a->receive([](const Message& msg) { return std::error_code(); });
+    if (publisher_a2b->publish(i)) {
+      std::cerr << "publisher_a2b: failed to publish data" << std::endl;
+      std::this_thread::sleep_for(1s);
+      exit(1);
+    }
+    if (!subscriber_b2a->await_message().has_value()) {
+      std::cerr << "subscriber_b2a failed to await message" << std::endl;
+      std::this_thread::sleep_for(1s);
+      exit(1);
+    }
   }
 }
 
 void b2a() {
   ipcpp::logging::set_level(ipcpp::logging::level::debug);
-  auto publisher_b2a = ipcpp::publish_subscribe::Publisher<Message>::create("topic_b2a");
+  auto publisher_b2a = ipcpp::ps::RealTimePublisher<Message>::create("topic_b2a");
   if (!publisher_b2a.has_value()) {
     std::cerr << "publisher_b2a: " << publisher_b2a.error().message() << std::endl;
     exit(1);
   }
   std::this_thread::sleep_for(1s);
-  auto subscriber_a2b = ipcpp::publish_subscribe::Subscriber<Message>::create("topic_a2b");
+  auto subscriber_a2b = ipcpp::ps::RealTimeSubscriber<Message>::create("topic_a2b");
   if (!subscriber_a2b.has_value()) {
     std::cerr << "subscriber_a2b: " << subscriber_a2b.error().message() << std::endl;
     exit(1);
@@ -67,8 +75,16 @@ void b2a() {
   benchmark_start_barrier.arrive_and_wait();
 
   for (std::size_t i = 0; i < num_iterations; ++i) {
-    subscriber_a2b->receive([](const Message& msg) { return std::error_code(); });
-    publisher_b2a->publish(i);
+    if (!subscriber_a2b->await_message().has_value()) {
+      std::cerr << "subscriber_a2b failed to await message" << std::endl;
+      std::this_thread::sleep_for(1s);
+      exit(1);
+    }
+    if (publisher_b2a->publish(i)) {
+      std::cerr << "publisher_b2a: failed to publish data" << std::endl;
+      std::this_thread::sleep_for(1s);
+      exit(1);
+    }
   }
 }
 

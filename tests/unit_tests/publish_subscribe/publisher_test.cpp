@@ -6,5 +6,4 @@
  */
 
 #include <gtest/gtest.h>
-
-#include <ipcpp/publish_subscribe/publisher.h>
+#include <ipcpp/publish_subscribe/fifo_publisher.h>

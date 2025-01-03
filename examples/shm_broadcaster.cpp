@@ -7,11 +7,11 @@
 
 #include <ipcpp/event/shm_atomic_notifier.h>
 #include <ipcpp/ipcpp.h>
-#include <ipcpp/publish_subscribe/publisher.h>
+#include <ipcpp/publish_subscribe/fifo_publisher.h>
 #include <ipcpp/utils/logging.h>
 
-#include <iostream>
 #include <chrono>
+#include <iostream>
 
 #include "message.h"
 

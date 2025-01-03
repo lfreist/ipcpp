@@ -5,7 +5,7 @@
  * This file is part of ipcpp.
  */
 
-#include <ipcpp/publish_subscribe/message.h>
+#include <ipcpp/publish_subscribe/fifo_message.h>
 
 #include <chrono>
 #include <thread>

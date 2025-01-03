@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
 #include "message.h"
 
 std::error_code receive_callback(ipcpp::publish_subscribe::Subscriber<Message, ipcpp::event::ShmAtomicObserver>::data_access_type& data) {
-  auto value = data.consume();
+  auto value = data.acquire();
   const std::int64_t ts = ipcpp::utils::timestamp();
   const std::string_view message(value->data.data(), value->data.size());
   if (message == "exit") {

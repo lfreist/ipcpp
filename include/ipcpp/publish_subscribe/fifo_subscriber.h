@@ -10,12 +10,12 @@
 #include <ipcpp/event/observer.h>
 #include <ipcpp/event/shm_notification_memory_layout.h>
 #include <ipcpp/publish_subscribe/error.h>
+#include <ipcpp/publish_subscribe/fifo_message.h>
+#include <ipcpp/publish_subscribe/fifo_message_queue.h>
 #include <ipcpp/publish_subscribe/options.h>
 #include <ipcpp/shm/mapped_memory.h>
 #include <ipcpp/topic.h>
 #include <ipcpp/utils/logging.h>
-#include <ipcpp/publish_subscribe/message.h>
-#include <ipcpp/publish_subscribe/message_queue.h>
 
 #include <string>
 
@@ -36,7 +36,7 @@ class Subscriber final {
 
  public:
   static std::expected<Subscriber, std::error_code> create(const std::string& topic_id,
-                                                           const subscriber::Options& options) {
+                                                           const ps::subscriber::Options& options) {
     auto e_topic = get_topic(topic_id);
     if (!e_topic) {
       return std::unexpected(e_topic.error());
@@ -68,8 +68,8 @@ class Subscriber final {
     return callback(*o_data.value());
   }
 
-  std::error_code subscribe() {
-    return _observer->subscribe();
+  void subscribe() {
+    _observer->subscribe();
   }
 
   std::error_code cancel_subscription() {
@@ -77,12 +77,12 @@ class Subscriber final {
   }
 
  private:
-  Subscriber(Topic&& topic, const subscriber::Options& options) : _topic(std::move(topic)), _options(options) {}
+  Subscriber(Topic&& topic, const ps::subscriber::Options& options) : _topic(std::move(topic)), _options(options) {}
 
  private:
   Topic _topic = nullptr;
   std::unique_ptr<ps::shm_message_queue<data_access_type>> _message_queue = nullptr;
-  subscriber::Options _options;
+  ps::subscriber::Options _options;
   std::unique_ptr<observer_type> _observer = nullptr;
 };
 
@@ -94,7 +94,7 @@ class Subscriber<T_Data, internal::ShmDefault> final {
 
  public:
   static std::expected<Subscriber, std::error_code> create(const std::string& topic_id,
-                                                           const subscriber::Options& options = {}) {
+                                                           const ps::subscriber::Options& options = {}) {
     auto e_topic = get_topic(topic_id);
     if (!e_topic) {
       return std::unexpected(e_topic.error());
@@ -104,61 +104,62 @@ class Subscriber<T_Data, internal::ShmDefault> final {
       return std::unexpected(e_message_queue.error());
     }
 
-    Subscriber self(std::move(e_topic.value()), options);
-    self._message_queue = std::make_unique<ps::shm_message_queue<data_access_type>>(std::move(e_message_queue.value()));
+    Subscriber self(std::move(e_topic.value()), options, std::move(e_message_queue.value()));
 
     return self;
   }
 
-  std::error_code receive(std::function<std::error_code(const T_Data&)> callback) {
-    std::uint64_t received_message_number = 0;
+  std::uint64_t _m_wait_for_data() {
     while (true) {
-      received_message_number = _message_queue->header()->message_id.next.load(std::memory_order_acquire);
-      if (received_message_number != _next_message_id) {
-        break;
+      if (auto new_msg_id = _message_queue.header()->message_id.next.load(std::memory_order_acquire); new_msg_id != _next_message_id) {
+        return new_msg_id;
       }
-      std::this_thread::yield();
+      // std::this_thread::yield();
     }
+  }
+
+  std::error_code receive(std::function<std::error_code(const T_Data&)> callback) {
+    std::uint64_t received_message_number = _m_wait_for_data();
     std::uint64_t msg_id = _next_message_id;
     _next_message_id++;
     if (received_message_number == std::numeric_limits<std::uint64_t>::max()) {
-      logging::warn("Subscriber<'{}'>::receive(): Publisher down", this->_topic->id());
+      logging::warn("Subscriber<'{}'>::receive(): Publisher down", _topic->id());
       return {1, std::system_category()};
     }
-    auto& wrapped_message = _message_queue->operator[](msg_id);
-    logging::debug("Subscriber<'{}'>::receive(): received next message: assumed #{}, actual #{}", this->_topic->id(),
+    auto& wrapped_message = _message_queue.operator[](msg_id);
+    logging::debug("Subscriber<'{}'>::receive(): received next message: assumed #{}, actual #{}", _topic->id(),
                    msg_id, wrapped_message.message_id());
     if (wrapped_message.message_id() != msg_id) {
       logging::error("Subscriber<'{}'>::receive(): Message invalid: message number mismatch (received: {}, actual: {})",
-                     this->_topic->id(), msg_id, wrapped_message.message_id());
+                     _topic->id(), msg_id, wrapped_message.message_id());
       return {2, std::system_category()};
     }
-    auto o_data = wrapped_message.consume();
+    auto o_data = wrapped_message.acquire();
     if (!o_data) {
+      logging::debug("Subscriber<'{}'>::receive(): data not consumed", _topic->id());
       return {3, std::system_category()};
     }
     return callback(*o_data.value());
   }
 
-  std::error_code subscribe() {
-    _message_queue->header()->num_subscribers.fetch_add(1, std::memory_order_release);
-    _next_message_id = _message_queue->header()->message_id.next.load(std::memory_order_acquire);
-    return {};
+  void subscribe() {
+    _message_queue.header()->num_subscribers.fetch_add(1, std::memory_order_release);
+    _next_message_id = _message_queue.header()->message_id.next.load(std::memory_order_acquire);
   }
 
   std::error_code cancel_subscription() {
-    _message_queue->header()->num_subscribers.fetch_sub(1, std::memory_order_release);
+    _message_queue.header()->num_subscribers.fetch_sub(1, std::memory_order_release);
     // TODO: decrease reference counters for messages not yet read
     return {};
   }
 
  private:
-  Subscriber(Topic&& topic, const subscriber::Options& options) : _topic(std::move(topic)), _options(options) {}
+  Subscriber(Topic&& topic, const ps::subscriber::Options& options, ps::shm_message_queue<data_access_type>&& mq) : _topic(std::move(topic)), _options(options), _message_queue(std::move(mq)) {}
 
  private:
   Topic _topic = nullptr;
-  std::unique_ptr<ps::shm_message_queue<data_access_type>> _message_queue = nullptr;
-  subscriber::Options _options;
+  ps::shm_message_queue<data_access_type> _message_queue = nullptr;
+  ps::subscriber::Options _options;
   std::uint64_t _next_message_id = 0;
 };
 

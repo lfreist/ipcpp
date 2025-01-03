@@ -97,17 +97,20 @@ class Message {
   std::optional<Access<AccessMode::READ>> consume() {
     if (!_opt_value) {
       // no value available
+      logging::warn("Message::acquire: no value available");
       return std::nullopt;
     }
     if (_active_reference_counter.fetch_add(1) >= _remaining_references) {
       // access not approved: more accesses than initial references can result in UB because the value may be reset
       //  while accessing it
+      logging::warn("Message::acquire: too many accesses");
       return std::nullopt;
     }
     // (_initial_references * 2) is the amount of possible false negative try_locks because for each reference, two
     //  changes to the mutexes shared access flag can occur (one for acquiring and one for releasing).
     if (!_mutex.try_lock_shared((_initial_references * 2) + 1)) {
       // most likely WRITE acquired
+      logging::warn("Message::acquire: lock failed: {}", _mutex.is_locked() ? "write locked" : "shared lock failed");
       return std::nullopt;
     }
     return Access<AccessMode::READ>(this);

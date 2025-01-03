@@ -5,8 +5,8 @@
  * This file is part of ipcpp.
  */
 
-#include <ipcpp/publish_subscribe/subscriber.h>
 #include <ipcpp/ipcpp.h>
+#include <ipcpp/publish_subscribe/fifo_subscriber.h>
 
 #include <iostream>
 

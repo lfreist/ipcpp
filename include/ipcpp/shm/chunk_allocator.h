@@ -29,14 +29,15 @@ inline std::size_t align_up(std::size_t size, std::size_t alignment = 16) {
  *  StackData are the indexes (0, ..., n-1) of the Chunks
  *  Chunk_i is a series of _m_num_bytes of size sizeof(T) that is yielded by allocate()
  *
+ * TODO: Check for proper synchronization!
+ *
  * @tparam T
  */
 template <typename T>
 class ChunkAllocator {
   struct StackHeader {
-    shared_mutex mutex;
     /// points to the first free slot
-    std::ptrdiff_t head = 0;
+    alignas(std::hardware_destructive_interference_size) std::atomic<std::ptrdiff_t> head = 0;
     /// capacity of the stack
     std::size_t capacity = 0;
   };
@@ -46,32 +47,8 @@ class ChunkAllocator {
     return align_up(sizeof(StackHeader)) + align_up(num_chunks * sizeof(std::size_t) + (num_chunks * sizeof(T)));
   }
 
-  // (x * 2) + (x * 3) = y - 5
-  // 5x = y - 5
-
-  /**
-   * @brief Creates a ListAllocator at addr.
-   *
-   * @param addr
-   * @param size
-   * @param num_chunks
-   */
-  ChunkAllocator(void* addr, std::size_t size, std::size_t num_chunks)
-      : _addr(reinterpret_cast<std::uintptr_t>(addr)), _stack_header(reinterpret_cast<StackHeader*>(_addr)) {
-    if (size < required_memory_size(num_chunks)) {
-      return;
-    }
-    new (_stack_header) StackHeader{.capacity = num_chunks};
-    _stack_slots = std::span<std::size_t>(
-        reinterpret_cast<std::size_t*>(reinterpret_cast<uint8_t*>(_addr) + align_up(sizeof(StackHeader))), num_chunks);
-    _chunks_start = _addr + align_up(sizeof(StackHeader)) + align_up(num_chunks * sizeof(std::size_t));
-    _slots = std::span<T>(reinterpret_cast<T*>(_chunks_start), num_chunks);
-    for (std::size_t i = 0; i < num_chunks; ++i) {
-      push_to_stack(i);
-    }
-  }
-
-  ChunkAllocator(void* addr, std::size_t size)
+  template <typename... T_Args>
+  ChunkAllocator(void* addr, std::size_t size, T_Args&&... args)
       : _addr(reinterpret_cast<std::uintptr_t>(addr)), _stack_header(reinterpret_cast<StackHeader*>(_addr)) {
     std::size_t num_chunks = (size - sizeof(StackHeader)) / (sizeof(std::size_t) + sizeof(T));
     new (_stack_header) StackHeader{.capacity = num_chunks};
@@ -79,6 +56,9 @@ class ChunkAllocator {
         reinterpret_cast<std::size_t*>(reinterpret_cast<uint8_t*>(_addr) + align_up(sizeof(StackHeader))), num_chunks);
     _chunks_start = _addr + align_up(sizeof(StackHeader)) + align_up(num_chunks * sizeof(std::size_t));
     _slots = std::span<T>(reinterpret_cast<T*>(_chunks_start), num_chunks);
+    for (auto& c : _slots) {
+      std::construct_at(std::addressof(c), std::forward<T_Args>(args)...);
+    }
     for (std::size_t i = 0; i < num_chunks; ++i) {
       push_to_stack(i);
     }
@@ -101,8 +81,7 @@ class ChunkAllocator {
   }
 
   std::size_t allocate_get_index() {
-    std::unique_lock lock(_stack_header->mutex);
-    if (_stack_header->head == 0) {
+    if (_stack_header->head.load(std::memory_order_acquire) == 0) {
       throw std::bad_alloc();
     }
     return pop_from_stack();
@@ -153,8 +132,8 @@ class ChunkAllocator {
    * @return
    */
   std::size_t pop_from_stack() {
-    _stack_header->head--;
-    return _stack_slots[_stack_header->head];
+    std::ptrdiff_t index = _stack_header->head.fetch_sub(1) - 1;
+    return _stack_slots[index];
   }
 
  private:

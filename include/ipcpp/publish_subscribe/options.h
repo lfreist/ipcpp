@@ -12,7 +12,7 @@
 
 using namespace std::chrono_literals;
 
-namespace ipcpp::publish_subscribe {
+namespace ipcpp::ps {
 
 namespace publisher {
 
@@ -29,21 +29,9 @@ enum class BackpressurePolicy {
                   //   overwritten. This means, that the publisher may block in this mode aswell!
 };
 
-/**
-* PublishPolicy defines when data are actually published
-*/
-enum class PublishPolicy {
-  always,
-  subscribed,  // only publish data when a subscription is active.
-               // Note: If a history of size >= 1 is configured, PublishPolicy::subscribed is equal to always
-  timed,       // only published when a timer has expired since the last publish
-};
-
 
 struct Options {
   BackpressurePolicy backpressure_policy = BackpressurePolicy::block;
-  PublishPolicy publish_policy = PublishPolicy::always;
-  std::chrono::nanoseconds timed_publish_interval = 0ms;
   std::size_t queue_capacity = 64;
   std::size_t history_capacity = 0;
   std::size_t max_num_observers = 0;  // 0 is uncapped
@@ -61,15 +49,6 @@ enum class WaitStrategy {
   blocking,  // always block when waiting for new messages
   adaptive,  // use polling or blocking determined by heuristics
   hybrid     // poll for a specific time, then swap to blocking if no message was received
-};
-
-/**
-* ReceivePolicy defines what message is read on on_receive calls.
-*/
-enum class ReceivePolicy {
-  all,     // read oldest not yet read message -> receive all messages in FIFO manner
-  latest,  // only read the next published message -> live stream
-  history  // read oldest nmot yet read message in history (there are few usecases for this!)
 };
 
 /**
@@ -94,7 +73,6 @@ enum class OnInvalidatedReadPolicy {
 
 struct Options {
   WaitStrategy wait_strategy = WaitStrategy::adaptive;
-  ReceivePolicy receive_policy = ReceivePolicy::all;
   OnSubscribeReceivePolicy on_subscribe_policy = OnSubscribeReceivePolicy::latest;
   OnInvalidatedReadPolicy on_invalidated_read_policy = OnInvalidatedReadPolicy::error;
 };

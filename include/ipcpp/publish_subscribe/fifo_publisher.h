@@ -10,14 +10,14 @@
 #include <ipcpp/event/notifier.h>
 #include <ipcpp/event/shm_notification_memory_layout.h>
 #include <ipcpp/publish_subscribe/error.h>
-#include <ipcpp/publish_subscribe/message_queue.h>
+#include <ipcpp/publish_subscribe/fifo_message.h>
+#include <ipcpp/publish_subscribe/fifo_message_queue.h>
 #include <ipcpp/publish_subscribe/options.h>
 #include <ipcpp/shm/mapped_memory.h>
 #include <ipcpp/shm/ring_buffer.h>
 #include <ipcpp/topic.h>
 #include <ipcpp/utils/logging.h>
 #include <ipcpp/utils/numeric.h>
-#include <ipcpp/publish_subscribe/message.h>
 
 #include <concepts>
 #include <optional>
@@ -29,7 +29,7 @@ namespace internal {
 
 struct ShmDefaultNotifier {};
 
-}
+}  // namespace internal
 
 template <typename T_Data, typename T_Notifier = internal::ShmDefaultNotifier>
 class Publisher final {
@@ -44,7 +44,7 @@ class Publisher final {
 
  public:
   static std::expected<Publisher, std::error_code> create(const std::string& topic_id,
-                                                          const publisher::Options& options) {
+                                                          const ps::publisher::Options& options) {
     auto e_topic = get_topic(topic_id, numeric::ceil_to_power_of_two(options.queue_capacity * sizeof(T_Data)));
     if (!e_topic) {
       return std::unexpected(e_topic.error());
@@ -106,52 +106,25 @@ class Publisher final {
 
   template <typename... T_Args>
   std::error_code publish(T_Args&&... args) {
-    switch (this->_options.publish_policy) {
-      case publisher::PublishPolicy::always: {
-        const std::size_t index = _message_queue->header()->message_id.next.load(std::memory_order_acquire);
-        bool published = false;
-        for (std::size_t i = 0; i < _m_num_observers(); ++i) {
-          auto o_access = _message_queue->operator[](index).write_access();
-          if (o_access) {
-            o_access->emplace(_m_num_observers(), std::forward<T_Args>(args)...);
-            _notifier->notify_observers(i + 1);
-            _message_queue->header()->message_id.next.fetch_add(i + 1);
-            published = true;
-            break;
-          }
-        }
-        return {static_cast<int>((published ? publisher::error_t::success : publisher::error_t::unknown_error)),
-                publisher::error_category()};
+    const std::size_t index = _message_queue->header()->message_id.next.load(std::memory_order_acquire);
+    bool published = false;
+    for (std::size_t i = 0; i < _m_num_observers(); ++i) {
+      // TODO: o_access must be released before the notifier sends anything!
+      auto o_access = _message_queue->operator[](index).write_access();
+      if (o_access) {
+        o_access->emplace(_m_num_observers(), std::forward<T_Args>(args)...);
+        _notifier->notify_observers(i + 1);
+        _message_queue->header()->message_id.next.fetch_add(i + 1);
+        published = true;
+        break;
       }
-      case publisher::PublishPolicy::subscribed: {
-        if (_m_num_observers() > 0) {
-          const std::size_t msg_id = _message_queue->header()->message_id.next.load(std::memory_order_acquire);
-          bool published = false;
-          for (std::size_t i = 0; i < _m_num_observers(); ++i) {
-            auto o_access = _message_queue->operator[](msg_id).write_access();
-            if (o_access) {
-              o_access->emplace(_m_num_observers(), msg_id, std::forward<T_Args>(args)...);
-              _notifier->notify_observers(i + 1);
-              _message_queue->header()->message_id.next.fetch_add(i + 1);
-              published = true;
-              break;
-            }
-          }
-          return {static_cast<int>((published ? publisher::error_t::success : publisher::error_t::unknown_error)),
-                  publisher::error_category()};
-        }
-      }
-      case publisher::PublishPolicy::timed: {
-        logging::critical("Publisher<'{}'>::publish(): Not implemented for PublishPolicy::timed", this->_topic->id());
-        return {static_cast<int>(publisher::error_t::publish_rate_limit_exceeded), publisher::error_category()};
-      }
-      default:
-        std::unreachable();  // set_config/set_publish_policy must handle invalid policy settings
     }
+    return {static_cast<int>((published ? publisher::error_t::success : publisher::error_t::unknown_error)),
+            publisher::error_category()};
   }
 
  private:
-  Publisher(Topic&& topic, const publisher::Options& options) : _topic(std::move(topic)), _options(options) {}
+  Publisher(Topic&& topic, const ps::publisher::Options& options) : _topic(std::move(topic)), _options(options) {}
 
  private:
   std::error_code _m_initialize_notifier() {
@@ -172,8 +145,7 @@ class Publisher final {
  private:
   Topic _topic = nullptr;
   std::unique_ptr<ps::shm_message_queue<data_access_type>> _message_queue = nullptr;
-  publisher::Options _options;
-  std::int64_t _last_publish_timestamp = 0;
+  ps::publisher::Options _options;
   std::unique_ptr<notifier_type> _notifier = nullptr;
 };
 
@@ -188,8 +160,10 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
 
  public:
   static std::expected<Publisher, std::error_code> create(const std::string& topic_id,
-                                                          const publisher::Options& options = {}) {
-    auto e_topic = get_topic(topic_id, numeric::ceil_to_power_of_two(ps::shm_message_queue<data_access_type>::required_size_bytes(options.queue_capacity)));
+                                                          const ps::publisher::Options& options = {}) {
+    auto e_topic =
+        get_topic(topic_id, numeric::ceil_to_power_of_two(
+                                ps::shm_message_queue<data_access_type>::required_size_bytes(options.queue_capacity)));
     if (!e_topic) {
       return std::unexpected(e_topic.error());
     }
@@ -264,49 +238,14 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
 
   template <typename... T_Args>
   std::error_code publish(T_Args&&... args) {
-    std::error_code error =
-        std::error_code(static_cast<int>(publisher::error_t::unknown_error), publisher::error_category());
-    switch (this->_options.publish_policy) {
-      case publisher::PublishPolicy::always: {
-        if (_m_publish(std::forward<T_Args>(args)...)) {
-          error = {};
-        }
-        break;
-      }
-      case publisher::PublishPolicy::subscribed: {
-        if (_m_num_observers() > 0) {
-          if (_m_publish(std::forward<T_Args>(args)...)) {
-            error = {};
-          }
-        } else {
-          error = std::error_code(static_cast<int>(publisher::error_t::no_active_subscription),
-                                  publisher::error_category());
-        }
-        break;
-      }
-      case publisher::PublishPolicy::timed: {
-        if (_last_publish_timestamp == 0 ||
-            utils::timestamp() - _last_publish_timestamp > _options.timed_publish_interval.count()) {
-          if (_m_publish(std::forward<T_Args>(args)...)) {
-            error = {};
-          }
-        } else {
-          error = std::error_code(static_cast<int>(publisher::error_t::publish_rate_limit_exceeded),
-                                  publisher::error_category());
-        }
-        break;
-      }
-      default:
-        std::unreachable();  // set_config/set_publish_policy must handle invalid policy settings
+    if (_m_publish(std::forward<T_Args>(args)...)) {
+      return {};
     }
-    if (!error) {
-      _last_publish_timestamp = utils::timestamp();
-    }
-    return error;
+    return std::error_code(static_cast<int>(publisher::error_t::unknown_error), publisher::error_category());
   }
 
  private:
-  Publisher(Topic&& topic, const publisher::Options& options) : _topic(std::move(topic)), _options(options) {}
+  Publisher(Topic&& topic, const ps::publisher::Options& options) : _topic(std::move(topic)), _options(options) {}
 
   [[nodiscard]] std::size_t _m_num_observers() const {
     return _message_queue->header()->num_subscribers.load(std::memory_order_acquire);
@@ -325,7 +264,8 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
       return msg_id;
     } else {
       std::uint64_t remaining_references = message_chunk.remaining_references();
-      logging::debug("Publisher<'{}'>::_m_handle_backpressure: remaining references: {}", _topic->id(), remaining_references);
+      logging::debug("Publisher<'{}'>::_m_handle_backpressure: remaining references: {}", _topic->id(),
+                     remaining_references);
       if (remaining_references <= 0) {
         // no backpressure, chunk was read by all subscribers
         logging::debug("Publisher<'{}'>::_m_handle_backpressure: chunk is free", _topic->id());
@@ -333,7 +273,7 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
       } else {
         logging::info("Publisher<'{}'>::publish(): Backpressure for message id: {}", this->_topic->id(), msg_id);
         switch (_options.backpressure_policy) {
-          case publisher::BackpressurePolicy::block: {
+          case ps::publisher::BackpressurePolicy::block: {
             const std::size_t history_size = this->_options.history_capacity;
             remaining_references = message_chunk.remaining_references();
             while (true) {
@@ -345,7 +285,7 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
             }
             return msg_id;
           }
-          case publisher::BackpressurePolicy::remove_oldest: {
+          case ps::publisher::BackpressurePolicy::remove_oldest: {
             logging::debug(
                 "Publisher<'{}'>::publish(): resetting message #{} as part of backpressure strategy (remove_oldest)",
                 this->_topic->id(), msg_id);
@@ -369,10 +309,14 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
   template <typename... T_Args>
   bool _m_publish(T_Args&&... args) {
     auto msg_id = _message_queue->header()->message_id.next.load(std::memory_order_acquire);
-    msg_id = _m_handle_backpressure(msg_id);
-    auto o_access = _message_queue->operator[](msg_id).request_writable();
-    if (o_access) {
+    // msg_id = _m_handle_backpressure(msg_id);
+    bool published = false;
+    if (auto o_access = _message_queue->operator[](msg_id).request_writable(); o_access) {
       o_access->emplace(_m_num_observers(), msg_id, std::forward<T_Args>(args)...);
+      published = true;
+    }
+    if (published) {
+      // o_access must be released at this point
       _m_notify_observers(msg_id + 1);
       logging::debug("Publisher<'{}'>::publish(): published message (#{}) at {}", _topic->id(), msg_id, msg_id);
       return true;
@@ -383,8 +327,7 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
  private:
   Topic _topic = nullptr;
   std::unique_ptr<ps::shm_message_queue<data_access_type>> _message_queue = nullptr;
-  publisher::Options _options;
-  std::int64_t _last_publish_timestamp = 0;
+  ps::publisher::Options _options;
 };
 
 }  // namespace ipcpp::publish_subscribe

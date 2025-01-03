@@ -66,7 +66,7 @@ class reference_counted {
   reference_counted& operator=(reference_counted&&) = delete;
 
   /**
-   * @brief Calling consume returns a data_access that may destroy _data on its destruction
+   * @brief Calling acquire returns a data_access that may destroy _data on its destruction
    * @return
    */
   std::optional<data_access<AccessMode::READ>> consume() {

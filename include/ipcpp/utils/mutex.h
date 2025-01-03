@@ -95,7 +95,7 @@ class shared_mutex {
 
   bool try_lock() noexcept {
     std::int64_t expected = 0;
-    return _flag.compare_exchange_weak(expected, -1, std::memory_order_acq_rel);
+    return _flag.compare_exchange_weak(expected, -1, std::memory_order_acquire);
   }
 
   void lock_shared() noexcept {
@@ -148,7 +148,7 @@ class shared_mutex {
    *   If it is absolutely necessary that a reader reads a chunk, the writer should be configured in a way that it
    *   blocks on back pressure.
    */
-  bool try_lock_shared(int retries) noexcept {
+  bool try_lock_shared(std::uint64_t retries) noexcept {
     for (int r = 0; r < (retries + 1); ++r) {
       std::int64_t expected = _flag.load(std::memory_order_acquire);
       if (expected == -1) {
