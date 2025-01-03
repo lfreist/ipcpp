@@ -12,6 +12,7 @@
 #include <ipcpp/utils/numeric.h>
 
 #include <expected>
+#include <span>
 #include <string>
 
 namespace ipcpp::ps {
@@ -24,7 +25,8 @@ template <typename T_p>
 class RealTimeMemLayout {
  private:
   struct Header {
-    alignas(std::hardware_destructive_interference_size) std::atomic_uint64_t latest_message_index = std::numeric_limits<std::uint64_t>::max();
+    alignas(std::hardware_destructive_interference_size) std::atomic_uint64_t latest_message_index =
+        std::numeric_limits<std::uint64_t>::max();
 
     alignas(std::hardware_destructive_interference_size) std::atomic_uint64_t num_subscribers = 0;
 
@@ -56,7 +58,8 @@ class RealTimeMemLayout {
     }
     header->head_idx = capacity - 1;
 
-    std::span<T_p> chunk_list(reinterpret_cast<T_p*>(addr + sizeof(Header) + (capacity * sizeof(std::uint64_t))), capacity);
+    std::span<T_p> chunk_list(reinterpret_cast<T_p*>(addr + sizeof(Header) + (capacity * sizeof(std::uint64_t))),
+                              capacity);
     for (auto& chunk : chunk_list) {
       std::construct_at(std::addressof(chunk), std::forward<T_Args>(args)...);
     }
@@ -74,7 +77,8 @@ class RealTimeMemLayout {
     }
 
     std::span<std::uint64_t> index_list(reinterpret_cast<std::uint64_t*>(addr + sizeof(Header)), header->capacity);
-    std::span<T_p> chunk_list(reinterpret_cast<T_p*>(addr + sizeof(Header) + (header->capacity * sizeof(std::uint64_t))), header->capacity);
+    std::span<T_p> chunk_list(
+        reinterpret_cast<T_p*>(addr + sizeof(Header) + (header->capacity * sizeof(std::uint64_t))), header->capacity);
 
     RealTimeMemLayout self(header, index_list, chunk_list);
 
@@ -82,8 +86,12 @@ class RealTimeMemLayout {
   }
 
  public:
-  T_p& operator[](std::uint64_t index) { return _chunk_list[index]; }
-  const T_p& operator[](std::uint64_t index) const { return _chunk_list[index]; }
+  T_p& operator[](std::uint64_t index) {
+    return _chunk_list[index];
+  }
+  const T_p& operator[](std::uint64_t index) const {
+    return _chunk_list[index];
+  }
 
   std::uint64_t allocate() {
     while (true) {
@@ -112,9 +120,7 @@ class RealTimeMemLayout {
     }
   }
 
-  std::uint64_t consume_message_id() {
-    return _header->next_message_id_counter.fetch_add(1);
-  }
+  std::uint64_t consume_message_id() { return _header->next_message_id_counter.fetch_add(1); }
 
   Header* header() { return _header; }
 

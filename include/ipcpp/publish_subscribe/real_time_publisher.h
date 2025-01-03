@@ -55,7 +55,7 @@ class RealTimePublisher {
    message_type& message = _chunk_buffer[index];
    {
      auto writable = message.request_writable(_chunk_buffer);
-     writable.emplace(index, _chunk_buffer.header()->next_message_id_counter.fetch_add(1),
+     writable.emplace(index, 0,
                       std::forward<T_Args>(args)...);
    }
    logging::debug("RealTimePublisher<'{}'>::publish: emplaced message at index {}", _topic->id(), index);
@@ -71,7 +71,9 @@ class RealTimePublisher {
 
  private:
   inline void _m_notify_subscribers(std::uint64_t index) {
+    //TODO: pass message and set msg id and increase counter here
     _chunk_buffer.header()->latest_message_index.store(index, std::memory_order_release);
+    _chunk_buffer.header()->next_message_id_counter.fetch_add(1);
     logging::debug("RealTimePublisher<'{}'>::publish: notified subscribers: index: {}", _topic->id(), index);
   }
 

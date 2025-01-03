@@ -78,8 +78,11 @@ class RealTimeSubscriber {
     while (true) {
       std::uint64_t index = _chunk_buffer.header()->latest_message_index.load(std::memory_order_acquire);
       logging::debug("RealTimeSubscriber<'{}'>::await_message: reading latest message: index {}", _topic->id(), index);
-      message = &_chunk_buffer[index];
+
+      message = &(_chunk_buffer[index]);
       if (auto access = message->acquire(_chunk_buffer); access) {
+        // TODO: here
+        //_initial_message_id = message->id();
         return std::move(access.value());
       }
     }

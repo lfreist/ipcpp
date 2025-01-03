@@ -127,6 +127,11 @@ class Message {
     return Access<AccessMode::WRITE>(this, mem_layout);
   }
 
+  void set_message_id(std::uint64_t id) { _msg_id.store(id, std::memory_order_release); }
+
+  [[nodiscard]] std::uint64_t index() const { return _index; }
+  [[nodiscard]] std::uint64_t id() const { return _msg_id.load(std::memory_order_acquire); }
+
  private:
   std::optional<T_p> _opt_value = std::nullopt;
 
