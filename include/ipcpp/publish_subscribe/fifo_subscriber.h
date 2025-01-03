@@ -134,7 +134,7 @@ class Subscriber<T_Data, internal::ShmDefault> final {
                      _topic->id(), msg_id, wrapped_message.message_id());
       return {2, std::system_category()};
     }
-    auto o_data = wrapped_message.acquire();
+    auto o_data = wrapped_message.consume();
     if (!o_data) {
       logging::debug("Subscriber<'{}'>::receive(): data not consumed", _topic->id());
       return {3, std::system_category()};

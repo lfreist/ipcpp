@@ -46,8 +46,8 @@ class RealTimePublisher {
  public:
  template <typename... T_Args>
  std::error_code publish(T_Args&&... args) {
-   std::uint64_t index = _chunk_buffer.allocate();
-   if (index == std::numeric_limits<std::uint64_t>::max()) {
+   std::uint32_t index = _chunk_buffer.allocate();
+   if (index == std::numeric_limits<std::uint32_t>::max()) [[unlikely]] {
      // no buffer available
      logging::debug("RealTimePublisher<'{}'>::publish: failed due to allocation error", _topic->id());
      return {1, std::system_category()};
@@ -55,13 +55,12 @@ class RealTimePublisher {
    message_type& message = _chunk_buffer[index];
    {
      auto writable = message.request_writable(_chunk_buffer);
-     writable.emplace(index, 0,
-                      std::forward<T_Args>(args)...);
+     writable.emplace(index, std::forward<T_Args>(args)...);
    }
    logging::debug("RealTimePublisher<'{}'>::publish: emplaced message at index {}", _topic->id(), index);
-   auto access = message.acquire(_chunk_buffer).value();
+   auto access = message.publisher_acquire(_chunk_buffer);
    _m_notify_subscribers(index);
-   _prev_published_message = std::make_unique<access_type>(std::move(access));
+   _prev_published_message = std::move(access);
    return {};
  }
 
@@ -70,10 +69,11 @@ class RealTimePublisher {
       : _topic(std::move(topic)), _options(options), _chunk_buffer(std::move(buffer)) {}
 
  private:
-  inline void _m_notify_subscribers(std::uint64_t index) {
+  inline void _m_notify_subscribers(std::uint32_t index) {
     //TODO: pass message and set msg id and increase counter here
-    _chunk_buffer.header()->latest_message_index.store(index, std::memory_order_release);
-    _chunk_buffer.header()->next_message_id_counter.fetch_add(1);
+    std::uint64_t message_info = *reinterpret_cast<std::uint64_t*>(&_chunk_buffer.header()->message_info);
+    std::uint64_t new_message_info = (static_cast<std::uint64_t>(index) << 32) | (static_cast<uint32_t>(message_info) + 1);
+    _chunk_buffer.header()->message_info.store(new_message_info, std::memory_order_release);
     logging::debug("RealTimePublisher<'{}'>::publish: notified subscribers: index: {}", _topic->id(), index);
   }
 
@@ -81,7 +81,7 @@ class RealTimePublisher {
   Topic _topic = nullptr;
   RealTimeMemLayout<message_type> _chunk_buffer;
   ps::publisher::Options _options;
-  std::unique_ptr<access_type> _prev_published_message = nullptr;
+  access_type _prev_published_message;
 };
 
 }  // namespace ipcpp::ps

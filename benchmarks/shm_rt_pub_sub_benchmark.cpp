@@ -48,11 +48,7 @@ void a2b() {
       std::this_thread::sleep_for(1s);
       exit(1);
     }
-    if (!subscriber_b2a->await_message().has_value()) {
-      std::cerr << "subscriber_b2a failed to await message" << std::endl;
-      std::this_thread::sleep_for(1s);
-      exit(1);
-    }
+    auto message = subscriber_b2a->await_message();
   }
 }
 
@@ -75,11 +71,7 @@ void b2a() {
   benchmark_start_barrier.arrive_and_wait();
 
   for (std::size_t i = 0; i < num_iterations; ++i) {
-    if (!subscriber_a2b->await_message().has_value()) {
-      std::cerr << "subscriber_a2b failed to await message" << std::endl;
-      std::this_thread::sleep_for(1s);
-      exit(1);
-    }
+    auto message = subscriber_a2b->await_message();
     if (publisher_b2a->publish(i)) {
       std::cerr << "publisher_b2a: failed to publish data" << std::endl;
       std::this_thread::sleep_for(1s);
