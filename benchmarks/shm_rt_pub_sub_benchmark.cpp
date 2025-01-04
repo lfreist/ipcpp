@@ -18,6 +18,7 @@ using namespace std::chrono_literals;
 
 std::barrier sync_point(3);
 std::barrier benchmark_start_barrier(3);
+std::barrier benchmark_stop_barrier(3);
 
 constexpr auto num_iterations = 1'000'000;
 
@@ -50,6 +51,8 @@ void a2b() {
     }
     auto message = subscriber_b2a->await_message();
   }
+
+  benchmark_start_barrier.arrive_and_wait();
 }
 
 void b2a() {
@@ -78,6 +81,8 @@ void b2a() {
       exit(1);
     }
   }
+
+  benchmark_start_barrier.arrive_and_wait();
 }
 
 int main() {
@@ -88,8 +93,7 @@ int main() {
   auto start = ipcpp::utils::timestamp();
   benchmark_start_barrier.arrive_and_wait();
 
-  notifier.join();
-  observer.join();
+  benchmark_start_barrier.arrive_and_wait();
 
   auto stop = ipcpp::utils::timestamp();
 
@@ -97,5 +101,9 @@ int main() {
             << "Time:       " << stop - start << "ns\n"
             << "Latency:    " << static_cast<double>(stop - start) / static_cast<double>(2 * num_iterations) << "ns"
             << std::endl;
+
+  notifier.join();
+  observer.join();
+
   return 0;
 }
