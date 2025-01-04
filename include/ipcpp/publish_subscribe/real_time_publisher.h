@@ -50,6 +50,7 @@ class RealTimePublisher {
 
  template <typename... T_Args>
  std::error_code publish(T_Args&&... args) {
+   // TODO: does memory order matter here?
    auto message_id = _message_buffer.header()->message_id.next.fetch_add(1);
    access_type message_access = _message_buffer[message_id].acquire_unsafe();
    message_access.emplace(message_id, std::forward<T_Args>(args)...);
@@ -65,7 +66,8 @@ class RealTimePublisher {
 
  private:
   inline void _m_notify_subscribers(std::uint_fast32_t message_id) {
-    _message_buffer.header()->message_id.published.store(message_id, std::memory_order_release);
+    // TODO: does memory order matter here?
+    _message_buffer.header()->message_id.published.store(message_id);
     logging::debug("RealTimePublisher<'{}'>::publish: notified subscribers about published message #{}", _topic->id(), message_id);
   }
 

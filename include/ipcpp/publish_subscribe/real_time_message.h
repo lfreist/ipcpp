@@ -37,7 +37,8 @@ class Message {
       if (_message == nullptr) {
         return;
       }
-      if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_release) == 1) {
+      // TODO: does memory order matter here?
+      if (_message->_active_reference_counter.fetch_sub(1) == 1) {
         logging::debug("Message::Access<READ>: destructing message");
         reset();
       }
@@ -89,7 +90,7 @@ class Message {
   Message& operator=(Message&&) = delete;
 
   [[nodiscard]] std::uint32_t active_references() const {
-    return _active_reference_counter.load(std::memory_order_acquire);
+    return _active_reference_counter.load();
   }
 
   std::optional<Access> acquire() {

@@ -40,14 +40,16 @@ class RealTimeSubscriber {
 
  public:
   void subscribe() {
+    // TODO: does memory order matter here?
     _message_buffer.header()->num_subscribers.fetch_add(1);
-    _initial_message_info = _message_buffer.header()->message_id.published.load(std::memory_order_acquire);
+    _initial_message_info = _message_buffer.header()->message_id.published.load();
   }
 
   void unsubscribe() { _message_buffer.header()->num_subscribers.fetch_sub(1); }
 
   std::optional<access_type> fetch_message() {
-    if (auto message_id = _message_buffer.header()->message_id.published.load(std::memory_order_acquire); message_id != _initial_message_info) {
+    // TODO: does memory order matter here?
+    if (auto message_id = _message_buffer.header()->message_id.published.load(); message_id != _initial_message_info) {
       auto access = _message_buffer[message_id].acquire(_message_buffer);
       if (access.has_value()) {
         _initial_message_info = message_id;
@@ -59,7 +61,8 @@ class RealTimeSubscriber {
 
   access_type await_message() {
     while (true) {
-      if (auto message_id = _message_buffer.header()->message_id.published.load(std::memory_order_acquire); message_id != _initial_message_info) {
+      // TODO: does memory order matter here?
+      if (auto message_id = _message_buffer.header()->message_id.published.load(); message_id != _initial_message_info) {
         auto access = _message_buffer[message_id].acquire();
         // TODO: check if access is valid and read newer if not
         if (access.has_value()) {
