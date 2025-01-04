@@ -19,7 +19,7 @@ using namespace std::chrono_literals;
 std::barrier sync_point(3);
 std::barrier benchmark_start_barrier(3);
 
-constexpr auto num_iterations = 1000000;
+constexpr auto num_iterations = 1'000'000;
 
 struct Message {
   std::int64_t msg_id;

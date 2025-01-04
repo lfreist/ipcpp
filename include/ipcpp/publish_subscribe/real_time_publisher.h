@@ -9,7 +9,7 @@
 
 #include <ipcpp/publish_subscribe/options.h>
 #include <ipcpp/publish_subscribe/real_time_message.h>
-#include <ipcpp/publish_subscribe/real_time_shm_layout.h>
+#include <ipcpp/publish_subscribe/message_buffer.h>
 #include <ipcpp/utils/numeric.h>
 #include <ipcpp/topic.h>
 
@@ -22,18 +22,18 @@ template <typename T_p>
 class RealTimePublisher {
  public:
   typedef rt::Message<T_p> message_type;
-  typedef typename rt::Message<T_p>::template Access<AccessMode::READ> access_type;
+  typedef typename rt::Message<T_p>::Access access_type;
 
  public:
   static std::expected<RealTimePublisher, std::error_code> create(const std::string& topic_id,
                                                                   const ps::publisher::Options& options = {}) {
     auto e_topic =
-        get_topic(topic_id, ps::RealTimeMemLayout<message_type>::required_size_bytes(options.queue_capacity));
+        get_topic(topic_id, message_buffer<message_type>::required_size_bytes(options.queue_capacity));
     if (!e_topic) {
       return std::unexpected(e_topic.error());
     }
     auto e_buffer =
-        RealTimeMemLayout<message_type>::init_at(e_topic.value()->shm().addr(), e_topic.value()->shm().size());
+        message_buffer<message_type>::init_at(e_topic.value()->shm().addr(), e_topic.value()->shm().size());
     if (!e_buffer) {
       return std::unexpected(e_buffer.error());
     }
@@ -44,42 +44,34 @@ class RealTimePublisher {
   }
 
  public:
+  //~RealTimePublisher() {}
+
+  //RealTimePublisher(RealTimePublisher&& other) : _message_buffer(std::move(other._message_buffer)), _prev_published_message(std::move(other._prev_published_message)), _options(std::move(other._options)), _topic(std::move(other._topic)) {}
+
  template <typename... T_Args>
  std::error_code publish(T_Args&&... args) {
-   std::uint32_t index = _chunk_buffer.allocate();
-   if (index == std::numeric_limits<std::uint32_t>::max()) [[unlikely]] {
-     // no buffer available
-     logging::debug("RealTimePublisher<'{}'>::publish: failed due to allocation error", _topic->id());
-     return {1, std::system_category()};
-   }
-   message_type& message = _chunk_buffer[index];
-   {
-     auto writable = message.request_writable(_chunk_buffer);
-     writable.emplace(index, std::forward<T_Args>(args)...);
-   }
-   logging::debug("RealTimePublisher<'{}'>::publish: emplaced message at index {}", _topic->id(), index);
-   auto access = message.publisher_acquire(_chunk_buffer);
-   _m_notify_subscribers(index);
-   _prev_published_message = std::move(access);
+   auto message_id = _message_buffer.header()->message_id.next.fetch_add(1);
+   access_type message_access = _message_buffer[message_id].acquire_unsafe();
+   message_access.emplace(message_id, std::forward<T_Args>(args)...);
+   logging::debug("RealTimePublisher<'{}'>::publish: emplaced message #{}", _topic->id(), message_id);
+   _m_notify_subscribers(message_id);
+   _prev_published_message = std::move(message_access);
    return {};
  }
 
  private:
-  RealTimePublisher(Topic&& topic, const publisher::Options& options, RealTimeMemLayout<message_type>&& buffer)
-      : _topic(std::move(topic)), _options(options), _chunk_buffer(std::move(buffer)) {}
+  RealTimePublisher(Topic&& topic, const publisher::Options& options, message_buffer<message_type>&& buffer)
+      : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)) {}
 
  private:
-  inline void _m_notify_subscribers(std::uint32_t index) {
-    //TODO: pass message and set msg id and increase counter here
-    std::uint64_t message_info = *reinterpret_cast<std::uint64_t*>(&_chunk_buffer.header()->message_info);
-    std::uint64_t new_message_info = (static_cast<std::uint64_t>(index) << 32) | (static_cast<uint32_t>(message_info) + 1);
-    _chunk_buffer.header()->message_info.store(new_message_info, std::memory_order_release);
-    logging::debug("RealTimePublisher<'{}'>::publish: notified subscribers: index: {}", _topic->id(), index);
+  inline void _m_notify_subscribers(std::uint_fast32_t message_id) {
+    _message_buffer.header()->message_id.published.store(message_id, std::memory_order_release);
+    logging::debug("RealTimePublisher<'{}'>::publish: notified subscribers about published message #{}", _topic->id(), message_id);
   }
 
  private:
   Topic _topic = nullptr;
-  RealTimeMemLayout<message_type> _chunk_buffer;
+  message_buffer<message_type> _message_buffer;
   ps::publisher::Options _options;
   access_type _prev_published_message;
 };

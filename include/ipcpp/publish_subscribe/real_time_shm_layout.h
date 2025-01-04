@@ -26,7 +26,8 @@ class RealTimeMemLayout {
  private:
   struct Header {
     // the first 32 bit are index, last 32 bit are message id
-    alignas(std::hardware_destructive_interference_size) std::atomic_uint64_t message_info = std::numeric_limits<std::uint64_t>::max();
+    alignas(std::hardware_destructive_interference_size) std::atomic_uint64_t message_info =
+        std::numeric_limits<std::uint64_t>::max();
 
     alignas(std::hardware_destructive_interference_size) std::atomic_uint64_t num_subscribers = 0;
 
@@ -84,24 +85,15 @@ class RealTimeMemLayout {
   }
 
  public:
-  T_p& operator[](std::uint32_t index) {
-    return _chunk_list[index];
-  }
-  const T_p& operator[](std::uint32_t index) const {
-    return _chunk_list[index];
-  }
+  T_p& operator[](std::uint32_t index) { return _chunk_list[index]; }
+  const T_p& operator[](std::uint32_t index) const { return _chunk_list[index]; }
 
   std::uint32_t allocate() {
-    while (true) {
-      std::uint32_t index = _header->head_idx.load(std::memory_order_acquire);
-      if (index == 0) {
-        return std::numeric_limits<std::uint32_t>::max();
-      }
-      std::uint32_t next_head = index - 1;
-      if (_header->head_idx.compare_exchange_weak(index, next_head, std::memory_order_acq_rel)) {
-        return _index_list[index];
-      }
+    std::uint32_t index = _header->head_idx.fetch_sub(1, std::memory_order_release);
+    if (index == 0) {
+      return std::numeric_limits<std::uint32_t>::max();
     }
+    return _index_list[index];
   }
 
   void deallocate(std::uint32_t index) {
@@ -112,7 +104,7 @@ class RealTimeMemLayout {
       std::uint32_t head_index = _header->head_idx.load(std::memory_order_acquire);
       std::uint32_t next_head = head_index + 1;
       _index_list[next_head] = index;
-      if (_header->head_idx.compare_exchange_weak(head_index, next_head, std::memory_order_acq_rel)) {
+      if (_header->head_idx.compare_exchange_weak(head_index, next_head, std::memory_order_release)) {
         break;
       }
     }

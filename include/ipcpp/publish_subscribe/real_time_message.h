@@ -29,66 +29,54 @@ class Message {
   static constexpr msg_id_type invalid_id_v = std::numeric_limits<msg_id_type>::max();
 
  public:
-  template <AccessMode T_AM>
   class Access {
    public:
-    using pointer_type = std::conditional_t<(T_AM == AccessMode::WRITE), T_p* const, const T_p* const>;
-    using reference_type = std::conditional_t<(T_AM == AccessMode::WRITE), T_p&, const T_p&>;
-
-   public:
     Access() = default;
-    Access(Message<T_p>* message, RealTimeMemLayout<Message<T_p>>& mem_layout) : _message(message), _mem_layout(&mem_layout) {}
+    explicit Access(Message<T_p>* message) : _message(message) {}
     ~Access() {
       if (_message == nullptr) {
         return;
       }
-      if constexpr (T_AM == AccessMode::READ) {
-        if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_release) == 1) {
-          // this is intended to perform a write operation!
-          reset();
-          logging::debug("Message::Access<READ>: destructing message");
-        }
-        logging::debug("Message::Access<READ>: releasing read lock");
+      if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_release) == 1) {
+        logging::debug("Message::Access<READ>: destructing message");
+        reset();
       }
+      logging::debug("Message::Access: releasing access");
     }
 
     Access(const Access&) = delete;
     Access& operator=(const Access&) = delete;
 
-    Access(Access&& other) noexcept : _mem_layout(other._mem_layout) { std::swap(other._message, _message); }
+    Access(Access&& other) noexcept { std::swap(other._message, _message); }
 
     Access& operator=(Access&& other) noexcept {
-      _mem_layout = other._mem_layout;
       std::swap(other._message, _message);
       return *this;
     }
 
     void reset() {
-      logging::debug("rt::Message::Access::reset(): index: {}", _message->_index);
+      logging::debug("rt::Message::Access::reset(): index: {}", _message->id());
       _message->_opt_value.reset();
-      _mem_layout->deallocate(_message->_index);
-      _message->_index = Message<T_p>::invalid_id_v;
+      _message->_message_id = Message<T_p>::invalid_id_v;
     }
 
     template <typename... T_Args>
-    void emplace(std::uint32_t index, T_Args&&... args)
-      requires(T_AM == AccessMode::WRITE)
-    {
+    void emplace(std::uint32_t index, T_Args&&... args) {
       _message->_opt_value.emplace(std::forward<T_Args>(args)...);
-      _message->_index = index;
+      _message->_message_id = index;
       logging::debug("Message::Access::emplace({}, ({})...)", index, sizeof...(T_Args));
     }
 
-    pointer_type operator->() { return &(_message->_opt_value.value()); }
+    T_p* operator->() { return &(_message->_opt_value.value()); }
+    const T_p* operator->() const { return &(_message->_opt_value.value()); }
 
-    reference_type operator*() { return _message->_opt_value.value(); }
+    T_p& operator*() { return _message->_opt_value.value(); }
+    const T_p& operator*() const { return _message->_opt_value.value(); }
 
    private:
     Message<T_p>* _message = nullptr;
-    RealTimeMemLayout<Message<T_p>>* _mem_layout = nullptr;
   };
 
-  template <AccessMode>
   friend class Access;
 
  public:
@@ -100,37 +88,40 @@ class Message {
   Message(Message&&) = delete;
   Message& operator=(Message&&) = delete;
 
-  [[nodiscard]] std::uint64_t active_references() const {
+  [[nodiscard]] std::uint32_t active_references() const {
     return _active_reference_counter.load(std::memory_order_acquire);
   }
 
-  std::optional<Access<AccessMode::READ>> acquire(RealTimeMemLayout<Message<T_p>>& mem_layout) {
-    std::uint64_t active_references = _active_reference_counter.fetch_add(1);
+  std::optional<Access> acquire() {
+    std::uint32_t active_references = _active_reference_counter.fetch_add(1);
     if (active_references < 1 || !_opt_value) {
       // no value available
       logging::warn("Message::acquire: no value available");
       _active_reference_counter.fetch_sub(1);
       return std::nullopt;
     }
-    return Access<AccessMode::READ>(this, mem_layout);
+    return Access(this);
   }
 
-  Access<AccessMode::READ> publisher_acquire(RealTimeMemLayout<Message<T_p>>& mem_layout) {
+  /**
+   * Construct an Access without checking if `this` is a valid message!
+   *  Internally used by publishers that just defines `this` to become a valid message
+   *
+   * @warning only call if you are ABSOLUTELY sure that `this` is a valid message.
+   *
+   * @return
+   */
+  Access acquire_unsafe() {
     _active_reference_counter.fetch_add(1);
-    return Access<AccessMode::READ>(this, mem_layout);
+    return Access(this);
   }
 
-  Access<AccessMode::WRITE> request_writable(RealTimeMemLayout<Message<T_p>>& mem_layout) {
-    return Access<AccessMode::WRITE>(this, mem_layout);
-  }
-
-  [[nodiscard]] std::uint64_t index() const { return _index; }
+  [[nodiscard]] std::uint64_t id() const { return _message_id; }
 
  private:
   std::optional<T_p> _opt_value = std::nullopt;
-
-  std::atomic_uint64_t _active_reference_counter = 0;
-  std::uint32_t _index = invalid_id_v;
+  std::uint32_t _message_id = invalid_id_v;
+  alignas(std::hardware_destructive_interference_size) std::atomic_uint32_t _active_reference_counter = 0;
 };
 
 }  // namespace rt

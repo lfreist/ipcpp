@@ -8,7 +8,7 @@
 #pragma once
 
 #include <ipcpp/publish_subscribe/real_time_message.h>
-#include <ipcpp/publish_subscribe/real_time_shm_layout.h>
+#include <ipcpp/publish_subscribe/message_buffer.h>
 #include <ipcpp/topic.h>
 
 #include <optional>
@@ -19,7 +19,7 @@ template <typename T_p>
 class RealTimeSubscriber {
  public:
   typedef rt::Message<T_p> message_type;
-  typedef typename message_type::template Access<AccessMode::READ> access_type;
+  typedef typename message_type::Access access_type;
 
  public:
   static std::expected<RealTimeSubscriber, std::error_code> create(const std::string& topic_id,
@@ -28,7 +28,7 @@ class RealTimeSubscriber {
     if (!e_topic) {
       return std::unexpected(e_topic.error());
     }
-    auto e_buffer = RealTimeMemLayout<message_type>::read_at(e_topic.value()->shm().addr());
+    auto e_buffer = message_buffer<message_type>::read_at(e_topic.value()->shm().addr());
     if (!e_buffer) {
       return std::unexpected(e_buffer.error());
     }
@@ -40,33 +40,30 @@ class RealTimeSubscriber {
 
  public:
   void subscribe() {
-    _chunk_buffer.header()->num_subscribers.fetch_add(1);
-    _initial_message_info = _chunk_buffer.header()->message_info.load(std::memory_order_acquire);
+    _message_buffer.header()->num_subscribers.fetch_add(1);
+    _initial_message_info = _message_buffer.header()->message_id.published.load(std::memory_order_acquire);
   }
 
-  void unsubscribe() { _chunk_buffer.header()->num_subscribers.fetch_sub(1); }
+  void unsubscribe() { _message_buffer.header()->num_subscribers.fetch_sub(1); }
 
   std::optional<access_type> fetch_message() {
-    if (std::uint64_t message_info = _chunk_buffer.header()->message_info.load(std::memory_order_acquire); message_info != _initial_message_info) {
-      auto message_index = static_cast<std::uint32_t>(message_info >> 32);
-      auto access = _chunk_buffer[message_index].acquire(_chunk_buffer);
-      // TODO: check if access is valid and read newer if not
+    if (auto message_id = _message_buffer.header()->message_id.published.load(std::memory_order_acquire); message_id != _initial_message_info) {
+      auto access = _message_buffer[message_id].acquire(_message_buffer);
       if (access.has_value()) {
-        _initial_message_info = message_info;
+        _initial_message_info = message_id;
         return std::move(access.value());
       }
     }
     return std::nullopt;
   }
 
-  std::expected<access_type, std::error_code> await_message() {
+  access_type await_message() {
     while (true) {
-      if (std::uint64_t message_info = _chunk_buffer.header()->message_info.load(std::memory_order_acquire); message_info != _initial_message_info) {
-        auto message_index = static_cast<std::uint32_t>(message_info >> 32);
-        auto access = _chunk_buffer[message_index].acquire(_chunk_buffer);
+      if (auto message_id = _message_buffer.header()->message_id.published.load(std::memory_order_acquire); message_id != _initial_message_info) {
+        auto access = _message_buffer[message_id].acquire();
         // TODO: check if access is valid and read newer if not
         if (access.has_value()) {
-          _initial_message_info = message_info;
+          _initial_message_info = message_id;
           return std::move(access.value());
         }
       }
@@ -74,12 +71,12 @@ class RealTimeSubscriber {
   }
 
  private:
-  RealTimeSubscriber(Topic&& topic, const subscriber::Options& options, RealTimeMemLayout<message_type>&& buffer)
-      : _topic(std::move(topic)), _options(options), _chunk_buffer(std::move(buffer)) {}
+  RealTimeSubscriber(Topic&& topic, const subscriber::Options& options, message_buffer<message_type>&& buffer)
+      : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)) {}
 
  private:
   Topic _topic = nullptr;
-  RealTimeMemLayout<message_type> _chunk_buffer;
+  message_buffer<message_type> _message_buffer;
   ps::subscriber::Options _options;
   std::uint64_t _initial_message_info = std::numeric_limits<std::uint64_t>::max();
 };
