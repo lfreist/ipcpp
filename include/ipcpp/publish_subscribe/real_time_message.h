@@ -17,9 +17,6 @@
 
 namespace ipcpp::ps {
 
-template <typename T_p>
-class RealTimeMemLayout;
-
 namespace rt {
 
 template <typename T_p>
@@ -37,7 +34,8 @@ class Message {
       if (_message == nullptr) {
         return;
       }
-      if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_release) == 1) {
+      // TODO: does memory order matter here?
+      if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_relaxed) == 1) {
         logging::debug("Message::Access<READ>: destructing message");
         reset();
       }
@@ -86,7 +84,7 @@ class Message {
   Message& operator=(Message&&) = delete;
 
   [[nodiscard]] std::uint32_t active_references() const {
-    return _active_reference_counter.load(std::memory_order_acquire);
+    return _active_reference_counter.load(std::memory_order_relaxed);
   }
 
   template <typename... T_Args>
@@ -97,11 +95,11 @@ class Message {
   }
 
   std::optional<Access> acquire() {
-    std::uint32_t active_references = _active_reference_counter.fetch_add(1);
+    std::uint32_t active_references = _active_reference_counter.fetch_add(1, std::memory_order_relaxed);
     if (active_references < 1 || !_opt_value) {
       // no value available
       logging::warn("Message::acquire: no value available");
-      _active_reference_counter.fetch_sub(1);
+      _active_reference_counter.fetch_sub(1, std::memory_order_relaxed);
       return std::nullopt;
     }
     return Access(this);
@@ -116,7 +114,7 @@ class Message {
    * @return
    */
   Access acquire_unsafe() {
-    _active_reference_counter.fetch_add(1);
+    _active_reference_counter.fetch_add(1, std::memory_order_relaxed);
     return Access(this);
   }
 
