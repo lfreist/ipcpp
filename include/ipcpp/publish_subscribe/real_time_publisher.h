@@ -51,11 +51,11 @@ class RealTimePublisher {
  template <typename... T_Args>
  std::error_code publish(T_Args&&... args) {
    auto message_id = _message_buffer.header()->message_id.next.fetch_add(1);
-   access_type message_access = _message_buffer[message_id].acquire_unsafe();
-   message_access.emplace(message_id, std::forward<T_Args>(args)...);
+   auto& message = _message_buffer[message_id];
+   message.emplace(message_id, std::forward<T_Args>(args)...);
    logging::debug("RealTimePublisher<'{}'>::publish: emplaced message #{}", _topic->id(), message_id);
    _m_notify_subscribers(message_id);
-   _prev_published_message = std::move(message_access);
+   _prev_published_message = std::move(message.acquire_unsafe());
    return {};
  }
 

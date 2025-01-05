@@ -32,7 +32,7 @@ enum class BackpressurePolicy {
 
 struct Options {
   BackpressurePolicy backpressure_policy = BackpressurePolicy::block;
-  std::size_t queue_capacity = 64;
+  std::size_t queue_capacity = 32;
   std::size_t history_capacity = 0;
   std::size_t max_num_observers = 0;  // 0 is uncapped
 };

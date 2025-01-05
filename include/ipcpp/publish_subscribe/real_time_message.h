@@ -60,18 +60,15 @@ class Message {
       _message->_message_id = Message<T_p>::invalid_id_v;
     }
 
-    template <typename... T_Args>
-    void emplace(std::uint32_t index, T_Args&&... args) {
-      _message->_opt_value.emplace(std::forward<T_Args>(args)...);
-      _message->_message_id = index;
-      logging::debug("Message::Access::emplace({}, ({})...)", index, sizeof...(T_Args));
-    }
-
     T_p* operator->() { return &(_message->_opt_value.value()); }
     const T_p* operator->() const { return &(_message->_opt_value.value()); }
 
     T_p& operator*() { return _message->_opt_value.value(); }
     const T_p& operator*() const { return _message->_opt_value.value(); }
+
+    operator bool() const {
+      return _message->_opt_value.has_value();
+    }
 
    private:
     Message<T_p>* _message = nullptr;
@@ -90,6 +87,13 @@ class Message {
 
   [[nodiscard]] std::uint32_t active_references() const {
     return _active_reference_counter.load(std::memory_order_acquire);
+  }
+
+  template <typename... T_Args>
+  void emplace(std::uint32_t index, T_Args&&... args) {
+    _opt_value.emplace(std::forward<T_Args>(args)...);
+    _message_id = index;
+    logging::debug("Message::Access::emplace({}, ({})...)", index, sizeof...(T_Args));
   }
 
   std::optional<Access> acquire() {
