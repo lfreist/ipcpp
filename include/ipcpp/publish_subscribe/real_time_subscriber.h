@@ -48,8 +48,8 @@ class RealTimeSubscriber {
 
   std::optional<access_type> fetch_message() {
     if (auto message_id = _message_buffer.header()->message_id.published.load(std::memory_order_acquire); message_id != _initial_message_info) {
-      auto access = _message_buffer[message_id].acquire(_message_buffer);
-      if (access.has_value()) {
+      auto access = _message_buffer[message_id].acquire_unsafe();
+      if (access) {
         _initial_message_info = message_id;
         return std::move(access.value());
       }
@@ -60,10 +60,10 @@ class RealTimeSubscriber {
   access_type await_message() {
     while (true) {
       if (auto message_id = _message_buffer.header()->message_id.published.load(std::memory_order_acquire); message_id != _initial_message_info) {
-        auto message_access = _message_buffer[message_id].acquire();
-        if (message_access.has_value()) {
+        auto message_access = _message_buffer[message_id].acquire_unsafe();
+        if (message_access) {
           _initial_message_info = message_id;
-          return std::move(message_access.value());
+          return std::move(message_access);
         }
         /*
         auto access = _message_buffer[message_id].acquire();

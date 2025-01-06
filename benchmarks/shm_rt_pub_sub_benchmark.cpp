@@ -6,8 +6,8 @@
  */
 #include <ipcpp/publish_subscribe/real_time_publisher.h>
 #include <ipcpp/publish_subscribe/real_time_subscriber.h>
-#include <ipcpp/publish_subscribe/real_time_publisher.h>
 #include <ipcpp/utils/utils.h>
+#include <ipcpp/publish_subscribe/message_buffer_mpmc.h>
 
 #include <barrier>
 #include <chrono>
@@ -23,7 +23,8 @@ std::barrier benchmark_stop_barrier(3);
 constexpr auto num_iterations = 1'000'000;
 
 struct Message {
-  std::int64_t msg_id;
+  Message() {}
+  std::uint64_t data[8192];
 };
 
 void a2b() {
@@ -44,7 +45,7 @@ void a2b() {
   benchmark_start_barrier.arrive_and_wait();
 
   for (std::size_t i = 0; i < num_iterations; ++i) {
-    if (publisher_a2b->publish(i)) {
+    if (publisher_a2b->publish()) {
       std::cerr << "publisher_a2b: failed to publish data" << std::endl;
       std::this_thread::sleep_for(1s);
       exit(1);
@@ -52,7 +53,7 @@ void a2b() {
     auto message = subscriber_b2a->await_message();
   }
 
-  benchmark_start_barrier.arrive_and_wait();
+  benchmark_stop_barrier.arrive_and_wait();
 }
 
 void b2a() {
@@ -75,14 +76,14 @@ void b2a() {
 
   for (std::size_t i = 0; i < num_iterations; ++i) {
     auto message = subscriber_a2b->await_message();
-    if (publisher_b2a->publish(i)) {
+    if (publisher_b2a->publish()) {
       std::cerr << "publisher_b2a: failed to publish data" << std::endl;
       std::this_thread::sleep_for(1s);
       exit(1);
     }
   }
 
-  benchmark_start_barrier.arrive_and_wait();
+  benchmark_stop_barrier.arrive_and_wait();
 }
 
 int main() {
@@ -93,7 +94,7 @@ int main() {
   auto start = ipcpp::utils::timestamp();
   benchmark_start_barrier.arrive_and_wait();
 
-  benchmark_start_barrier.arrive_and_wait();
+  benchmark_stop_barrier.arrive_and_wait();
 
   auto stop = ipcpp::utils::timestamp();
 

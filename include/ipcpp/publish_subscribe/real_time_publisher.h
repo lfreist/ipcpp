@@ -27,6 +27,7 @@ class RealTimePublisher {
  public:
   static std::expected<RealTimePublisher, std::error_code> create(const std::string& topic_id,
                                                                   const ps::publisher::Options& options = {}) {
+    bool multi_publisher = options.max_num_publishers > 1;
     auto e_topic =
         get_topic(topic_id, message_buffer<message_type>::required_size_bytes(options.queue_capacity));
     if (!e_topic) {
@@ -50,7 +51,7 @@ class RealTimePublisher {
 
  template <typename... T_Args>
  std::error_code publish(T_Args&&... args) {
-   auto message_id = _message_buffer.header()->message_id.next.fetch_add(1);
+   auto message_id = _message_buffer.header()->message_id.next++;
    auto& message = _message_buffer[message_id];
    message.emplace(message_id, std::forward<T_Args>(args)...);
    logging::debug("RealTimePublisher<'{}'>::publish: emplaced message #{}", _topic->id(), message_id);
@@ -65,7 +66,7 @@ class RealTimePublisher {
 
  private:
   inline void _m_notify_subscribers(std::uint_fast32_t message_id) {
-    _message_buffer.header()->message_id.published.store(message_id, std::memory_order_release);
+    _message_buffer.header()->message_id.published.store(message_id, std::memory_order_relaxed);
     logging::debug("RealTimePublisher<'{}'>::publish: notified subscribers about published message #{}", _topic->id(), message_id);
   }
 

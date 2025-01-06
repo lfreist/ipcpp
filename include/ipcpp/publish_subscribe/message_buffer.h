@@ -5,6 +5,30 @@
  * This file is part of ipcpp.
  */
 
+/*
+ * NOTES:
+ * We can speed up multi publisher scenarios:
+ * 1. add a T_p pool per possible publisher
+ *    -> publishers can have their non-atomic own next counter
+ * 2. the size of each T_p pool depends on the maximum number of subscribers:
+ *    -> for x subscribers x + 2 T_p's per pool are good: x for published data accessed by a subscriber and 2 for alternating publishing new data
+ *
+ * Possible memory layout:
+ *  |--------------------------------------------------|
+ *  | common header                                    |
+ *  | list of (max publishers) per-publisher-headers   |
+ *  | list of (num T_p pools + T_p pool size) T_p      |
+ *  | -------------------------------------------------|
+ *
+ *  - common header:
+ *    - atomic int: latest published index
+ *    - int: max_num_subscribers -> defines the size of a single T_p pool
+ *      -> should bne rounded to power of two to allow fast wrap-around on overflow
+ *    - int: max_num_publishers -> defines the number of T_p pools
+ *      -> (max_num_subscribers + 2) * _max_num_publishers is the total number of T_p
+ *      -> publisher_id * (_max_num_subscribers + 2) is the first T_p that publisher_id can use
+ */
+
 #pragma once
 
 #include <ipcpp/utils/logging.h>
@@ -19,11 +43,12 @@
 
 namespace ipcpp::ps {
 
-template <typename T_p>
+template <typename T_p, bool multi_publisher = false>
   requires(!std::is_reference_v<T_p> && !std::is_pointer_v<T_p>)
 class message_buffer {
  public:
   typedef T_p value_type;
+  typedef std::conditional_t<multi_publisher, std::atomic_uint_fast32_t, std::uint_fast32_t> internal_message_counter_type;
 
  public:
   struct Header {
@@ -38,7 +63,7 @@ class message_buffer {
       //   IMPORTANT: final must be set before next is changed then!
 
       /// this is used internally to lock free access a T_p without notifying to subscribers
-      alignas(std::hardware_destructive_interference_size) std::atomic_uint_fast32_t next = 0;
+      alignas(std::hardware_destructive_interference_size) internal_message_counter_type next = 0;
       // TODO: can we avoid that publishers need to access and modify next and published?
       //       It would be better to handle all this using a single atomic value (performance-wise)...
 

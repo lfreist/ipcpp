@@ -35,7 +35,7 @@ class Message {
         return;
       }
       // TODO: does memory order matter here?
-      if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_relaxed) == 1) {
+      if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_release) == 1) {
         logging::debug("Message::Access<READ>: destructing message");
         reset();
       }
@@ -95,11 +95,11 @@ class Message {
   }
 
   std::optional<Access> acquire() {
-    std::uint32_t active_references = _active_reference_counter.fetch_add(1, std::memory_order_relaxed);
+    std::uint32_t active_references = _active_reference_counter.fetch_add(1);
     if (active_references < 1 || !_opt_value) {
       // no value available
       logging::warn("Message::acquire: no value available");
-      _active_reference_counter.fetch_sub(1, std::memory_order_relaxed);
+      _active_reference_counter.fetch_sub(1);
       return std::nullopt;
     }
     return Access(this);
@@ -114,16 +114,16 @@ class Message {
    * @return
    */
   Access acquire_unsafe() {
-    _active_reference_counter.fetch_add(1, std::memory_order_relaxed);
+    _active_reference_counter.fetch_add(1, std::memory_order_release);
     return Access(this);
   }
 
-  [[nodiscard]] std::uint64_t id() const { return _message_id; }
+  [[nodiscard]] std::uint_fast32_t id() const { return _message_id; }
 
  private:
   std::optional<T_p> _opt_value = std::nullopt;
-  std::uint32_t _message_id = invalid_id_v;
-  alignas(std::hardware_destructive_interference_size) std::atomic_uint32_t _active_reference_counter = 0;
+  std::uint_fast32_t _message_id = invalid_id_v;
+  alignas(std::hardware_destructive_interference_size) std::atomic_uint_fast32_t _active_reference_counter = 0;
 };
 
 }  // namespace rt
