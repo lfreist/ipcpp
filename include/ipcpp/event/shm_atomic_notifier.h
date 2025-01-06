@@ -39,7 +39,7 @@ class ShmAtomicNotifier final {
   }
 
   void notify_observers(const uint64_t add_val = 1) {
-    _n_value->fetch_add(add_val, std::memory_order_release);
+    _n_value->fetch_add(add_val, std::memory_order_relaxed);
   }
 
  private:

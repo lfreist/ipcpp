@@ -4,10 +4,10 @@
  *
  * This file is part of ipcpp.
  */
+#include <ipcpp/publish_subscribe/message_buffer.h>
 #include <ipcpp/publish_subscribe/real_time_publisher.h>
 #include <ipcpp/publish_subscribe/real_time_subscriber.h>
 #include <ipcpp/utils/utils.h>
-#include <ipcpp/publish_subscribe/message_buffer_mpmc.h>
 
 #include <barrier>
 #include <chrono>
@@ -105,14 +105,15 @@ int main() {
   benchmark_stop_barrier.arrive_and_wait();
 
   auto stop = ipcpp::utils::timestamp();
+  
+  notifier.join();
+  observer.join();
 
   std::cout << "Iterations: " << num_iterations << "\n"
             << "Time:       " << stop - start << "ns\n"
             << "Latency:    " << static_cast<double>(stop - start) / static_cast<double>(2 * num_iterations) << "ns"
             << std::endl;
 
-  notifier.join();
-  observer.join();
 
   return 0;
 }

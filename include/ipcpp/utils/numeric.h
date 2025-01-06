@@ -113,4 +113,7 @@ struct half_size_int<uint8_t> {
   using type = uint8_t;
 };
 
+template <typename T>
+using half_size_int_t = typename half_size_int<T>::type;
+
 }  // namespace ipcpp::numeric

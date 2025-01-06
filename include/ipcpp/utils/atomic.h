@@ -32,7 +32,7 @@ struct largest_lock_free<> {
 };
 
 // Usage
-using largest_lock_free_uint = largest_lock_free_t<
+using largest_lock_free_uint_t = largest_lock_free_t<
     std::uint64_t, std::uint32_t, std::uint16_t, std::uint8_t>;
 
 }

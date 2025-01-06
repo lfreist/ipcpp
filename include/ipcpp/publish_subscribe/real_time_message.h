@@ -15,15 +15,12 @@
 #include <numeric>
 #include <optional>
 
-namespace ipcpp::ps {
-
-namespace rt {
+namespace ipcpp::ps::rt {
 
 template <typename T_p>
 class Message {
  public:
-  typedef std::uint32_t msg_id_type;
-  static constexpr msg_id_type invalid_id_v = std::numeric_limits<msg_id_type>::max();
+  static constexpr uint_t invalid_id_v = std::numeric_limits<uint_t>::max();
 
  public:
   class Access {
@@ -64,9 +61,7 @@ class Message {
     T_p& operator*() { return _message->_opt_value.value(); }
     const T_p& operator*() const { return _message->_opt_value.value(); }
 
-    operator bool() const {
-      return _message->_opt_value.has_value();
-    }
+    operator bool() const { return _message->_opt_value.has_value(); }
 
    private:
     Message<T_p>* _message = nullptr;
@@ -83,19 +78,17 @@ class Message {
   Message(Message&&) = delete;
   Message& operator=(Message&&) = delete;
 
-  [[nodiscard]] std::uint32_t active_references() const {
-    return _active_reference_counter.load(std::memory_order_relaxed);
-  }
+  [[nodiscard]] uint_t active_references() const { return _active_reference_counter.load(std::memory_order_relaxed); }
 
   template <typename... T_Args>
-  void emplace(std::uint32_t index, T_Args&&... args) {
+  void emplace(uint_t message_id, T_Args&&... args) {
     _opt_value.emplace(std::forward<T_Args>(args)...);
-    _message_id = index;
-    logging::debug("Message::Access::emplace({}, ({})...)", index, sizeof...(T_Args));
+    _message_id = message_id;
+    logging::debug("Message::Access::emplace({}, ({})...)", message_id, sizeof...(T_Args));
   }
 
   std::optional<Access> acquire() {
-    std::uint32_t active_references = _active_reference_counter.fetch_add(1);
+    uint_t active_references = _active_reference_counter.fetch_add(1);
     if (active_references < 1 || !_opt_value) {
       // no value available
       logging::warn("Message::acquire: no value available");
@@ -118,13 +111,12 @@ class Message {
     return Access(this);
   }
 
-  [[nodiscard]] std::uint_fast32_t id() const { return _message_id; }
+  [[nodiscard]] uint_t id() const { return _message_id; }
 
  private:
   std::optional<T_p> _opt_value = std::nullopt;
-  std::uint_fast32_t _message_id = invalid_id_v;
-  alignas(std::hardware_destructive_interference_size) std::atomic_uint_fast32_t _active_reference_counter = 0;
+  alignas(std::hardware_destructive_interference_size) uint_t _message_id = invalid_id_v;
+  alignas(std::hardware_destructive_interference_size) std::atomic<uint_t> _active_reference_counter = 0;
 };
 
-}  // namespace rt
-}  // namespace ipcpp::ps
+}  // namespace ipcpp::ps::rt
