@@ -10,6 +10,7 @@
 #include <cassert>
 #include <concepts>
 #include <limits>
+#include <cstdint>
 
 namespace ipcpp::numeric {
 
@@ -87,5 +88,29 @@ inline constexpr T_p ceil_to_power_of_two(T_p v) {
   }
   return T_p(1) << (std::numeric_limits<T_p>::digits - count_leading_zero(v));
 }
+
+
+template <typename T>
+struct half_size_int;
+
+template <>
+struct half_size_int<uint64_t> {
+  using type = uint32_t;
+};
+
+template <>
+struct half_size_int<uint32_t> {
+  using type = uint16_t;
+};
+
+template <>
+struct half_size_int<uint16_t> {
+  using type = uint8_t;
+};
+
+template <>
+struct half_size_int<uint8_t> {
+  using type = uint8_t;
+};
 
 }  // namespace ipcpp::numeric

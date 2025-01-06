@@ -24,7 +24,8 @@ constexpr auto num_iterations = 1'000'000;
 
 struct Message {
   Message() {}
-  std::uint64_t data[8192];
+  Message(std::uint64_t val) : data(val) {}
+  std::uint64_t data;
 };
 
 void a2b() {
@@ -41,19 +42,26 @@ void a2b() {
   }
   subscriber_b2a->subscribe();
 
+  std::uint64_t sum = 0;
+  std::uint64_t expected_sum = 0;
+
   sync_point.arrive_and_wait();
   benchmark_start_barrier.arrive_and_wait();
 
   for (std::size_t i = 0; i < num_iterations; ++i) {
-    if (publisher_a2b->publish()) {
+    if (publisher_a2b->publish(i)) {
       std::cerr << "publisher_a2b: failed to publish data" << std::endl;
       std::this_thread::sleep_for(1s);
       exit(1);
     }
     auto message = subscriber_b2a->await_message();
+    sum += message->data;
+    expected_sum += i;
   }
 
   benchmark_stop_barrier.arrive_and_wait();
+  std::cout << "expected sum: " << expected_sum << std::endl;
+  std::cout << "actual sum  : " << sum << std::endl;
 }
 
 void b2a() {
@@ -76,7 +84,7 @@ void b2a() {
 
   for (std::size_t i = 0; i < num_iterations; ++i) {
     auto message = subscriber_a2b->await_message();
-    if (publisher_b2a->publish()) {
+    if (publisher_b2a->publish(i)) {
       std::cerr << "publisher_b2a: failed to publish data" << std::endl;
       std::this_thread::sleep_for(1s);
       exit(1);

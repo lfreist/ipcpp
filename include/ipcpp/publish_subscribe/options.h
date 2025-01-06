@@ -34,8 +34,8 @@ struct Options {
   BackpressurePolicy backpressure_policy = BackpressurePolicy::block;
   std::size_t queue_capacity = 64;
   std::size_t history_capacity = 0;
-  std::size_t max_num_observers = 0;  // 0 is uncapped
-  std::size_t max_num_publishers = 2;
+  std::size_t max_num_observers = 1;
+  std::size_t max_num_publishers = 1;
 };
 
 }
