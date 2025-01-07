@@ -32,7 +32,7 @@
 
 #pragma once
 
-#include <ipcpp/publish_subscribe/types.h>
+#include <ipcpp/types.h>
 
 #include <ipcpp/utils/atomic.h>
 #include <ipcpp/utils/logging.h>

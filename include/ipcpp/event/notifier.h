@@ -21,8 +21,8 @@ class Notifier_I {
   typedef NotificationT notification_type;
 
  public:
-  Notifier_I(const TopicEntry& topic) : _topic(topic) {}
-  Notifier_I(TopicEntry&& topic) : _topic(std::move(topic)) {}
+  Notifier_I(const ShmRegistryEntry& topic) : _topic(topic) {}
+  Notifier_I(ShmRegistryEntry&& topic) : _topic(std::move(topic)) {}
   virtual ~Notifier_I() = default;
 
   virtual void notify_observers(notification_type notification) = 0;
@@ -30,7 +30,7 @@ class Notifier_I {
   [[nodiscard]] virtual std::size_t num_observers() const = 0;
 
  protected:
-  TopicEntry _topic;
+  ShmRegistryEntry _topic;
 };
 
 }

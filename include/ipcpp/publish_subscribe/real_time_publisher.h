@@ -10,7 +10,7 @@
 #include <ipcpp/publish_subscribe/message_buffer.h>
 #include <ipcpp/publish_subscribe/options.h>
 #include <ipcpp/publish_subscribe/real_time_message.h>
-#include <ipcpp/publish_subscribe/types.h>
+#include <ipcpp/types.h>
 #include <ipcpp/topic.h>
 #include <ipcpp/utils/numeric.h>
 
@@ -29,8 +29,8 @@ class RealTimePublisher {
   static std::expected<RealTimePublisher, std::error_code> create(const std::string& topic_id,
                                                                   const ps::publisher::Options& options = {}) {
     bool multi_publisher = options.max_num_publishers > 1;
-    auto e_topic = get_topic(topic_id, message_buffer<message_type>::required_size_bytes(options.max_num_observers,
-                                                                                         options.max_num_publishers));
+    auto e_topic = get_shm(topic_id, message_buffer<message_type>::required_size_bytes(options.max_num_observers,
+                                                                                       options.max_num_publishers));
     if (!e_topic) {
       return std::unexpected(e_topic.error());
     }

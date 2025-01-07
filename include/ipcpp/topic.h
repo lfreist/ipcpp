@@ -24,15 +24,9 @@ namespace ipcpp {
  * @brief A topic is identified by an id provided in its constructor. ipcpp processes that use the name topic name share
  * the same shared memory and sockets.
  */
-class TopicEntry final {
-  friend class TopicRegistry;
+class ShmRegistryEntry final {
+  friend class ShmRegistry;
  public:
-
-  /**
-   * @brief return a socket name/path
-   * @return
-   */
-  static std::string socket_name(std::string_view id);
 
   /**
    * @brief return the name/path of a shared memory object that is intended to be used as ring buffer
@@ -46,16 +40,18 @@ class TopicEntry final {
    */
   [[nodiscard]] const std::string& id() const;
 
-  bool operator==(const TopicEntry& other) const;
+  bool operator==(const ShmRegistryEntry& other) const;
 
   explicit operator bool() const {
     return !_id.empty();
   }
 
+  shm::MappedMemory<shm::MappingType::SINGLE>& operator*() { return _manually_managed_mm; }
   shm::MappedMemory<shm::MappingType::SINGLE>& shm() { return _manually_managed_mm; }
+  shm::MappedMemory<shm::MappingType::SINGLE>* operator->() { return std::addressof(_manually_managed_mm); }
 
  private:
-  TopicEntry(std::string id, shm::MappedMemory<shm::MappingType::SINGLE>&& mm) : _id(std::move(id)), _manually_managed_mm(std::move(mm)) {}
+  ShmRegistryEntry(std::string id, shm::MappedMemory<shm::MappingType::SINGLE>&& mm) : _id(std::move(id)), _manually_managed_mm(std::move(mm)) {}
 
  private:
   /// topic id
@@ -64,25 +60,25 @@ class TopicEntry final {
 };
 
 struct TopicHash {
-  std::size_t operator()(const TopicEntry& topic) const {
+  std::size_t operator()(const ShmRegistryEntry& topic) const {
     return std::hash<std::string>()(topic.id());
   }
 };
 
-class TopicRegistry {
+class ShmRegistry {
  public:
-  static std::expected<std::shared_ptr<TopicEntry>, std::error_code> get_topic(const std::string& id, std::size_t min_shm_size = 0);
+  static std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_topic(const std::string& id, std::size_t min_shm_size = 0);
 
  private:
-  static std::expected<std::shared_ptr<TopicEntry>, std::error_code> open_topic(const std::string& id);
-  static std::expected<std::shared_ptr<TopicEntry>, std::error_code> create_topic(const std::string& id, std::size_t min_shm_size);
+  static std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> open_topic(const std::string& id);
+  static std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> create_topic(const std::string& id, std::size_t min_shm_size);
 
-  static std::unordered_map<std::string, std::shared_ptr<TopicEntry>> _topic_registry;
-  static std::mutex _mutex;  // safely access _topic_registry (intra process)
+  static std::unordered_map<std::string, std::shared_ptr<ShmRegistryEntry>> _topic_registry;
+  static std::mutex _mutex;
 };
 
-std::expected<std::shared_ptr<TopicEntry>, std::error_code> get_topic(const std::string& id, std::size_t min_shm_size = 0);
+std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_shm(const std::string& id, std::size_t min_shm_size = 0);
 
-typedef std::shared_ptr<TopicEntry> Topic;
+typedef std::shared_ptr<ShmRegistryEntry> Topic;
 
 }  // namespace ipcpp

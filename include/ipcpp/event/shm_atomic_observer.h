@@ -27,10 +27,10 @@ class ShmAtomicObserver {
 
  public:
   static std::expected<ShmAtomicObserver, std::error_code> create(const std::string& topic_id) {
-    auto e_topic = get_topic(topic_id);
+    auto e_topic = get_shm(topic_id);
     while (!e_topic) {
       std::this_thread::sleep_for(100ms);
-      e_topic = get_topic(topic_id);
+      e_topic = get_shm(topic_id);
     }
     return ShmAtomicObserver(std::move(*e_topic));
   }

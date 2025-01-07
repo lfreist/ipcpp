@@ -9,6 +9,8 @@
 #include <ipcpp/publish_subscribe/real_time_subscriber.h>
 #include <ipcpp/utils/utils.h>
 
+#include <ipcpp/service.h>
+
 #include <barrier>
 #include <chrono>
 #include <numeric>

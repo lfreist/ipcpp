@@ -14,13 +14,13 @@
 
 namespace ipcpp {
 
-std::unordered_map<std::string, std::shared_ptr<TopicEntry>> TopicRegistry::_topic_registry{};
-std::mutex TopicRegistry::_mutex{};
+std::unordered_map<std::string, std::shared_ptr<ShmRegistryEntry>> ShmRegistry::_topic_registry{};
+std::mutex ShmRegistry::_mutex{};
 
 // === TopicRegistry ===================================================================================================
 // _____________________________________________________________________________________________________________________
-std::expected<std::shared_ptr<TopicEntry>, std::error_code> TopicRegistry::get_topic(const std::string& id, const std::size_t min_shm_size) {
-  std::unique_lock lock(TopicRegistry::_mutex);
+std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> ShmRegistry::get_topic(const std::string& id, const std::size_t min_shm_size) {
+  std::unique_lock lock(ShmRegistry::_mutex);
   if (min_shm_size == 0) {
     return open_topic(id);
   } else {
@@ -29,38 +29,38 @@ std::expected<std::shared_ptr<TopicEntry>, std::error_code> TopicRegistry::get_t
 }
 
 // _____________________________________________________________________________________________________________________
-std::expected<std::shared_ptr<TopicEntry>, std::error_code> TopicRegistry::open_topic(const std::string& id) {
-  auto it = TopicRegistry::_topic_registry.find(id);
-  if (it != TopicRegistry::_topic_registry.end()) {
+std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> ShmRegistry::open_topic(const std::string& id) {
+  auto it = ShmRegistry::_topic_registry.find(id);
+  if (it != ShmRegistry::_topic_registry.end()) {
     return it->second;
   }
   file_lock lock("global");
   lock.lock();
-  auto e_mm = shm::MappedMemory<shm::MappingType::SINGLE>::open(TopicEntry::shm_name(id));
+  auto e_mm = shm::MappedMemory<shm::MappingType::SINGLE>::open(ShmRegistryEntry::shm_name(id));
   lock.unlock();
   if (!e_mm.has_value()) {
     return std::unexpected(e_mm.error());
   }
-  auto topic = std::make_shared<TopicEntry>(TopicEntry(id, std::move(*e_mm)));
-  TopicRegistry::_topic_registry[id] = topic;
+  auto topic = std::make_shared<ShmRegistryEntry>(ShmRegistryEntry(id, std::move(*e_mm)));
+  ShmRegistry::_topic_registry[id] = topic;
   return topic;
 }
 
 // _____________________________________________________________________________________________________________________
-std::expected<std::shared_ptr<TopicEntry>, std::error_code> TopicRegistry::create_topic(const std::string& id, const std::size_t min_shm_size) {
-  auto it = TopicRegistry::_topic_registry.find(id);
-  if (it != TopicRegistry::_topic_registry.end()) {
+std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> ShmRegistry::create_topic(const std::string& id, const std::size_t min_shm_size) {
+  auto it = ShmRegistry::_topic_registry.find(id);
+  if (it != ShmRegistry::_topic_registry.end()) {
     return std::unexpected(std::error_code(1, std::system_category()));
   }
   file_lock lock("global");
   lock.lock();
-  auto e_mm = shm::MappedMemory<shm::MappingType::SINGLE>::create(TopicEntry::shm_name(id), min_shm_size);
+  auto e_mm = shm::MappedMemory<shm::MappingType::SINGLE>::create(ShmRegistryEntry::shm_name(id), min_shm_size);
   lock.unlock();
   if (!e_mm.has_value()) {
     return std::unexpected(e_mm.error());
   }
-  auto topic = std::make_shared<TopicEntry>(TopicEntry(id, std::move(*e_mm)));
-  TopicRegistry::_topic_registry[id] = topic;
+  auto topic = std::make_shared<ShmRegistryEntry>(ShmRegistryEntry(id, std::move(*e_mm)));
+  ShmRegistry::_topic_registry[id] = topic;
   return topic;
 }
 
@@ -68,12 +68,7 @@ std::expected<std::shared_ptr<TopicEntry>, std::error_code> TopicRegistry::creat
 // _____________________________________________________________________________________________________________________
 
 // _____________________________________________________________________________________________________________________
-std::string TopicEntry::socket_name(std::string_view id) {
-  return std::format("{}/ipcpp/{}.sock", std::filesystem::temp_directory_path().string(), id);
-}
-
-// _____________________________________________________________________________________________________________________
-std::string TopicEntry::shm_name(std::string_view id) {
+std::string ShmRegistryEntry::shm_name(std::string_view id) {
 #ifdef IPCPP_UNIX
   return std::format("/{}.shm", id);
 #elifdef IPCPP_WINDOWS
@@ -84,15 +79,16 @@ std::string TopicEntry::shm_name(std::string_view id) {
 }
 
 // _____________________________________________________________________________________________________________________
-const std::string& TopicEntry::id() const { return _id; }
+const std::string& ShmRegistryEntry::id() const { return _id; }
 
 // _____________________________________________________________________________________________________________________
-bool TopicEntry::operator==(const ipcpp::TopicEntry& other) const {
+bool ShmRegistryEntry::operator==(const ipcpp::ShmRegistryEntry& other) const {
   return _id == other._id;
 }
 
-std::expected<std::shared_ptr<TopicEntry>, std::error_code> get_topic(const std::string& id, const std::size_t min_shm_size) {
-  return TopicRegistry::get_topic(id, min_shm_size);
+std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_shm(const std::string& id,
+                                                                          std::size_t min_shm_size) {
+  return ShmRegistry::get_topic(id, min_shm_size);
 }
 
 }  // namespace ipcpp

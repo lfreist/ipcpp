@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <ipcpp/publish_subscribe/types.h>
+#include <ipcpp/types.h>
 
 #include <chrono>
 #include <cstdint>
