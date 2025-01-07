@@ -67,17 +67,18 @@ struct TopicHash {
 
 class ShmRegistry {
  public:
-  static std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_topic(const std::string& id, std::size_t min_shm_size = 0);
+  static std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_shm_entry(const std::string& id, std::size_t min_shm_size = 0);
 
  private:
-  static std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> open_topic(const std::string& id);
-  static std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> create_topic(const std::string& id, std::size_t min_shm_size);
+  static std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> open_shm(const std::string& id);
+  static std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> create_shm(const std::string& id,
+                                                                                      std::size_t min_shm_size);
 
-  static std::unordered_map<std::string, std::shared_ptr<ShmRegistryEntry>> _topic_registry;
+  static std::unordered_map<std::string, std::shared_ptr<ShmRegistryEntry>> _shm_registry;
   static std::mutex _mutex;
 };
 
-std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_shm(const std::string& id, std::size_t min_shm_size = 0);
+std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_shm_entry(const std::string& id, std::size_t min_shm_size = 0);
 
 typedef std::shared_ptr<ShmRegistryEntry> Topic;
 

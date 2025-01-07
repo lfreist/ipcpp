@@ -9,7 +9,7 @@
 #include <ipcpp/publish_subscribe/real_time_subscriber.h>
 #include <ipcpp/utils/utils.h>
 
-#include <ipcpp/service.h>
+#include <ipcpp/publish_subscribe/service.h>
 
 #include <barrier>
 #include <chrono>
@@ -115,7 +115,6 @@ int main() {
             << "Time:       " << stop - start << "ns\n"
             << "Latency:    " << static_cast<double>(stop - start) / static_cast<double>(2 * num_iterations) << "ns"
             << std::endl;
-
 
   return 0;
 }

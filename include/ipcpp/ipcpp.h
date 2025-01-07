@@ -19,7 +19,7 @@ namespace ipcpp {
 
 inline std::error_code initialize_runtime(const std::size_t size = 0) {
   if (size != 0) {
-    if (auto global_topic = get_shm("global", size); global_topic) {
+    if (auto global_topic = get_shm_entry("global", size); global_topic) {
       pool_allocator<std::uint8_t>::initialize_factory(global_topic.value()->shm().addr(),
                                                        global_topic.value()->shm().size());
       return {0, std::system_category()};
@@ -27,7 +27,7 @@ inline std::error_code initialize_runtime(const std::size_t size = 0) {
       return global_topic.error();
     }
   } else {
-    if (auto global_topic = get_shm("global"); global_topic) {
+    if (auto global_topic = get_shm_entry("global"); global_topic) {
       pool_allocator<std::uint8_t>::initialize_factory(global_topic.value()->shm().addr(),
                                                        global_topic.value()->shm().size());
       return {};
