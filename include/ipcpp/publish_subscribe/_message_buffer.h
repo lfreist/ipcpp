@@ -31,11 +31,10 @@
 
 #pragma once
 
-#include <ipcpp/publish_subscribe/types.h>
+#include <ipcpp/types.h>
 
 #include <ipcpp/utils/logging.h>
 #include <ipcpp/utils/numeric.h>
-#include <ipcpp/utils/synced.h>
 
 #include <atomic>
 #include <expected>

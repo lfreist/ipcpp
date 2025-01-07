@@ -13,6 +13,7 @@
 #include <ipcpp/types.h>
 #include <ipcpp/topic.h>
 #include <ipcpp/utils/numeric.h>
+#include <ipcpp/service.h>
 
 #include <expected>
 #include <string>
@@ -21,6 +22,9 @@ namespace ipcpp::ps {
 
 template <typename T_p>
 class RealTimePublisher {
+  friend class Service<ServiceType::real_time_publish_subscribe, T_p, ServiceMode::ipc>;
+  friend class Service<ServiceType::real_time_publish_subscribe, T_p, ServiceMode::local>;
+
  public:
   typedef rt::Message<T_p> message_type;
   typedef typename rt::Message<T_p>::Access access_type;

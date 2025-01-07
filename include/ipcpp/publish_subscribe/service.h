@@ -16,7 +16,7 @@
 namespace ipcpp {
 
 template <typename T_p, ServiceMode T_SM>
-class Service<ServiceType::real_time_publish_subscribe, T_p, T_SM> {
+class Service<ServiceType::real_time_publish_subscribe, T_p, T_SM> : public std::enable_shared_from_this<Service<ServiceType::real_time_publish_subscribe, T_p, T_SM>> {
   struct _S_publisher_entry {
     static std::size_t required_size() { return sizeof(_S_publisher_entry); }
 
@@ -43,15 +43,26 @@ class Service<ServiceType::real_time_publish_subscribe, T_p, T_SM> {
              + (max_publishers * _S_publisher_entry::required_size());  // list of publisher_entries
     }
 
-    std::atomic<uint_t> reference_counter;
+    _S_memory_layout(uint_half_t max_subscribers, uint_half_t max_publishers) : max_publishers(max_publishers), max_subscribers(max_subscribers) {}
+
+    std::atomic<uint_t> reference_counter = 0;
     char identifier[internal::max_identifier_size];
-    uint_half_t max_subscribers;
-    uint_half_t max_publishers;
+    const uint_half_t max_subscribers;
+    const uint_half_t max_publishers;
 
     /// offset from this
     std::ptrdiff_t subscriber_list_offset;
     /// offset from this
     std::ptrdiff_t publisher_list_offset;
+
+   public:
+    std::span<_S_subscriber_entry> subscriber_list() {
+      return {reinterpret_cast<_S_subscriber_entry*>(reinterpret_cast<std::uint8_t*>(this) + subscriber_list_offset), max_subscribers};
+    }
+
+    std::span<_S_subscriber_entry> publisher_list() {
+      return {reinterpret_cast<_S_publisher_entry*>(reinterpret_cast<std::uint8_t*>(this) + publisher_list_offset), max_publishers};
+    }
   };
 
  public:
@@ -60,7 +71,7 @@ class Service<ServiceType::real_time_publish_subscribe, T_p, T_SM> {
     uint_half_t max_publishers = 1;
   };
 
- public:
+ private:
   explicit Service(std::string identifier, const Options& options = {})
       : _identifier(std::move(identifier)), _options(options) {
     auto shm_entry = get_shm_entry(_m_shm_connection_name());
@@ -70,8 +81,14 @@ class Service<ServiceType::real_time_publish_subscribe, T_p, T_SM> {
     _shm_entry = std::move(shm_entry.value());
   }
 
+ public:
+  std::shared_ptr<Service<ServiceType::real_time_publish_subscribe, T_p, T_SM>> build(std::string identifier, const Options& options = {}) {
+    return std::make_shared<Service<ServiceType::real_time_publish_subscribe, T_p, T_SM>>(Service(std::move(identifier), options));
+  }
+
+ public:
   std::expected<ps::RealTimePublisher<T_p>, std::error_code> create_publisher() {
-    return std::unexpected(std::error_code());
+    return ps::RealTimePublisher<T_p>();
   }
   std::expected<ps::RealTimePublisher<T_p>, std::error_code> create_subscriber() {
     return std::unexpected(std::error_code());

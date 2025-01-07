@@ -8,7 +8,6 @@
 #pragma once
 
 #include <ipcpp/utils/numeric.h>
-#include <ipcpp/utils/synced.h>
 #include <ipcpp/utils/logging.h>
 
 #include <atomic>
