@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <cassert>
 #include <memory>
 
-namespace ipcpp {
+namespace carry {
 
 namespace detail {
 // TODO: creating the overhead data at addr does not require a template type. Thus, we can do all of this in the Base
@@ -462,4 +462,4 @@ class IPCPP_API pool_allocator : public detail::allocator_factory_base {
   std::uintptr_t _memory = 0;
 };
 
-}  // namespace ipcpp
+}  // namespace carry

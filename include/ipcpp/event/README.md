@@ -22,8 +22,8 @@ A *DomainSocketNotifier* accepts subscriptions when the `DomainSocketNotifier::a
 ```c++
 // domain_socket_notifier_main.cpp
 
-#include <ipcpp/event/domain_socket_notifier.h>
-#include <ipcpp/utils/utils.h>
+#include <carry/event/domain_socket_notifier.h>
+#include <carry/utils/utils.h>
 
 struct Notification {
   int64_t timestamp;
@@ -31,7 +31,7 @@ struct Notification {
 
 int main(int argc, char** argv) {
         // retrieve a DomainSocketNotifier that accepts a maximum of 5 subscribers, broadcasting a Notification
-        auto expected_notifier = ipcpp::event::DomainSocketNotifier<Notification, int>::create("/tmp/ipcpp.sock", 5);
+        auto expected_notifier = carry::event::DomainSocketNotifier<Notification, int>::create("/tmp/carry.sock", 5);
         if (!expected_notifier.has_value()) {
                 std::cerr << "Failed to create DomainSocketNotifier: " << expected_notifier.error() << std::endl;
         }
@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
                 
                 // broadcast the current timestamp
                 Notification event {
-                        .timestamp = ipcpp::utils::timestamp()
+                        .timestamp = carry::utils::timestamp()
                 };
                 notifier.notify_observers(event);
         }
@@ -64,8 +64,8 @@ int main(int argc, char** argv) {
 ```c++
 // domain_socket_observer_main.cpp
 
-#include <ipcpp/event/domain_socket_observer.h>
-#include <ipcpp/utils/utils.h>
+#include <carry/event/domain_socket_observer.h>
+#include <carry/utils/utils.h>
 
 #include <chrono>
 
@@ -75,7 +75,7 @@ struct Notification {
 
 int main(int argc, char** argv) {
         using namespace std::chrono_literals;
-        auto expected_observer = ipcpp::event::DomainSocketObserver<Notification, int>::create("/tmp/ipcpp.sock");
+        auto expected_observer = carry::event::DomainSocketObserver<Notification, int>::create("/tmp/carry.sock");
         if (!expected_observer.has_value()) {
                 std::cerr << "Failed to create DomainSocketObserver: " << expected_observer.error() << std::endl;
                 return 1;
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
         
         while (true) {
                 auto result = observer.receive([](Notification event) -> int64_t {
-                        int64_t timestamp = ipcpp::utils::timestamp();
+                        int64_t timestamp = carry::utils::timestamp();
                         return timestamp - event.timestamp;
                 });
                 if (result.has_value()) {

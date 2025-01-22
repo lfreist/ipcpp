@@ -2,7 +2,7 @@
  * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -10,7 +10,7 @@
 #include <atomic>
 #include <concepts>
 
-namespace ipcpp::atomic {
+namespace carry::atomic {
 
 template <typename... Ts>
 struct largest_lock_free;

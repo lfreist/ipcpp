@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -14,7 +14,7 @@
 
 using namespace std::chrono_literals;
 
-namespace ipcpp::ps {
+namespace carry::ps {
 
 namespace publisher {
 
@@ -77,4 +77,4 @@ struct Options {
 
 }  // namespace subscriber
 
-}  // namespace ipcpp::ps
+}  // namespace carry::ps

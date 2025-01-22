@@ -2,7 +2,7 @@
 * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #include <ipcpp/shm/shared_memory_file.h>
@@ -10,7 +10,7 @@
 #include <chrono>
 #include <cstddef>
 
-namespace ipcpp::shm {
+namespace carry::shm {
 
 // === shared_memory_file ==============================================================================================
 // _____________________________________________________________________________________________________________________
@@ -50,4 +50,4 @@ shared_memory_file::native_handle_t shared_memory_file::native_handle() const {
   return _native_handle;
 }
 
-}  // namespace ipcpp::shm
+}  // namespace carry::shm

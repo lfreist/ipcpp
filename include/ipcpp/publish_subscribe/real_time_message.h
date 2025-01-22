@@ -2,7 +2,7 @@
  * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <numeric>
 #include <optional>
 
-namespace ipcpp::ps::rt {
+namespace carry::ps::rt {
 
 template <typename T_p>
 class Message {
@@ -119,4 +119,4 @@ class Message {
   alignas(std::hardware_destructive_interference_size) std::atomic<uint_t> _active_reference_counter = 0;
 };
 
-}  // namespace ipcpp::ps::rt
+}  // namespace carry::ps::rt

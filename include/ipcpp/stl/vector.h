@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 #pragma once
 
@@ -17,7 +17,7 @@
 #include <memory>
 #include <utility>
 
-namespace ipcpp {
+namespace carry {
 
 template <typename T_p, typename T_Allocator = pool_allocator<T_p>>
 class IPCPP_API vector {
@@ -467,11 +467,11 @@ class IPCPP_API vector {
   }
 
   /**
-   * @brief Range check used by ipcpp::vector::at()
+   * @brief Range check used by carry::vector::at()
    */
   void _m_range_check(size_type n) const {
     if (n >= size()) {
-      throw std::out_of_range(std::format("ipcpp::vector::_m_range_check({}): out of range: size is {}", n, size()));
+      throw std::out_of_range(std::format("carry::vector::_m_range_check({}): out of range: size is {}", n, size()));
     }
   }
 
@@ -485,7 +485,7 @@ class IPCPP_API vector {
 
   template <typename... T_Args>
   void _m_realloc_append(T_Args&&... args) {
-    const size_type len = _m_check_length(1u, "ipcpp::vector::_m_realloc_append");
+    const size_type len = _m_check_length(1u, "carry::vector::_m_realloc_append");
     pointer old_start = _m_start_ptr();
     pointer old_finish = _m_finish_ptr();
     auto [new_start, new_size] = _m_allocate(len);
@@ -501,7 +501,7 @@ class IPCPP_API vector {
 
   template <typename... T_Args>
   void _m_realloc_append_n(size_type n, T_Args&&... args) {
-    const size_type len = _m_check_length(n, "ipcpp::vector::_m_realloc_append_n");
+    const size_type len = _m_check_length(n, "carry::vector::_m_realloc_append_n");
     pointer old_start = _m_start_ptr();
     pointer old_finish = _m_finish_ptr();
     auto [new_start, new_capacity] = _m_allocate(len);
@@ -518,7 +518,7 @@ class IPCPP_API vector {
   }
 
   void _m_uninitialized_realloc_n(size_type n) {
-    const size_type len = _m_check_length(n, "ipcpp::vector::_m_uninitialized_realloc_n");
+    const size_type len = _m_check_length(n, "carry::vector::_m_uninitialized_realloc_n");
     pointer old_start = _m_start_ptr();
     pointer old_finish = _m_finish_ptr();
     auto [new_start, new_size] = _m_allocate(len);
@@ -533,7 +533,7 @@ class IPCPP_API vector {
   void _m_realloc_copy(size_type n) {
     if (max_size() < n) {
       throw std::length_error(
-          std::format("ipcpp::vector::_m_realloc_copy: length_error: max_size: {}, size: {}", max_size(), n));
+          std::format("carry::vector::_m_realloc_copy: length_error: max_size: {}, size: {}", max_size(), n));
     }
     pointer old_start = _m_start_ptr();
     pointer old_finish = _m_finish_ptr();
@@ -620,4 +620,4 @@ auto operator<=>(const vector<T_p, T_Alloc>& lhs,
                                                 rhs.data() + rhs.size());
 }
 
-}  // namespace ipcpp
+}  // namespace carry

@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -12,7 +12,7 @@
 #include <limits>
 #include <cstdint>
 
-namespace ipcpp::numeric {
+namespace carry::numeric {
 
 template <typename T_p>
   requires std::is_unsigned_v<T_p> && std::is_integral_v<T_p>
@@ -116,4 +116,4 @@ struct half_size_int<uint8_t> {
 template <typename T>
 using half_size_int_t = typename half_size_int<T>::type;
 
-}  // namespace ipcpp::numeric
+}  // namespace carry::numeric

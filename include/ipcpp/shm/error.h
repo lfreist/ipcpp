@@ -2,14 +2,14 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
 
 #include <iostream>
 
-namespace ipcpp::shm {
+namespace carry::shm {
 
 enum class error_t {
   success = 0,
@@ -27,7 +27,7 @@ enum class error_t {
 
 class error_category final : public std::error_category {
  public:
-  [[nodiscard]] const char* name() const noexcept override { return "ipcpp::shm::error_t"; }
+  [[nodiscard]] const char* name() const noexcept override { return "carry::shm::error_t"; }
   [[nodiscard]] std::string message(int ev) const override {
     switch (static_cast<error_t>(ev)) {
       case error_t::success:
@@ -57,4 +57,4 @@ class error_category final : public std::error_category {
   }
 };
 
-}  // namespace ipcpp::shm
+}  // namespace carry::shm

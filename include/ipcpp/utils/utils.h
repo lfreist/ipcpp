@@ -8,7 +8,7 @@
 
 #include <chrono>
 
-namespace ipcpp::utils {
+namespace carry::utils {
 
 inline int64_t timestamp() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();

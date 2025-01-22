@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -17,11 +17,11 @@
 #include <ipcpp/utils/file_lock.h>
 #include <ipcpp/shm/mapped_memory.h>
 
-namespace ipcpp {
+namespace carry {
 
 
 /**
- * @brief A topic is identified by an id provided in its constructor. ipcpp processes that use the name topic name share
+ * @brief A topic is identified by an id provided in its constructor. carry processes that use the name topic name share
  * the same shared memory and sockets.
  */
 class ShmRegistryEntry final {
@@ -80,6 +80,6 @@ class ShmRegistry {
 
 std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_shm_entry(const std::string& id, std::size_t min_shm_size = 0);
 
-typedef std::shared_ptr<ShmRegistryEntry> Topic;
+typedef std::shared_ptr<ShmRegistryEntry> ShmEntryPtr;
 
-}  // namespace ipcpp
+}  // namespace carry

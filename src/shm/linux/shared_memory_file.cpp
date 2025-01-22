@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #include <ipcpp/utils/platform.h>
@@ -18,7 +18,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace ipcpp::shm {
+namespace carry::shm {
 
 // _____________________________________________________________________________________________________________________
 shared_memory_file::~shared_memory_file() {

@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  *
  */
 
@@ -15,7 +15,7 @@
 #include <expected>
 #include <system_error>
 
-namespace ipcpp::shm {
+namespace carry::shm {
 
 enum class MappingType { SINGLE, DOUBLE };
 
@@ -58,4 +58,4 @@ std::expected<std::uintptr_t, std::error_code> IPCPP_API _map_memory(std::size_t
                                                            shared_memory_file::native_handle_t file_handle,
                                                            std::size_t offset, AccessMode access_mode);
 
-}  // namespace ipcpp::shm
+}  // namespace carry::shm

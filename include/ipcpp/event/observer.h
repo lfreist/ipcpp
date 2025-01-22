@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <functional>
 #include <future>
 
-namespace ipcpp::event {
+namespace carry::event {
 
 namespace internal {
 template <typename SubscriptionRetT, typename = void>
@@ -121,4 +121,4 @@ concept is_observer = requires (T observer) {
 
 }
 
-}  // namespace ipcpp::event
+}  // namespace carry::event

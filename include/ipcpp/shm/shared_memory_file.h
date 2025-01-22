@@ -12,7 +12,7 @@
 #include <windows.h>
 #endif
 
-namespace ipcpp::shm {
+namespace carry::shm {
 
 /**
  * RAII class for opening/creating a shared memory file

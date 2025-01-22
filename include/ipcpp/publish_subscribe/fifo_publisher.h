@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -23,7 +23,7 @@
 #include <optional>
 #include <utility>
 
-namespace ipcpp::publish_subscribe {
+namespace carry::publish_subscribe {
 
 namespace internal {
 
@@ -124,7 +124,7 @@ class Publisher final {
   }
 
  private:
-  Publisher(Topic&& topic, const ps::publisher::Options& options) : _topic(std::move(topic)), _options(options) {}
+  Publisher(ShmEntryPtr&& topic, const ps::publisher::Options& options) : _topic(std::move(topic)), _options(options) {}
 
  private:
   std::error_code _m_initialize_notifier() {
@@ -143,7 +143,7 @@ class Publisher final {
   void _m_notify_observers(std::size_t index) { _notifier->notify_observers(index); }
 
  private:
-  Topic _topic = nullptr;
+  ShmEntryPtr _topic = nullptr;
   std::unique_ptr<ps::shm_message_queue<data_access_type>> _message_queue = nullptr;
   ps::publisher::Options _options;
   std::unique_ptr<notifier_type> _notifier = nullptr;
@@ -245,7 +245,7 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
   }
 
  private:
-  Publisher(Topic&& topic, const ps::publisher::Options& options) : _topic(std::move(topic)), _options(options) {}
+  Publisher(ShmEntryPtr&& topic, const ps::publisher::Options& options) : _topic(std::move(topic)), _options(options) {}
 
   [[nodiscard]] std::size_t _m_num_observers() const {
     return _message_queue->header()->num_subscribers.load(std::memory_order_acquire);
@@ -325,9 +325,9 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
   }
 
  private:
-  Topic _topic = nullptr;
+  ShmEntryPtr _topic = nullptr;
   std::unique_ptr<ps::shm_message_queue<data_access_type>> _message_queue = nullptr;
   ps::publisher::Options _options;
 };
 
-}  // namespace ipcpp::publish_subscribe
+}  // namespace carry::publish_subscribe

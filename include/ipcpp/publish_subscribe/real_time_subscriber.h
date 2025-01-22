@@ -2,7 +2,7 @@
  * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -14,7 +14,7 @@
 
 #include <optional>
 
-namespace ipcpp::ps {
+namespace carry::ps {
 
 template <typename T_p>
 class RealTimeSubscriber {
@@ -78,7 +78,7 @@ class RealTimeSubscriber {
   }
 
  private:
-  RealTimeSubscriber(Topic&& topic, const subscriber::Options& options, message_buffer<message_type>&& buffer)
+  RealTimeSubscriber(ShmEntryPtr&& topic, const subscriber::Options& options, message_buffer<message_type>&& buffer)
       : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)) {}
 
  private:
@@ -88,11 +88,11 @@ class RealTimeSubscriber {
   }
 
  private:
-  Topic _topic = nullptr;
+  ShmEntryPtr _topic = nullptr;
   message_buffer<message_type> _message_buffer;
   ps::subscriber::Options _options;
   uint_t _initial_message_info = std::numeric_limits<std::uint64_t>::max();
   uint_half_t subscriber_id;
 };
 
-}  // namespace ipcpp::ps
+}  // namespace carry::ps

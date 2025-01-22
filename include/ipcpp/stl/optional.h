@@ -2,14 +2,14 @@
  * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
 
 #include <memory>
 
-namespace ipcpp {
+namespace carry {
 
 template <typename T_p>
 class optional {
@@ -69,4 +69,4 @@ class optional {
   alignas(T_p) char _storage[sizeof(T_p)];
 };
 
-}  // namespace ipcpp
+}  // namespace carry

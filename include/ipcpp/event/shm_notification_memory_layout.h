@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <mutex>
 
-namespace ipcpp::event {
+namespace carry::event {
 
 struct shm_atomic_notification_header {
   alignas(std::hardware_destructive_interference_size) std::atomic_int64_t message_counter = -1;
@@ -69,4 +69,4 @@ struct shm_notification_memory_layout {
   shm::ring_buffer<message_type> message_buffer;
 };
 
-}  // namespace ipcpp::event
+}  // namespace carry::event

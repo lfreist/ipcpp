@@ -2,7 +2,7 @@
  * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -18,7 +18,7 @@
 #include <expected>
 #include <string>
 
-namespace ipcpp::ps {
+namespace carry::ps {
 
 template <typename T_p>
 class RealTimePublisher {
@@ -74,7 +74,7 @@ class RealTimePublisher {
     auto& message = _message_buffer[index];
     auto message_id = _m_build_message_identifier(_publisher_id, local_message_id);
     message.emplace(message_id, std::forward<T_Args>(args)...);
-    logging::debug("RealTimePublisher<'{}'>::publish: emplaced message #{} (index: {})", _topic->id(), message_id,
+    logging::debug("RealTimePublisher<'{}'>::publish: emplaced message #{} (index: {})", _shm_data->id(), message_id,
                    index);
     _m_notify_subscribers(message_id);
     _prev_published_message = std::move(message.acquire_unsafe());
@@ -82,26 +82,26 @@ class RealTimePublisher {
   }
 
  private:
-  RealTimePublisher(Topic&& topic, const publisher::Options& options, message_buffer<message_type>&& buffer,
+  RealTimePublisher(ShmEntryPtr shm_data, const publisher::Options& options, message_buffer<message_type>&& buffer,
                     uint_half_t publisher_id)
-      : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)), _publisher_id(publisher_id) {
+      : _shm_data(std::move(shm_data)), _options(options), _message_buffer(std::move(buffer)), _publisher_id(publisher_id) {
     _pp_header = _message_buffer.per_publisher_header(_publisher_id);
   }
 
  private:
   inline void _m_notify_subscribers(uint_t message_id) {
     _message_buffer.common_header()->latest_published.store(message_id, std::memory_order_relaxed);
-    logging::debug("RealTimePublisher<'{}'>::publish: notified subscribers about published message #{}", _topic->id(),
+    logging::debug("RealTimePublisher<'{}'>::publish: notified subscribers about published message #{}", _shm_data->id(),
                    message_id);
   }
 
-  inline uint_t _m_build_message_identifier(uint_t index, uint_t local_message_id) {
-    return (index << std::numeric_limits<numeric::half_size_int<uint_t>>::digits) |
-           (static_cast<numeric::half_size_int<uint_t>::type>(local_message_id));
+  inline uint_t _m_build_message_identifier(uint_half_t index, uint_half_t local_message_id) {
+    return static_cast<uint_t>(index) << std::numeric_limits<numeric::half_size_int<uint_t>>::digits |
+           static_cast<uint_t>(local_message_id);
   }
 
  private:
-  Topic _topic = nullptr;
+  ShmEntryPtr _shm_data = nullptr;
   message_buffer<message_type> _message_buffer;
   message_buffer<message_type>::PerPublisherHeader* _pp_header = nullptr;
   ps::publisher::Options _options;
@@ -109,4 +109,4 @@ class RealTimePublisher {
   uint_half_t _publisher_id;
 };
 
-}  // namespace ipcpp::ps
+}  // namespace carry::ps

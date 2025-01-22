@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -23,7 +23,7 @@
 #include <climits>
 #include <cstdint>
 
-namespace ipcpp {
+namespace carry {
 
 template <typename T> requires std::is_integral_v<T>
 void wait(const std::atomic<T>& value, const T old, const std::memory_order order = std::memory_order_acquire) {
@@ -74,7 +74,7 @@ class mutex {
   alignas(std::hardware_destructive_interference_size) std::atomic_bool _flag;
 };
 
-static_assert(concepts::lockable<mutex>, "ipcpp::mutex does not fulfill the requirements of mutex");
+static_assert(concepts::lockable<mutex>, "carry::mutex does not fulfill the requirements of mutex");
 
 class shared_mutex {
  public:
@@ -168,7 +168,7 @@ class shared_mutex {
 };
 
 static_assert(concepts::shared_mutex<shared_mutex>,
-              "ipcpp::shared_mutex does not fulfill the requirements of shared_mutex");
+              "carry::shared_mutex does not fulfill the requirements of shared_mutex");
 
 #ifdef __linux__
 
@@ -267,4 +267,4 @@ class shared_futex {
 
 #endif
 
-}  // namespace ipcpp
+}  // namespace carry

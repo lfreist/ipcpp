@@ -2,22 +2,22 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #include <ipcpp/utils/platform.h>
 
 #ifdef IPCPP_WINDOWS
 
-#include <ipcpp/shm/mapped_memory.h>
-#include <ipcpp/utils/logging.h>
+#include <carry/shm/mapped_memory.h>
+#include <carry/utils/logging.h>
 
 #include <expected>
 
 #define NOMINMAX
 #include <windows.h>
 
-namespace ipcpp::shm {
+namespace carry::shm {
 
 // === private definition: map_memory: windows implementation ==========================================================
 // _____________________________________________________________________________________________________________________
@@ -95,6 +95,6 @@ MappedMemory<MappingType::DOUBLE>::~MappedMemory() {
   }
 }
 
-}  // namespace ipcpp::shm
+}  // namespace carry::shm
 
 #endif

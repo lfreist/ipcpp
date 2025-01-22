@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #include <ipcpp/utils/platform.h>
@@ -14,7 +14,7 @@
 
 #include <sys/mman.h>
 
-namespace ipcpp::shm {
+namespace carry::shm {
 
 // === private definition: map_memory: linux (posix) implementation =====================================================
 // _____________________________________________________________________________________________________________________
@@ -86,6 +86,6 @@ MappedMemory<MappingType::DOUBLE>::~MappedMemory() {
   }
 }
 
-}  // namespace ipcpp::shm
+}  // namespace carry::shm
 
 #endif

@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -19,7 +19,7 @@
 
 #include <string>
 
-namespace ipcpp::publish_subscribe {
+namespace carry::publish_subscribe {
 
 namespace internal {
 
@@ -77,10 +77,10 @@ class Subscriber final {
   }
 
  private:
-  Subscriber(Topic&& topic, const ps::subscriber::Options& options) : _topic(std::move(topic)), _options(options) {}
+  Subscriber(ShmEntryPtr&& topic, const ps::subscriber::Options& options) : _topic(std::move(topic)), _options(options) {}
 
  private:
-  Topic _topic = nullptr;
+  ShmEntryPtr _topic = nullptr;
   std::unique_ptr<ps::shm_message_queue<data_access_type>> _message_queue = nullptr;
   ps::subscriber::Options _options;
   std::unique_ptr<observer_type> _observer = nullptr;
@@ -154,13 +154,13 @@ class Subscriber<T_Data, internal::ShmDefault> final {
   }
 
  private:
-  Subscriber(Topic&& topic, const ps::subscriber::Options& options, ps::shm_message_queue<data_access_type>&& mq) : _topic(std::move(topic)), _options(options), _message_queue(std::move(mq)) {}
+  Subscriber(ShmEntryPtr&& topic, const ps::subscriber::Options& options, ps::shm_message_queue<data_access_type>&& mq) : _topic(std::move(topic)), _options(options), _message_queue(std::move(mq)) {}
 
  private:
-  Topic _topic = nullptr;
+  ShmEntryPtr _topic = nullptr;
   ps::shm_message_queue<data_access_type> _message_queue = nullptr;
   ps::subscriber::Options _options;
   std::uint64_t _next_message_id = 0;
 };
 
-}  // namespace ipcpp::publish_subscribe
+}  // namespace carry::publish_subscribe

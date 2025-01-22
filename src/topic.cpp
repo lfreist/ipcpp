@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #include <ipcpp/topic.h>
@@ -12,7 +12,7 @@
 #include <filesystem>
 #include <format>
 
-namespace ipcpp {
+namespace carry {
 
 std::unordered_map<std::string, std::shared_ptr<ShmRegistryEntry>> ShmRegistry::_shm_registry{};
 std::mutex ShmRegistry::_mutex{};
@@ -21,8 +21,21 @@ std::mutex ShmRegistry::_mutex{};
 // _____________________________________________________________________________________________________________________
 std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> ShmRegistry::get_shm_entry(const std::string& id, std::size_t min_shm_size) {
   std::unique_lock lock(ShmRegistry::_mutex);
+  if (min_shm_size == 0) {
+    // only try read
+    auto e_entry = open_shm(id);
+    if (e_entry.has_value()) {
+      return e_entry;
+    }
+    // does not exist
+    return std::unexpected(e_entry.error());
+  }
   auto e_entry = open_shm(id);
   if (e_entry.has_value()) {
+    if (e_entry.value()->shm().size() < min_shm_size) {
+      // TODO: error is that shm exists but it is too small
+      return std::unexpected(std::error_code(1, std::system_category()));
+    }
     return e_entry;
   } else {
     return create_shm(id, min_shm_size);
@@ -84,7 +97,7 @@ std::string ShmRegistryEntry::shm_name(std::string_view id) {
 const std::string& ShmRegistryEntry::id() const { return _id; }
 
 // _____________________________________________________________________________________________________________________
-bool ShmRegistryEntry::operator==(const ipcpp::ShmRegistryEntry& other) const {
+bool ShmRegistryEntry::operator==(const carry::ShmRegistryEntry& other) const {
   return _id == other._id;
 }
 
@@ -93,4 +106,4 @@ std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_shm_entry(
   return ShmRegistry::get_shm_entry(id, min_shm_size);
 }
 
-}  // namespace ipcpp
+}  // namespace carry

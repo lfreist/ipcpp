@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <iterator>
 
-namespace ipcpp {
+namespace carry {
 
 namespace detail {
 
@@ -186,4 +186,4 @@ template <typename T_Iterator, typename T_Container>
   return normal_iterator<T_Iterator, T_Container>(i.base() + n);
 }
 
-}  // namespace ipcpp
+}  // namespace carry

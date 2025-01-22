@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 #include <ipcpp/publish_subscribe/message_buffer.h>
 #include <ipcpp/publish_subscribe/real_time_publisher.h>
@@ -31,13 +31,13 @@ struct Message {
 };
 
 void a2b() {
-  auto publisher_a2b = ipcpp::ps::RealTimePublisher<Message>::create("topic_a2b");
+  auto publisher_a2b = carry::ps::RealTimePublisher<Message>::create("topic_a2b");
   if (!publisher_a2b.has_value()) {
     std::cerr << "publisher_a2b: " << publisher_a2b.error().message() << std::endl;
     exit(1);
   }
   std::this_thread::sleep_for(1s);
-  auto subscriber_b2a = ipcpp::ps::RealTimeSubscriber<Message>::create("topic_b2a");
+  auto subscriber_b2a = carry::ps::RealTimeSubscriber<Message>::create("topic_b2a");
   if (!subscriber_b2a.has_value()) {
     std::cerr << "subscriber_b2a: " << subscriber_b2a.error().message() << std::endl;
     exit(1);
@@ -67,14 +67,14 @@ void a2b() {
 }
 
 void b2a() {
-  ipcpp::logging::set_level(ipcpp::logging::level::debug);
-  auto publisher_b2a = ipcpp::ps::RealTimePublisher<Message>::create("topic_b2a");
+  carry::logging::set_level(carry::logging::level::debug);
+  auto publisher_b2a = carry::ps::RealTimePublisher<Message>::create("topic_b2a");
   if (!publisher_b2a.has_value()) {
     std::cerr << "publisher_b2a: " << publisher_b2a.error().message() << std::endl;
     exit(1);
   }
   std::this_thread::sleep_for(1s);
-  auto subscriber_a2b = ipcpp::ps::RealTimeSubscriber<Message>::create("topic_a2b");
+  auto subscriber_a2b = carry::ps::RealTimeSubscriber<Message>::create("topic_a2b");
   if (!subscriber_a2b.has_value()) {
     std::cerr << "subscriber_a2b: " << subscriber_a2b.error().message() << std::endl;
     exit(1);
@@ -101,12 +101,12 @@ int main() {
   std::thread observer(b2a);
 
   sync_point.arrive_and_wait();
-  auto start = ipcpp::utils::timestamp();
+  auto start = carry::utils::timestamp();
   benchmark_start_barrier.arrive_and_wait();
 
   benchmark_stop_barrier.arrive_and_wait();
 
-  auto stop = ipcpp::utils::timestamp();
+  auto stop = carry::utils::timestamp();
   
   notifier.join();
   observer.join();

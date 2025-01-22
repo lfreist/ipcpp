@@ -2,7 +2,7 @@
  * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #include <memory>
@@ -28,25 +28,25 @@ struct Data {
 
 void benchmark_std_optional() {
   std::optional<Data> opt_data;
-  auto start = ipcpp::utils::timestamp();
+  auto start = carry::utils::timestamp();
   for (std::size_t i = 0; i < iterations; ++i) {
     opt_data.emplace();
   }
-  auto end = ipcpp::utils::timestamp();
+  auto end = carry::utils::timestamp();
 
   std::cout << "std::optional::emplace: " << (end - start) << "ns (" << (end-start)/iterations << "ns per emplace)" << std::endl;
 }
 
 void benchmark_ipcpp_optional() {
-  ipcpp::optional<Data> opt_data;
-  auto start = ipcpp::utils::timestamp();
+  carry::optional<Data> opt_data;
+  auto start = carry::utils::timestamp();
   for (std::size_t i = 0; i < iterations; ++i) {
     opt_data.emplace();
 
   }
-  auto end = ipcpp::utils::timestamp();
+  auto end = carry::utils::timestamp();
 
-  std::cout << "ipcpp::optional::emplace: " << (end - start) << "ns (" << (end-start)/iterations << "ns per emplace)" << std::endl;
+  std::cout << "carry::optional::emplace: " << (end - start) << "ns (" << (end-start)/iterations << "ns per emplace)" << std::endl;
 }
 
 int main() {

@@ -2,7 +2,7 @@
  * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 
 using namespace std::chrono_literals;
 
-namespace ipcpp {
+namespace carry {
 
 inline std::error_code initialize_runtime(const std::size_t size = 0) {
   if (size != 0) {
@@ -37,4 +37,4 @@ inline std::error_code initialize_runtime(const std::size_t size = 0) {
   }
 }
 
-}  // namespace ipcpp
+}  // namespace carry

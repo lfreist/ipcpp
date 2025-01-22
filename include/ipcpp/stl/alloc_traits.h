@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -11,7 +11,7 @@
 
 #include <memory>
 
-namespace ipcpp {
+namespace carry {
 
 template <typename T_Alloc>
 struct allocator_traits {
@@ -48,7 +48,7 @@ struct allocator_traits {
                          }) {
       return {pointer_to_offset(get_allocator().allocate(n)), n * sizeof(value_type)};
     } else {
-      static_assert(false, "T_Alloc::allocate does not fulfill the requirements to be used with ipcpp::vector");
+      static_assert(false, "T_Alloc::allocate does not fulfill the requirements to be used with carry::vector");
     }
   };
 
@@ -78,7 +78,7 @@ struct allocator_traits {
                          }) {
       return {pointer_to_offset(get_allocator().allocate(n)), n * sizeof(value_type)};
     } else {
-      static_assert(false, "T_Alloc does not fulfill the requirements to be used with ipcpp::vector");
+      static_assert(false, "T_Alloc does not fulfill the requirements to be used with carry::vector");
     }
   }
 
@@ -139,4 +139,4 @@ struct allocator_traits {
   }
 };
 
-}  // namespace ipcpp
+}  // namespace carry

@@ -2,7 +2,7 @@
  * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -11,7 +11,7 @@
 #include <ipcpp/utils/mutex.h>
 #include <ipcpp/utils/logging.h>
 
-namespace ipcpp::ps {
+namespace carry::ps {
 
 template <typename T_p>
 class Message {
@@ -136,4 +136,4 @@ class Message {
   std::atomic_int64_t _active_reference_counter = 0;
 };
 
-}  // namespace ipcpp::ps
+}  // namespace carry::ps

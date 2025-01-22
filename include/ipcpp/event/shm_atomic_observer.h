@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -19,7 +19,7 @@
 
 using namespace std::chrono_literals;
 
-namespace ipcpp::event {
+namespace carry::event {
 
 class ShmAtomicObserver {
  public:
@@ -46,16 +46,16 @@ class ShmAtomicObserver {
   }
 
  private:
-  explicit ShmAtomicObserver(Topic&& topic)
+  explicit ShmAtomicObserver(ShmEntryPtr&& topic)
       : _topic(std::move(topic)) {
     _last_value = reinterpret_cast<event_id_type*>(_topic->shm().addr())->load(std::memory_order_acquire);
     _n_value = reinterpret_cast<event_id_type*>(_topic->shm().addr());
   }
 
  private:
-  Topic _topic;
+  ShmEntryPtr _topic;
   event_id_type* _n_value = nullptr;
   uint64_t _last_value;
 };
 
-}  // namespace ipcpp::event
+}  // namespace carry::event

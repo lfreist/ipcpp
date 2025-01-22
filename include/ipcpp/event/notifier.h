@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -11,7 +11,7 @@
 #include <concepts>
 #include <string>
 
-namespace ipcpp::event {
+namespace carry::event {
 
 namespace internal {
 
@@ -64,4 +64,4 @@ concept is_notifier = requires (T notifier, typename T::notification_type notifi
  { notifier.identifier() } -> std::convertible_to<std::string_view>;
 };
 
-}  // namespace ipcpp::event
+}  // namespace carry::event

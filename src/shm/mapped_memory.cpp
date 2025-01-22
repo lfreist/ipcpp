@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #include <ipcpp/shm/mapped_memory.h>
@@ -11,7 +11,7 @@
 
 #include <cstring>
 
-namespace ipcpp::shm {
+namespace carry::shm {
 // === member function definitions: platform unspecific implementation =================================================
 // ___ Constructor _____________________________________________________________________________________________________
 // _____________________________________________________________________________________________________________________
@@ -222,4 +222,4 @@ std::uintptr_t MappedMemory<MappingType::DOUBLE>::addr() const {
   return _mapped_region;
 }
 
-}  // namespace ipcpp::shm
+}  // namespace carry::shm

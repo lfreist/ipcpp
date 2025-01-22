@@ -4,7 +4,7 @@
 
 #pragma once
 
-namespace ipcpp::event {
+namespace carry::event {
 
 enum class ObserverRequest {
   SUBSCRIBE,
@@ -13,4 +13,4 @@ enum class ObserverRequest {
   RESUME_SUBSCRIPTION,
 };
 
-}  // namespace ipcpp::event
+}  // namespace carry::event

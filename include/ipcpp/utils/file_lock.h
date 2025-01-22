@@ -1,272 +1,78 @@
-/**
- * Copyright 2024, Leon Freist (https://github.com/lfreist)
- * Author: Leon Freist <freist.leon@gmail.com>
- *
- * This file is part of ipcpp.
- */
-
-#pragma once
-
-#include <ipcpp/utils/platform.h>
-
-#ifdef IPCPP_UNIX
-
+#include <string>
+#include <stdexcept>
+#include <system_error>
+#include <cerrno>
+#include <utility>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <fcntl.h>
 #include <unistd.h>
-
-#include <stdexcept>
-#include <string>
-#include <system_error>
-#include <filesystem>
-#include <format>
-
-namespace ipcpp {
-
-class file_lock {
- public:
-  explicit file_lock(const std::string& name) : filePath_(std::format("{}/{}", std::filesystem::temp_directory_path().string(), name)), fd_(-1) {
-    // Open the file for locking
-    fd_ = open(filePath_.c_str(), O_CREAT | O_RDWR, 0644);
-    if (fd_ == -1) {
-      throw std::system_error(errno, std::generic_category(), "Failed to open file");
-    }
-  }
-
-  ~file_lock() {
-    if (fd_ != -1) {
-      close(fd_);
-    }
-  }
-
-  // Exclusive lock (write lock)
-  void lock() const {
-    struct flock fl = {};
-    fl.l_type = F_WRLCK;  // Write lock
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len = 0;  // Lock the whole file
-
-    if (fcntl(fd_, F_SETLKW, &fl) == -1) {
-      throw std::system_error(errno, std::generic_category(), "Failed to lock file");
-    }
-  }
-
-  // Shared lock (read lock)
-  void lock_shared() const {
-    struct flock fl = {};
-    fl.l_type = F_RDLCK;  // Read lock
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len = 0;  // Lock the whole file
-
-    if (fcntl(fd_, F_SETLKW, &fl) == -1) {
-      throw std::system_error(errno, std::generic_category(), "Failed to acquire shared lock on file");
-    }
-  }
-
-  // Unlock the file
-  void unlock() const {
-    struct flock fl = {};
-    fl.l_type = F_UNLCK;  // Unlock
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len = 0;  // Unlock the whole file
-
-    if (fcntl(fd_, F_SETLK, &fl) == -1) {
-      throw std::system_error(errno, std::generic_category(), "Failed to unlock file");
-    }
-  }
-
-  // Unlock the file for shared locks
-  void unlock_shared() const {
-    unlock();  // Shared and exclusive locks are both released by the same unlock operation
-  }
-
-  // Try to acquire an exclusive lock (write lock) without blocking
-  [[nodiscard]] bool try_lock() const {
-    struct flock fl = {};
-    fl.l_type = F_WRLCK;  // Write lock
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len = 0;  // Lock the whole file
-
-    if (fcntl(fd_, F_SETLK, &fl) == -1) {
-      if (errno == EAGAIN || errno == EACCES) {
-        return false;  // File is already locked
-      }
-      throw std::system_error(errno, std::generic_category(), "Failed to try_lock file");
-    }
-    return true;
-  }
-
-  // Try to acquire a shared lock (read lock) without blocking
-  [[nodiscard]] bool try_lock_shared() const {
-    struct flock fl = {};
-    fl.l_type = F_RDLCK;  // Read lock
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len = 0;  // Lock the whole file
-
-    if (fcntl(fd_, F_SETLK, &fl) == -1) {
-      if (errno == EAGAIN || errno == EACCES) {
-        return false;  // File is already locked
-      }
-      throw std::system_error(errno, std::generic_category(), "Failed to try_lock_shared file");
-    }
-    return true;
-  }
-
- private:
-  std::string filePath_;
-  int fd_;
-};
-
-class unique_file_lock {
- public:
-  explicit unique_file_lock(file_lock& handle) : _handle(handle) { _handle.lock(); }
-
-  ~unique_file_lock() { _handle.unlock(); }
-
-  void lock() const {
-    _handle.lock();
-  }
-
-  void unlock() const {
-    _handle.unlock();
-  }
-
-  [[nodiscard]] bool try_lock() const {
-    return _handle.try_lock();
-  }
-
- private:
-  file_lock& _handle;
-};
-
-class shared_file_lock {
- public:
-  explicit shared_file_lock(file_lock& handle) : _handle(handle) { _handle.lock_shared(); }
-
-  ~shared_file_lock() { _handle.unlock_shared(); }
-
-  void lock() const {
-    _handle.lock();
-  }
-
-  void lock_shared() const {
-    _handle.lock_shared();
-  }
-
-  void unlock() const {
-    _handle.unlock();
-  }
-
-  [[nodiscard]] bool try_lock() const {
-    return _handle.try_lock();
-  }
-
-  [[nodiscard]] bool try_lock_shared() const {
-    return _handle.try_lock_shared();
-  }
-
- private:
-  file_lock& _handle;
-};
-
-}  // namespace ipcpp
-
-#else
-
-namespace ipcpp {
-
-class file_lock {
- public:
-  explicit file_lock(const std::string& name) {
-  }
-
-  ~file_lock() {
-  }
-
-  // Exclusive lock (write lock)
-  void lock() const {
-  }
-
-  // Shared lock (read lock)
-  void lock_shared() const {
-  }
-
-  // Unlock the file
-  void unlock() const {
-
-  }
-
-  // Unlock the file for shared locks
-  void unlock_shared() const {
-    unlock();  // Shared and exclusive locks are both released by the same unlock operation
-  }
-
-  // Try to acquire an exclusive lock (write lock) without blocking
-  [[nodiscard]] bool try_lock() const {
-    return true;
-  }
-
- private:
-  std::string filePath_;
-  int fd_;
-};
-
-class unique_file_lock {
- public:
-  explicit unique_file_lock(file_lock& handle) : _handle(handle) { _handle.lock(); }
-
-  ~unique_file_lock() { _handle.unlock(); }
-
-  void lock() const {
-    _handle.lock();
-  }
-
-  void unlock() const {
-    _handle.unlock();
-  }
-
-  [[nodiscard]] bool try_lock() const {
-    return _handle.try_lock();
-  }
-
- private:
-  file_lock& _handle;
-};
-
-class shared_file_lock {
- public:
-  explicit shared_file_lock(file_lock& handle) : _handle(handle) { _handle.lock_shared(); }
-
-  ~shared_file_lock() { _handle.unlock_shared(); }
-
-  void lock() const {
-    _handle.lock();
-  }
-
-  void lock_shared() const {
-    _handle.lock_shared();
-  }
-
-  void unlock() const {
-    _handle.unlock();
-  }
-
-  [[nodiscard]] bool try_lock() const {
-    return _handle.try_lock();
-  }
-
-  [[nodiscard]] bool try_lock_shared() const {
-    return true;
-  }
-
- private:
-  file_lock& _handle;
-};
-
-}  // namespace ipcpp
-
 #endif
+
+namespace carry {
+
+class lock_file {
+ public:
+  typedef int native_handle;
+ public:
+  explicit lock_file(std::string file_path) : _file_path(std::move(file_path)) {
+    _file_handle = open(_file_path.c_str(), O_CREAT | O_RDWR, 0666);
+    if (_file_handle == -1) {
+      throw std::system_error(errno, std::generic_category(), "Failed to open lock file");
+    }
+  }
+
+  ~lock_file() {
+    unlock();
+    close(_file_handle);
+  }
+
+  bool try_lock() {
+    if (_lock_owned) {
+      return true;
+    }
+    if (_m_lock()) {
+      _lock_owned = true;
+    }
+    return _lock_owned;
+  }
+
+  void unlock() {
+    if (_lock_owned) {
+      _m_unlock();
+      _lock_owned = false;
+    }
+  }
+
+ private:
+  void _m_unlock() const {
+    struct flock fl = {};
+    fl.l_type = F_UNLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = 0;
+    fl.l_len = 0; // Unlock the entire file
+    if (fcntl(_file_handle, F_SETLK, &fl) == -1) {
+      throw std::system_error(errno, std::generic_category(), "Failed to release lock");
+    }
+  }
+
+  bool _m_lock() const {
+    struct flock fl = {};
+    fl.l_type = F_WRLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = 0;
+    fl.l_len = 0; // Lock the entire file
+    if (fcntl(_file_handle, F_SETLK, &fl) == -1) {
+      return false;
+    }
+    return true;
+  }
+
+ private:
+  bool _lock_owned = false;
+  std::string _file_path;
+  native_handle _file_handle;
+};
+
+}

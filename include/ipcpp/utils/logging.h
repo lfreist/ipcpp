@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -24,7 +24,7 @@
 #include <spdlog/spdlog.h>
 #endif
 
-namespace ipcpp::logging {
+namespace carry::logging {
 
 #if LOGGING_LEVEL ==LOG_LEVEL_OFF
 
@@ -147,4 +147,4 @@ inline void critical(fmt::format_string<Args...> s, Args&&... args) {
 inline void critical([[maybe_unused]] Args&&...) {}
 #endif
 
-}  // namespace ipcpp::logging
+}  // namespace carry::logging

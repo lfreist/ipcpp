@@ -7,12 +7,12 @@
 
 #ifdef IPCPP_WINDOWS
 
-#include <ipcpp/shm/shared_memory_file.h>
+#include <carry/shm/shared_memory_file.h>
 
 #define NOMINMAX
 #include <windows.h>
 
-namespace ipcpp::shm {
+namespace carry::shm {
 
 // _____________________________________________________________________________________________________________________
 shared_memory_file::~shared_memory_file() {

@@ -2,7 +2,7 @@
  * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 /*
@@ -46,7 +46,7 @@
 #include <chrono>
 #include <thread>
 
-namespace ipcpp::ps {
+namespace carry::ps {
 
 using namespace std::chrono_literals;
 
@@ -291,4 +291,4 @@ class message_buffer {
   uint_half_t _h_wrap_around_value;
 };
 
-}  // namespace ipcpp::ps
+}  // namespace carry::ps

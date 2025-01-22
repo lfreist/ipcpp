@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -12,7 +12,7 @@
 
 #include <ipcpp/utils/utils.h>
 
-namespace ipcpp::shm {
+namespace carry::shm {
 
 template <typename T_p>
 class ring_buffer {
@@ -90,4 +90,4 @@ public:
   std::span<value_type> _buffer;
 };
 
-}  // namespace ipcpp::shm
+}  // namespace carry::shm

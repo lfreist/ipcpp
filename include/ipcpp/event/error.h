@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -10,7 +10,7 @@
 #include <string>
 #include <system_error>
 
-namespace ipcpp::event {
+namespace carry::event {
 
 enum class error_t {
   success = 0,
@@ -27,7 +27,7 @@ enum class error_t {
 
 class error_category final : public std::error_category {
  public:
-  [[nodiscard]] const char* name() const noexcept override { return "ipcpp::event::error_t"; }
+  [[nodiscard]] const char* name() const noexcept override { return "carry::event::error_t"; }
   [[nodiscard]] std::string message(int ev) const override {
     switch (static_cast<error_t>(ev)) {
       case error_t::success:
@@ -65,7 +65,7 @@ enum class socket_error_t {
 
 class socket_error_category final : public std::error_category {
   public:
-  [[nodiscard]] const char* name() const noexcept override { return "ipcpp::event::socket_error_t"; }
+  [[nodiscard]] const char* name() const noexcept override { return "carry::event::socket_error_t"; }
   [[nodiscard]] std::string message(int ev) const override {
     switch (static_cast<socket_error_t>(ev)) {
       case socket_error_t::success:
@@ -83,4 +83,4 @@ class socket_error_category final : public std::error_category {
   }
 };
 
-}  // namespace ipcpp::event
+}  // namespace carry::event

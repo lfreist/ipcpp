@@ -2,7 +2,7 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <expected>
 #include <utility>
 
-namespace ipcpp::event {
+namespace carry::event {
 
 class ShmAtomicNotifier final {
   // static_assert(is_notifier<ShmAtomicNotifier<T_p>>);
@@ -43,13 +43,13 @@ class ShmAtomicNotifier final {
   }
 
  private:
-  explicit ShmAtomicNotifier(Topic&& topic) : _topic(std::move(topic)) {
+  explicit ShmAtomicNotifier(ShmEntryPtr&& topic) : _topic(std::move(topic)) {
     _n_value = reinterpret_cast<event_id_type*>(_topic->shm().addr());
   }
 
  private:
-  Topic _topic;
+  ShmEntryPtr _topic;
   event_id_type* _n_value = nullptr;
 };
 
-}  // namespace ipcpp::event
+}  // namespace carry::event

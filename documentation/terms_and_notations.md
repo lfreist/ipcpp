@@ -2,7 +2,7 @@
 
 ## Terms
 > ### Developers
-> Developers are individuals developing (and **not** using) ipcpp
+> Developers are individuals developing (and **not** using) carry
 
 > ### Users
-> Users are individuals that use ipcpp to develop other software
+> Users are individuals that use carry to develop other software

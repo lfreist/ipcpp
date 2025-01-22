@@ -2,14 +2,14 @@
  * Copyright 2024, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
- * This file is part of ipcpp.
+ * This file is part of carry.
  */
 
 #pragma once
 
 #include <concepts>
 
-namespace ipcpp::concepts {
+namespace carry::concepts {
 
 template <typename T>
 concept movable = requires { requires std::is_move_constructible_v<T> || std::is_move_assignable_v<T>; };
@@ -54,4 +54,4 @@ concept SharedLockable = requires(T t) {
   { t.unlock_shared() } -> std::same_as<void>;
 };
 
-}  // namespace ipcpp::concepts
+}  // namespace carry::concepts
