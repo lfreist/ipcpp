@@ -1,5 +1,5 @@
 /**
-* Copyright 2025, Leon Freist (https://github.com/lfreist)
+ * Copyright 2025, Leon Freist (https://github.com/lfreist)
  * Author: Leon Freist <freist.leon@gmail.com>
  *
  * This file is part of carry.
@@ -9,29 +9,22 @@
 
 namespace carry {
 
-enum class ServiceMode {
-  local,
-  ipc
-};
+enum class ServiceMode { local, ipc };
 
-enum class PublishPolicy {
-  fifo,
-  real_time,
-  lazy,
-  eager
-};
+enum class PublishPolicy { fifo, real_time, lazy, eager };
 
-enum class ServiceType {
-  publish_subscribe,
-  request_response,
-  pipe,
-  event
-};
+enum class ServiceType { publish_subscribe, request_response, pipe, event };
 
 class Service_Interface {
+ public:
+  Service_Interface(shm::MappedMemory<shm::MappingType::SINGLE>&& service_shm,
+                    shm::MappedMemory<shm::MappingType::SINGLE>&& data_shm)
+      : _service_shm(std::move(service_shm)), _data_shm((std::move(data_shm))) {}
+  virtual ~Service_Interface() = default;
+
  protected:
-  std::optional<shm::MappedMemory<shm::MappingType::SINGLE>> _service_shm = std::nullopt;
-  std::optional<shm::MappedMemory<shm::MappingType::SINGLE>> _data_shm = std::nullopt;
+  shm::MappedMemory<shm::MappingType::SINGLE> _service_shm;
+  shm::MappedMemory<shm::MappingType::SINGLE> _data_shm;
 };
 
 class ServiceRegistry {
@@ -51,9 +44,7 @@ class ServiceRegistry {
     return std::error_code(0, std::system_category());
   }
 
-  static bool has_service(const std::string& service_id) {
-    return _services.contains(service_id);
-  }
+  static bool has_service(const std::string& service_id) { return _services.contains(service_id); }
 
  private:
   static std::unordered_map<std::string, std::shared_ptr<Service_Interface>> _services;
@@ -61,4 +52,4 @@ class ServiceRegistry {
 
 std::unordered_map<std::string, std::shared_ptr<Service_Interface>> ServiceRegistry::_services = {};
 
-}
+}  // namespace carry
