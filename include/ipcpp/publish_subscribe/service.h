@@ -13,30 +13,16 @@
 #include <ipcpp/types.h>
 #include <ipcpp/utils/string_identifier.h>
 
-namespace carry::publish_subscribe {
+#include <map>
 
-/**
- * Idee:
- *
- * auto publisher = Service<ipc>("identifier").create_publisher<real_time>("pub_identifier", options);
- * auto subscriber = Service<ipc>("identifier").create_subscriber<real_time>(options);
- *
- * subscriber.subscribe("pub_identifier");
- * publisher.~Publisher();  // calls Service<ipc
- *
- * implement Service as templated function that returns a ServiceClass queried from a static registry.
- * shm is queried in create_publisher/subscriber methods allowing different shm identifies for pub/sub, req/res, ...
- *
- * Architecture: keep shm registry and query the shm on Service construction and reinterpret it as intended.
- *               pass "identifier" to publishers and they can construct a Service on their destruction and unregister
- *               themselfes
- *
- * @tparam T_p
- * @tparam T_sm
- * @tparam T_pp
- */
-template <typename T_p, ServiceMode T_sm = ServiceMode::ipc, PublishPolicy T_pp = PublishPolicy::real_time>
-class Service : public Service_Interface {
+namespace carry {
+
+struct PublishSubscriberServiceShmLayout {
+  CommonServiceShmLayout* common_service_layout;
+
+};
+
+class PublishSubscribeService {
   struct ShmPublisherEntry {
     static std::size_t required_size() { return sizeof(ShmPublisherEntry); }
 
@@ -177,9 +163,47 @@ class Service : public Service_Interface {
   std::string _identifier;
   Options _options;
   /// message buffer built at _shm_data
-  ps::message_buffer<typename ps::RealTimePublisher<T_p>::message_type> _message_buffer;
+  ps::message_buffer<typename ps::RealTimePublisher<T>::message_type> _message_buffer;
   /// connection data built at _shm_connection
   ShmConnectionLayout* _shm_connection_layout;
+  static std::map<std::string, std::shared_ptr<PublishSubscribeService>> _service_registry;
+};
+
+/**
+ * Idee:
+ *
+ * auto publisher = Service<ipc>("identifier").create_publisher<real_time>("pub_identifier", options);
+ * auto subscriber = Service<ipc>("identifier").create_subscriber<real_time>(options);
+ *
+ * // create shm associated with:
+ * //  - is publish/subscribe
+ * //  - is real_time
+ * //  - uses T
+ * Service<ipc, real_time>::create_publisher("service_id", options);
+ * Service<ipc, real_time>::create_subscriber<T>("service_id", options);
+ *
+ * Service<ipc, real_time>::create_server<T>("service_id", options);
+ * Service<ipc, real_time>::create_requester<T>("service_id", options);
+ *
+ * subscriber.subscribe("pub_identifier");
+ * publisher.~Publisher();  // calls Service<ipc
+ *
+ * implement Service as templated function that returns a ServiceClass queried from a static registry.
+ * shm is queried in create_publisher/subscriber methods allowing different shm identifies for pub/sub, req/res, ...
+ *
+ * Architecture: keep shm registry and query the shm on Service construction and reinterpret it as intended.
+ *               pass "identifier" to publishers and they can construct a Service on their destruction and unregister
+ *               themselfes
+ *
+ * @tparam T_p
+ * @tparam T_sm
+ */
+template <typename T, ServiceMode T_sm>
+class Service<T, T_sm, ServiceType::publish_subscribe> {
+ public:
+  static
+ private:
+  static std::map<std::string, std::shared_ptr<PublishSubscribeService>> _service_registry;
 };
 
 }  // namespace carry::publish_subscribe

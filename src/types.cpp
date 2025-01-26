@@ -8,10 +8,12 @@
 #include <ipcpp/types.h>
 #include <iostream>
 
-namespace ipcpp {
+#define AS_STRING(x) #x
 
-std::ostream& operator<<(std::ostream& os, AccessMode am) {
-  switch (am) {
+namespace carry {
+
+std::ostream& operator<<(std::ostream& os, AccessMode v) {
+  switch (v) {
     case AccessMode::READ:
       os << AS_STRING(AccessMode::READ);
       break;
@@ -22,47 +24,19 @@ std::ostream& operator<<(std::ostream& os, AccessMode am) {
   return os;
 }
 
-namespace sockets {
-
-
-
-}
-
-namespace event {
-
-std::ostream& operator<<(std::ostream& os, NotificationType nt) {
-  switch (nt) {
-    case NotificationType::UNINITIALIZED:
-      os << AS_STRING(NotificationType::UNINITIALIZED);
+std::ostream& operator<<(std::ostream& os, InitializationState v) {
+  switch (v) {
+    case InitializationState::uninitialized:
+      os << AS_STRING(InitializationState::uninitialized);
       break;
-    case NotificationType::REGISTRATION_SUCCESS:
-      os << AS_STRING(NotificationType::REGISTRATION_SUCCESS);
+    case InitializationState::initialization_in_progress:
+      os << AS_STRING(InitializationState::initialization_in_progress);
       break;
-    case NotificationType::REGISTRATION_FAILED:
-      os << AS_STRING(NotificationType::REGISTRATION_FAILED);
-      break;
-    case NotificationType::PUBLISHER_DOWN:
-      os << AS_STRING(NotificationType::PUBLISHER_DOWN);
-      break;
-    case NotificationType::REGULAR:
-      os << AS_STRING(NotificationType::REGULAR);
+    case InitializationState::initialized:
+      os << AS_STRING(InitializationState::initialized);
       break;
   }
   return os;
-}
-
-std::ostream& operator<<(std::ostream& os, _NotificationError error) {
-  switch (error) {
-    case _NotificationError::NO_DATA:
-      os << AS_STRING(NotificationError::NO_DATA);
-      break;
-    case _NotificationError::PROVIDER_DOWN:
-      os << AS_STRING(NotificationError::PROVIDER_DOWN);
-      break;
-  }
-  return os;
-}
-
 }
 
 }

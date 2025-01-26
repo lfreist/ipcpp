@@ -15,8 +15,6 @@
 #include <ostream>
 #include <functional>
 
-#define AS_STRING(x) #x
-
 namespace carry {
 
 typedef atomic::largest_lock_free_uint_t uint_t;
@@ -35,25 +33,13 @@ enum class AccessMode {
 };
 
 enum class InitializationState : std::uint8_t {
-  uninitialized,
-  initialization_in_progress,
-  initialized
+  uninitialized = 0,
+  initialization_in_progress = 1,
+  initialized = 2
 };
 
 std::ostream& operator<<(std::ostream& os, AccessMode am);
 
-namespace event {
-
-enum class NotificationType {
-  UNINITIALIZED,
-  REGISTRATION_SUCCESS,
-  REGISTRATION_FAILED,
-  PUBLISHER_DOWN,
-  REGULAR,
-  EXIT,
-};
-
-std::ostream& operator<<(std::ostream& os, NotificationType nt);
-}
+std::ostream& operator<<(std::ostream& os, InitializationState am);
 
 }  // namespace carry
