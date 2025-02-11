@@ -11,7 +11,7 @@
 
 namespace carry {
 
-enum class ServiceMode { local, ipc };
+enum class Scope { local, ipc };
 
 enum class PublishPolicy { fifo, real_time, lazy, eager };
 
@@ -19,7 +19,8 @@ enum class ServiceType { undefined, publish_subscribe, request_response, pipe, e
 
 constexpr std::uint16_t max_identifier_size = 128;
 
-struct CommonServiceShmLayout {
+
+struct ServiceShm {
   std::atomic<InitializationState> initialization_state = InitializationState::uninitialized;
   std::uint32_t version_tag = 0;
   ServiceType service_type = ServiceType::undefined;
@@ -33,7 +34,7 @@ struct CommonServiceShmLayout {
       // TODO: return actual error: identifier exceeds max size
       return std::error_code(1, std::system_category());
     }
-    auto* layout = reinterpret_cast<CommonServiceShmLayout*>(addr);
+    auto* layout = reinterpret_cast<ServiceShm*>(addr);
     layout->version_tag = version_tag;
     layout->service_type = T_st;
     layout->data_type_size = sizeof(T);
@@ -42,13 +43,13 @@ struct CommonServiceShmLayout {
   }
 
   template <typename T, ServiceType T_st>
-  static std::expected<CommonServiceShmLayout*, std::error_code> interpret_at(std::uintptr_t addr, std::uint32_t version_tag, const std::string& identifier) {
+  static std::expected<ServiceShm*, std::error_code> interpret_at(std::uintptr_t addr, std::uint32_t version_tag, const std::string& identifier) {
     static_assert(T_st != ServiceType::undefined);
     if (identifier.size() > max_identifier_size) {
       // TODO: return actual error: identifier exceeds max size
       return std::unexpected(std::error_code(1, std::system_category()));
     }
-    auto* layout = reinterpret_cast<CommonServiceShmLayout*>(addr);
+    auto* layout = reinterpret_cast<ServiceShm*>(addr);
     if (layout->version_tag != version_tag) {
       // TODO: error: incompatible version
       return std::unexpected(std::error_code(2, std::system_category()));
@@ -69,7 +70,7 @@ struct CommonServiceShmLayout {
   }
 };
 
-template <typename T, ServiceMode T_sm, ServiceType T_st>
+template <Scope T_s, ServiceType T_st>
 class Service {};
 
 }  // namespace carry
