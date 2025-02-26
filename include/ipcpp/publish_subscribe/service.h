@@ -20,17 +20,23 @@ namespace carry {
 template <Scope T_s>
 class Service<T_s, ServiceType::publish_subscribe> {
  public:
-  enum class DeliveryMode {
-    fifo,
-    real_time
+  enum class DeliveryMode { fifo, real_time };
+
+  struct ShmLayout {
+    ServiceShm service_info;
+    DeliveryMode delivery_mode;
+    std::atomic<uint_t> reference_counter;
+    uint_half_t max_publishers;
+    uint_half_t max_subscribers;
   };
 
  public:
-  static std::expected<Service, std::error_code> named(std::string_view identifier);
+  static std::expected<Service, std::error_code> create(std::string_view identifier);
 
  public:
   template <DeliveryMode T_dm, typename T>
-  std::expected<ps::Subscriber<T>, std::error_code> create_subscriber(std::string_view identifier, Subscriber::Config config);
+  std::expected<ps::Subscriber<T>, std::error_code> create_subscriber(std::string_view identifier,
+                                                                      Subscriber::Config config);
 
  private:
 };

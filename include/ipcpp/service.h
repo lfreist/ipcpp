@@ -32,7 +32,7 @@ struct ServiceShm {
     static_assert(T_st != ServiceType::undefined);
     if (identifier.size() > max_identifier_size) {
       // TODO: return actual error: identifier exceeds max size
-      return std::error_code(1, std::system_category());
+      return {1, std::system_category()};
     }
     auto* layout = reinterpret_cast<ServiceShm*>(addr);
     layout->version_tag = version_tag;
@@ -70,7 +70,30 @@ struct ServiceShm {
   }
 };
 
-template <Scope T_s, ServiceType T_st>
-class Service {};
+enum class DeliveryMode {
+  // pipe
+  // pub/sub
+  real_time,
+  fifo,
+  // req/res
+  eager,
+  lazy
+};
+
+template <Scope T_s>
+class Service {
+ public:
+  template <DeliveryMode T_dm, typename T>
+  static std::expected<PublishSubscribeBuilder<Scope, T_dm, T>, std::error_code> PublishSubscribe(std::string identifier);
+
+  template <DeliveryMode T_dm, typename T>
+  static std::expected<RequestResponseBuilder<Scope, T_dm, T>, std::error_code> PublishSubscribe(std::string identifier);
+
+  template <DeliveryMode T_dm, typename T>
+  static std::expected<PipeBuilder<Scope, T_dm, T>, std::error_code> PublishSubscribe(std::string identifier);
+
+ private:
+  static std::expected<Shm, std::error_code> get_shm(std::string identifier);
+};
 
 }  // namespace carry
