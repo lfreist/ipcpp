@@ -22,8 +22,8 @@ namespace carry::ps {
 
 template <typename T_p>
 class RealTimePublisher {
-  friend class Service<ServiceType::real_time_publish_subscribe, T_p, ServiceMode::ipc>;
-  friend class Service<ServiceType::real_time_publish_subscribe, T_p, ServiceMode::local>;
+ template <Scope T_s, PublishPolicy T_dm, typename T>
+ friend class Builder;
 
  public:
   typedef rt::Message<T_p> message_type;
