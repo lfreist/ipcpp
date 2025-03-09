@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <ipcpp/publish_subscribe/message_buffer.h>
+#include <ipcpp/publish_subscribe/rt_shm_layout.h>
 #include <ipcpp/publish_subscribe/real_time_message.h>
 #include <ipcpp/types.h>
 #include <ipcpp/topic.h>
@@ -29,7 +29,7 @@ class RealTimeSubscriber {
     if (!e_topic) {
       return std::unexpected(e_topic.error());
     }
-    auto e_buffer = message_buffer<message_type>::read_at(e_topic.value()->shm().addr());
+    auto e_buffer = RealTimeMessageBuffer<message_type>::read_at(e_topic.value()->shm().addr());
     if (!e_buffer) {
       return std::unexpected(e_buffer.error());
     }
@@ -78,7 +78,7 @@ class RealTimeSubscriber {
   }
 
  private:
-  RealTimeSubscriber(Topic&& topic, const subscriber::Options& options, message_buffer<message_type>&& buffer)
+  RealTimeSubscriber(Topic&& topic, const subscriber::Options& options, RealTimeMessageBuffer<message_type>&& buffer)
       : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)) {}
 
  private:
@@ -89,7 +89,7 @@ class RealTimeSubscriber {
 
  private:
   Topic _topic = nullptr;
-  message_buffer<message_type> _message_buffer;
+  RealTimeMessageBuffer<message_type> _message_buffer;
   ps::subscriber::Options _options;
   uint_t _initial_message_info = std::numeric_limits<std::uint64_t>::max();
   uint_half_t subscriber_id;

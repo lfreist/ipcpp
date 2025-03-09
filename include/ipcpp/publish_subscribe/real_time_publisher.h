@@ -7,13 +7,12 @@
 
 #pragma once
 
-#include <ipcpp/publish_subscribe/message_buffer.h>
+#include <ipcpp/publish_subscribe/rt_shm_layout.h>
 #include <ipcpp/publish_subscribe/options.h>
 #include <ipcpp/publish_subscribe/real_time_message.h>
 #include <ipcpp/types.h>
 #include <ipcpp/topic.h>
 #include <ipcpp/utils/numeric.h>
-#include <ipcpp/service.h>
 
 #include <expected>
 #include <string>
@@ -22,9 +21,6 @@ namespace ipcpp::ps {
 
 template <typename T_p>
 class RealTimePublisher {
-  friend class Service<ServiceType::real_time_publish_subscribe, T_p, ServiceMode::ipc>;
-  friend class Service<ServiceType::real_time_publish_subscribe, T_p, ServiceMode::local>;
-
  public:
   typedef rt::Message<T_p> message_type;
   typedef typename rt::Message<T_p>::Access access_type;
@@ -32,22 +28,22 @@ class RealTimePublisher {
  public:
   static std::expected<RealTimePublisher, std::error_code> create(const std::string& topic_id,
                                                                   const ps::publisher::Options& options = {}) {
-    bool multi_publisher = options.max_num_publishers > 1;
-    auto e_topic = get_shm_entry(topic_id, message_buffer<message_type>::required_size_bytes(
+    auto e_topic = get_shm_entry(topic_id, RealTimeMessageBuffer<message_type>::required_size_bytes(
                                                options.max_num_observers, options.max_num_publishers));
     if (!e_topic) {
       return std::unexpected(e_topic.error());
     }
-    auto e_buffer = message_buffer<message_type>::read_at(e_topic.value()->shm().addr());
+    auto e_buffer = RealTimeMessageBuffer<message_type>::read_at(e_topic.value()->shm().addr());
     if (!e_buffer) {
-      e_buffer = message_buffer<message_type>::init_at(e_topic.value()->shm().addr(), e_topic.value()->shm().size(),
+      e_buffer =
+          RealTimeMessageBuffer<message_type>::init_at(e_topic.value()->shm().addr(), e_topic.value()->shm().size(),
                                                        options.max_num_publishers, options.max_num_observers);
     }
     if (!e_buffer) {
       return std::unexpected(e_buffer.error());
     }
 
-    message_buffer<message_type>& buffer = e_buffer.value();
+    RealTimeMessageBuffer<message_type>& buffer = e_buffer.value();
     auto publisher_id = buffer.common_header()->num_publishers.fetch_add(1);
     if (publisher_id >= buffer.common_header()->max_publishers) {
       // TODO: too many publishers
@@ -82,7 +78,7 @@ class RealTimePublisher {
   }
 
  private:
-  RealTimePublisher(Topic&& topic, const publisher::Options& options, message_buffer<message_type>&& buffer,
+  RealTimePublisher(Topic&& topic, const publisher::Options& options, RealTimeMessageBuffer<message_type>&& buffer,
                     uint_half_t publisher_id)
       : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)), _publisher_id(publisher_id) {
     _pp_header = _message_buffer.per_publisher_header(_publisher_id);
@@ -102,8 +98,8 @@ class RealTimePublisher {
 
  private:
   Topic _topic = nullptr;
-  message_buffer<message_type> _message_buffer;
-  message_buffer<message_type>::PerPublisherHeader* _pp_header = nullptr;
+  RealTimeMessageBuffer<message_type> _message_buffer;
+  RealTimePublisherEntry* _pp_header = nullptr;
   ps::publisher::Options _options;
   access_type _prev_published_message;
   uint_half_t _publisher_id;

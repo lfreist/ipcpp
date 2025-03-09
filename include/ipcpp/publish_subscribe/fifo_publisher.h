@@ -231,7 +231,7 @@ class Publisher<T_Data, internal::ShmDefaultNotifier> final {
     logging::debug("Publisher<'{}'>::construct_and_get(): constructed next message", this->_topic->id());
     std::size_t msg_id = _message_buffer->header->message_counter.load(std::memory_order_acquire) + 1;
     _m_handle_backpressure(msg_id);
-    return _message_buffer->message_buffer.emplace_at(msg_id, std::forward<T_Args>(args)...,
+    return _message_buffer->RealTimeMessageBuffer.emplace_at(msg_id, std::forward<T_Args>(args)...,
                                                       _m_num_observers() + (this->_options.history_capacity > 0));
   }
   */

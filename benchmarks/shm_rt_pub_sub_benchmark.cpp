@@ -4,12 +4,10 @@
  *
  * This file is part of ipcpp.
  */
-#include <ipcpp/publish_subscribe/message_buffer.h>
+#include <ipcpp/publish_subscribe/rt_shm_layout.h>
 #include <ipcpp/publish_subscribe/real_time_publisher.h>
 #include <ipcpp/publish_subscribe/real_time_subscriber.h>
 #include <ipcpp/utils/utils.h>
-
-#include <ipcpp/publish_subscribe/service.h>
 
 #include <barrier>
 #include <chrono>
