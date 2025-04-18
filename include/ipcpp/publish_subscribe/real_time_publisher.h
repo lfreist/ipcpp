@@ -13,6 +13,7 @@
 #include <ipcpp/types.h>
 #include <ipcpp/topic.h>
 #include <ipcpp/utils/numeric.h>
+#include <ipcpp/utils/utils.h>
 
 #include <expected>
 #include <string>
@@ -82,6 +83,10 @@ class RealTimePublisher {
                     uint_half_t publisher_id)
       : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)), _publisher_id(publisher_id) {
     _pp_header = _message_buffer.per_publisher_header(_publisher_id);
+    _pp_header->creation_timestamp = utils::timestamp();
+    _pp_header->id = _publisher_id;
+    _pp_header->is_online = true;
+    _pp_header->pid = 0;
   }
 
  private:
