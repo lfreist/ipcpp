@@ -1,0 +1,2 @@
+add_executable(real_time_service_test real_time_service_test.cpp)
+target_link_libraries(real_time_service_test PRIVATE gtest gtest_main)

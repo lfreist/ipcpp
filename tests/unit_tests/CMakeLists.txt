@@ -10,3 +10,4 @@ FetchContent_MakeAvailable(googletest)
 
 add_subdirectory(stl)
 add_subdirectory(shm)
+add_subdirectory(publish_subscribe)

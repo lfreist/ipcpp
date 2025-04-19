@@ -8,6 +8,8 @@
 #include <thread>
 #include <chrono>
 #include <expected>
+#include <optional>
+#include <format>
 
 using namespace std::chrono_literals;
 
@@ -23,7 +25,21 @@ int main(int argc, char** argv) {
   std::expected<...> publisher = ps_ws.new_publisher();
   std::expected<...> subscriber = ps_ws.new_subscriber();
 
-  std::thread()
+  std::thread sub_t([&]() {
+    subscriber.subscribe();
+    std::uint64_t msg_counter = 0;
+    while (true) {
+      std::optional<...> data = subscriber.await_message(100ms);
+      std::int64_t timestamp = carry::utils::timestamp();
+      if (data.has_data()) {
+        std::println("{}ns", data->timestamp - timestamp);
+      } else {
+        std::println("Received {} messages", msg_counter);
+        return;
+      }
+      msg_counter++;
+    }
+  });
 
   std::thread pub_t([&](){
     for (int i = 0; i < 100; ++i) {
