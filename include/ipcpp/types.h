@@ -36,11 +36,6 @@ enum class AccessMode {
 
 std::ostream& operator<<(std::ostream& os, AccessMode am);
 
-enum class CommunicationMode {
-  IPC,
-  LOCAL
-};
-
 namespace event {
 
 enum class NotificationType {
