@@ -185,7 +185,7 @@ class RealTimeMessageBuffer {
   const value_type& operator[](uint_half_t index) const { return _buffer[index]; }
 
   uint_half_t get_index(uint_half_t publisher_id, uint_half_t local_message_id) {
-    return publisher_id * (local_message_id & (_h_wrap_around_value));
+    return publisher_id * _common_header->num_subscribers + (local_message_id & (_h_wrap_around_value));
   }
 
   [[nodiscard]] uint_t size() const { return static_cast<uint_t>(_buffer.size()); }

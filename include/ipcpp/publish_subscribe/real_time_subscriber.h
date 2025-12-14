@@ -83,8 +83,10 @@ class RealTimeSubscriber {
 
  private:
   numeric::half_size_int<uint_t>::type _m_get_index_from_id(uint_t id) {
-    return static_cast<numeric::half_size_int<uint_t>::type>(
-        id >> std::numeric_limits<typename numeric::half_size_int<uint_t>::type>::digits);
+    uint_half_t publisher_id = id >> std::numeric_limits<uint_half_t>::digits;
+    uint_half_t local_id = id;
+    auto idx = _message_buffer.get_index(publisher_id, local_id);
+    return idx;
   }
 
  private:

@@ -46,14 +46,14 @@ class ShmAtomicObserver {
   }
 
  private:
-  explicit ShmAtomicObserver(Topic&& topic)
+  explicit ShmAtomicObserver(std::shared_ptr<ShmRegistryEntry>&& topic)
       : _topic(std::move(topic)) {
     _last_value = reinterpret_cast<event_id_type*>(_topic->shm().addr())->load(std::memory_order_acquire);
     _n_value = reinterpret_cast<event_id_type*>(_topic->shm().addr());
   }
 
  private:
-  Topic _topic;
+  std::shared_ptr<ShmRegistryEntry> _topic;
   event_id_type* _n_value = nullptr;
   uint64_t _last_value;
 };

@@ -43,12 +43,12 @@ class ShmAtomicNotifier final {
   }
 
  private:
-  explicit ShmAtomicNotifier(Topic&& topic) : _topic(std::move(topic)) {
+  explicit ShmAtomicNotifier(std::shared_ptr<ShmRegistryEntry>&& topic) : _topic(std::move(topic)) {
     _n_value = reinterpret_cast<event_id_type*>(_topic->shm().addr());
   }
 
  private:
-  Topic _topic;
+  std::shared_ptr<ShmRegistryEntry> _topic;
   event_id_type* _n_value = nullptr;
 };
 
