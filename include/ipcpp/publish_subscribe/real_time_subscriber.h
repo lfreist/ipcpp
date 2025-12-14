@@ -78,7 +78,7 @@ class RealTimeSubscriber {
   }
 
  private:
-  RealTimeSubscriber(Topic&& topic, const subscriber::Options& options, RealTimeMessageBuffer<message_type>&& buffer)
+  RealTimeSubscriber(std::shared_ptr<ShmRegistryEntry>&& topic, const subscriber::Options& options, RealTimeMessageBuffer<message_type>&& buffer)
       : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)) {}
 
  private:
@@ -88,7 +88,7 @@ class RealTimeSubscriber {
   }
 
  private:
-  Topic _topic = nullptr;
+  std::shared_ptr<ShmRegistryEntry> _topic = nullptr;
   RealTimeMessageBuffer<message_type> _message_buffer;
   ps::subscriber::Options _options;
   uint_t _initial_message_info = std::numeric_limits<std::uint64_t>::max();

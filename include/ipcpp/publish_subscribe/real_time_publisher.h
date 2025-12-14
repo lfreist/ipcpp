@@ -79,7 +79,7 @@ class RealTimePublisher {
   }
 
  private:
-  RealTimePublisher(Topic&& topic, const publisher::Options& options, RealTimeMessageBuffer<message_type>&& buffer,
+  RealTimePublisher(std::shared_ptr<ShmRegistryEntry>&& topic, const publisher::Options& options, RealTimeMessageBuffer<message_type>&& buffer,
                     uint_half_t publisher_id)
       : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)), _publisher_id(publisher_id) {
     _pp_header = _message_buffer.per_publisher_header(_publisher_id);
@@ -102,7 +102,7 @@ class RealTimePublisher {
   }
 
  private:
-  Topic _topic = nullptr;
+  std::shared_ptr<ShmRegistryEntry> _topic = nullptr;
   RealTimeMessageBuffer<message_type> _message_buffer;
   RealTimePublisherEntry* _pp_header = nullptr;
   ps::publisher::Options _options;

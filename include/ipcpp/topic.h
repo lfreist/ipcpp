@@ -80,6 +80,4 @@ class ShmRegistry {
 
 std::expected<std::shared_ptr<ShmRegistryEntry>, std::error_code> get_shm_entry(const std::string& id, std::size_t min_shm_size = 0);
 
-typedef std::shared_ptr<ShmRegistryEntry> Topic;
-
 }  // namespace ipcpp

@@ -11,6 +11,7 @@
 #include <ipcpp/utils/atomic.h>
 #include <ipcpp/utils/logging.h>
 #include <ipcpp/utils/numeric.h>
+#include <ipcpp/utils/utils.h>
 
 #include <atomic>
 #include <chrono>
@@ -31,25 +32,24 @@ struct RealTimePublisherEntry {
   alignas(std::hardware_destructive_interference_size) uint_half_t next_local_message_id = 0;
   alignas(std::hardware_destructive_interference_size) bool is_online = false;
 
-  [[nodiscard]] bool is_available() const {
-    return id == 0 && pid == 0 && creation_timestamp == -1;
-  }
+  [[nodiscard]] bool is_available() const { return id == 0 && pid == 0 && creation_timestamp == -1; }
 };
 
 struct RealTimeInstanceData {
-  RealTimeInstanceData(uint_half_t max_publishers_, uint_half_t max_subscribers_, uint_half_t history_size_ = 0)
-      : max_publishers(max_publishers_), max_subscribers(max_subscribers_), history_size(history_size_) {}
+  enum class InitializationState : uint_t {
+    uninitialized = 0,
+    in_initialization,
+    initialized
+  };
+
+  RealTimeInstanceData(uint_half_t max_publishers_, uint_half_t max_subscribers_)
+      : max_publishers(max_publishers_), max_subscribers(max_subscribers_) {}
 
   alignas(std::hardware_destructive_interference_size) std::atomic<uint_half_t> num_subscribers = 0;
   alignas(std::hardware_destructive_interference_size) const uint_half_t max_subscribers = 0;
 
   alignas(std::hardware_destructive_interference_size) std::atomic<uint_half_t> num_publishers = 0;
   alignas(std::hardware_destructive_interference_size) const uint_half_t max_publishers = 0;
-
-  // TODO: implement history logic:
-  //       Concept: reserve space for <history_size> indices and add a rotating head-index that points to the oldest
-  //                index in history and is overwritten on the next publish
-  alignas(std::hardware_destructive_interference_size) const uint_half_t history_size = 0;
 
   // this is the value that is actually polled by subscribers
   // first half is index, second half is local message id. the combination makes it unique since each publisher gets
@@ -59,9 +59,21 @@ struct RealTimeInstanceData {
   // if all publishers went down, final_published is set to latest_published and latest_published is set to 0xF...F
   alignas(std::hardware_destructive_interference_size) uint_t final_published = 0;
 
-  alignas(std::hardware_destructive_interference_size) std::atomic<uint_t> initialization_state = 0;
+  alignas(std::hardware_destructive_interference_size) std::atomic<InitializationState> initialization_state = InitializationState::uninitialized;
 };
 
+/**
+ * Memory Layout:
+ * |----------------------|
+ * | RealTimeInstanceData |
+ * | PerPublisherHeader 0 |
+ * | ...                  |
+ * | PerPublisherHeader n |
+ * | Message Buffer Start |
+ * | ...                  |
+ * | Message Buffer End   |
+ * |----------------------|
+ */
 template <typename T_p>
 class RealTimeMessageBuffer {
  public:
@@ -77,7 +89,7 @@ class RealTimeMessageBuffer {
 
   static uint_t required_size_bytes(uint_half_t max_subscribers, uint_half_t max_publishers) {
     // TODO: add overflow checks
-    return sizeof(RealTimeInstanceData)                     // one common header
+    return sizeof(RealTimeInstanceData)                         // one common header
            + (sizeof(RealTimePublisherEntry) * max_publishers)  // each publisher needs a RealTimePublisherEntry
            + (sizeof(T_p) * per_publisher_pool_size(max_subscribers) * max_publishers);  // total number of T_p
   }
@@ -85,8 +97,9 @@ class RealTimeMessageBuffer {
   template <typename... T_Args>
     requires std::is_constructible_v<T_p, T_Args...>
   static std::expected<RealTimeMessageBuffer<T_p>, std::error_code> init_at(std::uintptr_t addr, std::size_t size_bytes,
-                                                                     uint_half_t max_subscribers,
-                                                                     uint_half_t max_publishers, T_Args&&... args) {
+                                                                            uint_half_t max_subscribers,
+                                                                            uint_half_t max_publishers,
+                                                                            T_Args&&... args) {
     logging::debug("RealTimeMessageBuffer::init_at()");
     if (size_bytes < required_size_bytes(max_subscribers, max_publishers)) {
       // TODO: add proper errors
@@ -96,14 +109,15 @@ class RealTimeMessageBuffer {
 
     uint_t capacity = (max_subscribers + 2) * max_publishers;
     if (capacity > (std::numeric_limits<uint_half_t>::max())) {
-      // TODO: error is that it is impossible to store the index of all elements in haf a uint_t
+      // TODO: error is that it is impossible to store the index of all elements in half a uint_t
       return std::unexpected(std::error_code(1, std::system_category()));
     }
 
-    RealTimeInstanceData* header = std::construct_at(reinterpret_cast<RealTimeInstanceData*>(addr), max_subscribers, max_publishers, 0);
+    auto* header = std::construct_at(reinterpret_cast<RealTimeInstanceData*>(addr), max_subscribers, max_publishers);
 
-    uint_t expected_initialization_value = 0;
-    if (!header->initialization_state.compare_exchange_weak(expected_initialization_value, 1,
+    // set to in_initialization
+    RealTimeInstanceData::InitializationState expected_initialization_value = RealTimeInstanceData::InitializationState::uninitialized;
+    if (!header->initialization_state.compare_exchange_weak(expected_initialization_value, RealTimeInstanceData::InitializationState::in_initialization,
                                                             std::memory_order_acq_rel)) {
       // TODO: already initialized or in initialization
       return std::unexpected(std::error_code(1, std::system_category()));
@@ -116,14 +130,14 @@ class RealTimeMessageBuffer {
     }
 
     std::span<T_p> buffer(
-        reinterpret_cast<T_p*>(addr + sizeof(RealTimeInstanceData) + (sizeof(RealTimePublisherEntry) * max_publishers)), capacity);
+        reinterpret_cast<T_p*>(addr + sizeof(RealTimeInstanceData) + (sizeof(RealTimePublisherEntry) * max_publishers)),
+        capacity);
     for (auto& elem : buffer) {
       std::construct_at(std::addressof(elem), std::forward<T_Args>(args)...);
     }
 
-    // TODO: handle history size here!
-    expected_initialization_value = 1;
-    if (!header->initialization_state.compare_exchange_weak(expected_initialization_value, 2,
+    expected_initialization_value = RealTimeInstanceData::InitializationState::in_initialization;
+    if (!header->initialization_state.compare_exchange_weak(expected_initialization_value, RealTimeInstanceData::InitializationState::initialized,
                                                             std::memory_order_acq_rel)) {
       // TODO: something is off with initialization
       return std::unexpected(std::error_code(1, std::system_category()));
@@ -131,114 +145,38 @@ class RealTimeMessageBuffer {
     return RealTimeMessageBuffer(header, per_publisher_headers, buffer);
   }
 
-  static std::expected<RealTimeMessageBuffer, std::error_code> read_at(std::uintptr_t addr) {
+  static std::expected<RealTimeMessageBuffer, std::error_code> read_at(std::uintptr_t addr, std::chrono::milliseconds timeout = 1000ms) {
     logging::debug("RealTimeMessageBuffer::read_at()");
 
     auto* header = reinterpret_cast<RealTimeInstanceData*>(addr);
 
+    {  // wait for RealTimeInstanceData to be initialized or timeout
+      using clock = std::chrono::high_resolution_clock;
+      auto start = clock::now();
+      while (true) {
+        if (header->initialization_state.load(std::memory_order_acquire) ==
+            RealTimeInstanceData::InitializationState::initialized) {
+          break;
+        }
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(clock::now() - start) >=
+            timeout) {
+            logging::warn("RealTimeMessageBuffer::read_at: memory not initialized (using RealTimeMessageBuffer::init_at)");
+            // TODO: error is timeout
+          return std::unexpected(std::error_code(1, std::system_category()));
+        }
+        std::this_thread::sleep_for(1ms);
+      }
+    }
+
     std::uint64_t capacity = (header->max_subscribers + 2) * header->max_publishers;
 
-    for (int i = 0; i < 100 && header->initialization_state.load() == 1; ++i) {
-      // wait for initialization to be finished (total of 1000ms)
-      std::this_thread::sleep_for(10ms);
-    }
-
-    if (header->initialization_state.load(std::memory_order_acquire) != 2) {
-      // TODO: error: not initialized
-      logging::warn("RealTimeMessageBuffer::read_at: memory not initialized (using RealTimeMessageBuffer::init_at)");
-      return std::unexpected(std::error_code(1, std::system_category()));
-    }
-    std::span<RealTimePublisherEntry> pp_headers(reinterpret_cast<RealTimePublisherEntry*>(addr + sizeof(RealTimeInstanceData)),
-                                             header->max_publishers);
-    std::span<T_p> buffer(
-        reinterpret_cast<T_p*>(addr + sizeof(RealTimeInstanceData) + (sizeof(RealTimePublisherEntry) * header->max_publishers)),
-        capacity);
+    std::span<RealTimePublisherEntry> pp_headers(
+        reinterpret_cast<RealTimePublisherEntry*>(addr + sizeof(RealTimeInstanceData)), header->max_publishers);
+    std::span<T_p> buffer(reinterpret_cast<T_p*>(addr + sizeof(RealTimeInstanceData) +
+                                                 (sizeof(RealTimePublisherEntry) * header->max_publishers)),
+                          capacity);
 
     return RealTimeMessageBuffer(header, pp_headers, buffer);
-  }
-
-  template <typename... T_Args>
-    requires std::is_constructible_v<T_p, T_Args...>
-  static std::expected<RealTimeMessageBuffer<T_p>, std::error_code> read_or_init_at(std::uintptr_t addr,
-                                                                             std::size_t size_bytes,
-                                                                             uint_t max_subscribers,
-                                                                             uint_t max_publishers, T_Args&&... args) {
-    logging::debug("RealTimeMessageBuffer::init_at()");
-    if (size_bytes < required_size_bytes(max_subscribers, max_publishers)) {
-      // TODO: add proper errors
-      logging::warn("RealTimeMessageBuffer::init_at: provided size too small");
-      return std::unexpected(std::error_code(1, std::system_category()));
-    }
-
-    uint_t capacity = (max_subscribers + 2) * max_publishers;
-    if (capacity > (std::numeric_limits<uint_half_t>::max())) {
-      // TODO: error is that it is impossible to store the index of all elements in haf a uint_t
-      return std::unexpected(std::error_code(1, std::system_category()));
-    }
-
-    RealTimeInstanceData* header = std::construct_at(reinterpret_cast<RealTimeInstanceData*>(addr), max_subscribers, max_publishers, 0);
-
-    uint_t expected_initialization_value = 0;
-    if (header->initialization_state.compare_exchange_weak(expected_initialization_value, 1,
-                                                           std::memory_order_acq_rel)) {
-      // initialize
-      // TODO: write _m_initialize that is expected to be called with initialization_state == 1
-      std::span<RealTimePublisherEntry> per_publisher_headers(
-          reinterpret_cast<RealTimePublisherEntry*>(addr + sizeof(RealTimeInstanceData)), max_publishers);
-      for (auto& pp_header : per_publisher_headers) {
-        std::construct_at(std::addressof(pp_header));
-      }
-
-      std::span<T_p> buffer(
-          reinterpret_cast<T_p*>(addr + sizeof(RealTimeInstanceData) + (sizeof(RealTimePublisherEntry) * max_publishers)),
-          capacity);
-      for (auto& elem : buffer) {
-        std::construct_at(std::addressof(elem), std::forward<T_Args>(args)...);
-      }
-
-      expected_initialization_value = 1;
-      if (!header->initialization_state.compare_exchange_weak(expected_initialization_value, 2,
-                                                              std::memory_order_acq_rel)) {
-        // TODO: something is off with initialization
-        return std::unexpected(std::error_code(1, std::system_category()));
-      }
-      return RealTimeMessageBuffer(header, per_publisher_headers, buffer);
-    } else {
-      // already initialized: read it
-      return read_at(addr);
-    }
-
-    while (header->initialization_state.load(std::memory_order_acquire) == 1) {
-      std::this_thread::sleep_for(10ms);
-    }
-
-    if (header->initialization_state.fetch_add(1) > 2) {
-      // already initialized, just read it
-      header->initialization_state.fetch_sub(1);
-      return read_at(addr);
-    } else {
-      // initialize
-      std::span<RealTimePublisherEntry> per_publisher_headers(
-          reinterpret_cast<RealTimePublisherEntry*>(addr + sizeof(RealTimeInstanceData)), max_publishers);
-      for (auto& pp_header : per_publisher_headers) {
-        std::construct_at(std::addressof(pp_header));
-      }
-
-      std::span<T_p> buffer(
-          reinterpret_cast<T_p*>(addr + sizeof(RealTimeInstanceData) + (sizeof(RealTimePublisherEntry) * max_publishers)),
-          capacity);
-      for (auto& elem : buffer) {
-        std::construct_at(std::addressof(elem), std::forward<T_Args>(args)...);
-      }
-
-      // TODO: handle history size here!
-      uint_t expected_prev = 1;
-      if (!header->initialization_state.compare_exchange_weak(expected_prev, 2, std::memory_order_acq_rel)) {
-        // TODO: something is off with initialization
-        return std::unexpected(std::error_code(1, std::system_category()));
-      }
-      return RealTimeMessageBuffer(header, per_publisher_headers, buffer);
-    }
   }
 
  public:
@@ -258,17 +196,19 @@ class RealTimeMessageBuffer {
   }
 
  private:
-  RealTimeMessageBuffer(RealTimeInstanceData* header, std::span<RealTimePublisherEntry> pp_headers, std::span<value_type> queue_items)
-      : _common_header(header), _pp_headers(pp_headers), _buffer(queue_items) {
-    _h_wrap_around_value = per_publisher_pool_size(header->num_subscribers) - 1;
-  }
+  RealTimeMessageBuffer(RealTimeInstanceData* header, std::span<RealTimePublisherEntry> pp_headers,
+                        std::span<value_type> queue_items)
+      : _common_header(header),
+        _pp_headers(pp_headers),
+        _buffer(queue_items),
+        _h_wrap_around_value(RealTimeMessageBuffer::per_publisher_pool_size(header->num_subscribers) - 1) {}
 
  private:
   RealTimeInstanceData* _common_header;
   std::span<RealTimePublisherEntry> _pp_headers;
   std::span<value_type> _buffer;
-  // internally used for wrap-around of local message id to index: per_publisher_pool_size(header->num_subscribers) - 1
-  //  stored to avoid recomputations
+  /// internally used for wrap-around of local message id to index: per_publisher_pool_size(header->num_subscribers) - 1
+  // TODO: make const
   uint_half_t _h_wrap_around_value;
 };
 
