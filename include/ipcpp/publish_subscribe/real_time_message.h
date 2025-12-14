@@ -107,7 +107,7 @@ class Message {
    * @return
    */
   Access acquire_unsafe() {
-    _active_reference_counter.fetch_add(1, std::memory_order_release);
+    _active_reference_counter.fetch_add(1, std::memory_order_acquire);
     return Access(this);
   }
 

@@ -26,7 +26,7 @@
 
 namespace ipcpp::logging {
 
-#if LOGGING_LEVEL ==LOG_LEVEL_OFF
+#if LOGGING_LEVEL == LOG_LEVEL_OFF
 
 enum class level : int {
   trace = LOG_LEVEL_TRACE,

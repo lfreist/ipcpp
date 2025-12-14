@@ -7,11 +7,11 @@
 
 #pragma once
 
-#include <ipcpp/publish_subscribe/rt_shm_layout.h>
 #include <ipcpp/publish_subscribe/options.h>
 #include <ipcpp/publish_subscribe/real_time_message.h>
-#include <ipcpp/types.h>
+#include <ipcpp/publish_subscribe/rt_shm_layout.h>
 #include <ipcpp/topic.h>
+#include <ipcpp/types.h>
 #include <ipcpp/utils/numeric.h>
 #include <ipcpp/utils/utils.h>
 
@@ -58,30 +58,28 @@ class RealTimePublisher {
   }
 
  public:
-  //~RealTimePublisher() {}
-
-  // RealTimePublisher(RealTimePublisher&& other) : _message_buffer(std::move(other._message_buffer)),
-  // _prev_published_message(std::move(other._prev_published_message)), _options(std::move(other._options)),
-  // _topic(std::move(other._topic)) {}
-
   template <typename... T_Args>
   std::error_code publish(T_Args&&... args) {
-    auto local_message_id = _pp_header->next_local_message_id++;
-    auto index = _message_buffer.get_index(_publisher_id, local_message_id);
-    auto& message = _message_buffer[index];
+    uint_half_t local_message_id = _pp_header->next_local_message_id++;
+    uint_half_t idx = local_message_id & _wrap_around_value;
+    auto& message = _assigned_area[idx];
     auto message_id = _m_build_message_identifier(_publisher_id, local_message_id);
     message.emplace(message_id, std::forward<T_Args>(args)...);
-    logging::debug("RealTimePublisher<'{}'>::publish: emplaced message #{} (index: {})", _topic->id(), message_id,
-                   index);
+    logging::debug("RealTimePublisher<'{}'>::publish: emplaced message #{} (publisher: {}, local_index: {})",
+                   _topic->id(), message_id, _publisher_id, local_message_id);
     _m_notify_subscribers(message_id);
     _prev_published_message = std::move(message.acquire_unsafe());
+
     return {};
   }
 
  private:
-  RealTimePublisher(std::shared_ptr<ShmRegistryEntry>&& topic, const publisher::Options& options, RealTimeMessageBuffer<message_type>&& buffer,
-                    uint_half_t publisher_id)
+  RealTimePublisher(std::shared_ptr<ShmRegistryEntry>&& topic, const publisher::Options& options,
+                    RealTimeMessageBuffer<message_type>&& buffer, uint_half_t publisher_id)
       : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)), _publisher_id(publisher_id) {
+    _assigned_area = std::span<message_type>(&_message_buffer[_message_buffer.get_index(_publisher_id, 0)],
+                                             _message_buffer.per_publisher_pool_size(_message_buffer.common_header()->max_subscribers));
+    _wrap_around_value = _assigned_area.size() - 1;
     _pp_header = _message_buffer.per_publisher_header(_publisher_id);
     _pp_header->creation_timestamp = utils::timestamp();
     _pp_header->id = _publisher_id;
@@ -96,18 +94,28 @@ class RealTimePublisher {
                    message_id);
   }
 
-  inline uint_t _m_build_message_identifier(uint_t index, uint_t local_message_id) {
-    return (index << std::numeric_limits<numeric::half_size_int<uint_t>>::digits) |
-           (static_cast<numeric::half_size_int<uint_t>::type>(local_message_id));
+  inline uint_t _m_build_message_identifier(uint_half_t index, uint_half_t local_message_id) {
+    return (static_cast<uint_t>(index) << std::numeric_limits<uint_half_t>::digits) |
+           (static_cast<uint_half_t>(local_message_id));
   }
 
  private:
+  /// the full shared memory entry to ensure its validity
   std::shared_ptr<ShmRegistryEntry> _topic = nullptr;
+  /// the full MessageBuffer part
   RealTimeMessageBuffer<message_type> _message_buffer;
+  /// the message buffer area assigned to this publisher
+  std::span<message_type> _assigned_area;
+  /// this publishers header
   RealTimePublisherEntry* _pp_header = nullptr;
+  /// options
   ps::publisher::Options _options;
-  access_type _prev_published_message;
+  /// id
   uint_half_t _publisher_id;
+  /// book keeping to avoid immediate destruction
+  access_type _prev_published_message;
+  /// wrap around value for fast modulo
+  uint_half_t _wrap_around_value;
 };
 
 }  // namespace ipcpp::ps

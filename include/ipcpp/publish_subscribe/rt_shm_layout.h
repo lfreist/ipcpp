@@ -107,7 +107,7 @@ class RealTimeMessageBuffer {
       return std::unexpected(std::error_code(1, std::system_category()));
     }
 
-    uint_t capacity = (max_subscribers + 2) * max_publishers;
+    uint_t capacity = RealTimeMessageBuffer::per_publisher_pool_size(max_subscribers) * max_publishers;
     if (capacity > (std::numeric_limits<uint_half_t>::max())) {
       // TODO: error is that it is impossible to store the index of all elements in half a uint_t
       return std::unexpected(std::error_code(1, std::system_category()));
@@ -168,7 +168,7 @@ class RealTimeMessageBuffer {
       }
     }
 
-    std::uint64_t capacity = (header->max_subscribers + 2) * header->max_publishers;
+    std::uint64_t capacity = RealTimeMessageBuffer::per_publisher_pool_size(header->max_subscribers) * header->max_publishers;
 
     std::span<RealTimePublisherEntry> pp_headers(
         reinterpret_cast<RealTimePublisherEntry*>(addr + sizeof(RealTimeInstanceData)), header->max_publishers);
@@ -185,7 +185,15 @@ class RealTimeMessageBuffer {
   const value_type& operator[](uint_half_t index) const { return _buffer[index]; }
 
   uint_half_t get_index(uint_half_t publisher_id, uint_half_t local_message_id) {
-    return publisher_id * _common_header->num_subscribers + (local_message_id & (_h_wrap_around_value));
+    return publisher_id * per_publisher_pool_size(_common_header->max_subscribers) + (local_message_id & _h_wrap_around_value);
+  }
+
+  value_type& at(uint_half_t publisher_id, uint_half_t local_message_id) {
+    return this->operator[](get_index(publisher_id, local_message_id));
+  }
+
+  const value_type& at(uint_half_t publisher_id, uint_half_t local_message_id) const {
+    return this->operator[](get_index(publisher_id, local_message_id));
   }
 
   [[nodiscard]] uint_t size() const { return static_cast<uint_t>(_buffer.size()); }
@@ -201,7 +209,7 @@ class RealTimeMessageBuffer {
       : _common_header(header),
         _pp_headers(pp_headers),
         _buffer(queue_items),
-        _h_wrap_around_value(RealTimeMessageBuffer::per_publisher_pool_size(header->num_subscribers) - 1) {}
+        _h_wrap_around_value(RealTimeMessageBuffer::per_publisher_pool_size(header->max_subscribers) - 1) {}
 
  private:
   RealTimeInstanceData* _common_header;
