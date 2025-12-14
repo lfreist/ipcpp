@@ -252,9 +252,10 @@ class IPCPP_API vector {
       _m_uninitialized_realloc_n(count);
       pos = cbegin() + offset;
     }
+    iterator position = begin() + offset;
     _m_move_to(pos, cend(), pos + count);
     for (size_type i = 0; i < count; ++i) {
-      _m_construct_at(std::addressof(*(pos + i)), value);
+      _m_construct_at(std::addressof(*(position + i)), value);
       _m_data._m_finish += sizeof(value_type);
     }
     return begin() + offset;
@@ -268,11 +269,11 @@ class IPCPP_API vector {
     if (capacity() < size() + count) {
       // NOTE: _m_uninitialized_realloc_n may invalidate pos. Thus, we reset it to the same element after reallocation
       _m_uninitialized_realloc_n(count);
-      pos = cbegin() + offset;
     }
     _m_move_to(pos, cend(), pos + count);
+    iterator pos_it = begin() + offset;
     for (size_type i = 0; i < count; ++i) {
-      _m_construct_at(std::addressof(*(pos + i)), *first);
+      _m_construct_at(std::addressof(*(pos_it + i)), *first);
       first++;
       _m_data._m_finish += sizeof(value_type);
     }
@@ -551,20 +552,22 @@ class IPCPP_API vector {
     if (dst == first) {
       return;
     } else if (dst < first || dst > last + 1) {
+      iterator dst_it = begin() + (dst - cbegin());
       for (; first < last; ++first) {
-        _m_construct_at(std::addressof(*dst), *first);
+        _m_construct_at(std::addressof(*dst_it), *first);
         ++dst;
       }
     } else {
+      iterator dst_it = begin() + (dst - cbegin());
       difference_type offset = (last - first) - 1;
       for (; offset >= 0; --offset) {
-        _m_construct_at(std::addressof(*(dst + offset)), *(first + offset));
+        _m_construct_at(std::addressof(*(dst_it + offset)), *(first + offset));
       }
     }
   }
 
   template <typename... T_Args>
-  void _m_construct_at(const_pointer addr, T_Args&&... args) {
+  void _m_construct_at(pointer addr, T_Args&&... args) {
     alloc_traits::construct(addr, std::forward<T_Args>(args)...);
   }
 
