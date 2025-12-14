@@ -6,7 +6,7 @@
  */
 
 #include <ipcpp/ipcpp.h>
-#include <ipcpp/publish_subscribe/fifo_subscriber.h>
+#include <ipcpp/publish_subscribe/real_time_subscriber.h>
 
 #include <iostream>
 
@@ -29,20 +29,21 @@ int main() {
     return 1;
   }
 
-  auto e_subscriber = ipcpp::publish_subscribe::Subscriber<Message>::create("pub_sub");
+  auto e_subscriber = ipcpp::ps::RealTimeSubscriber<Message>::create("pub_sub");
   if (!e_subscriber) {
     std::cerr << "Error creating subscriber: " << e_subscriber.error().value() << std::endl;
     return 1;
   }
   auto& subscriber = e_subscriber.value();
-  if (const auto error = subscriber.subscribe(); error) {
-    std::cerr << "Failed to subscribe: " << error.value() << std::endl;
+  if (!subscriber.subscribe()) {
+    std::cerr << "Failed to subscribe"<< std::endl;
     return 1;
   }
   while (true) {
-    if (const auto error = subscriber.receive(receive_callback); error) {
-      std::cout << "received exit message" << std::endl;
-      break;
+    if (auto message = subscriber.await_message(); message) {
+      if (receive_callback(*message)) {
+        break;
+      }
     }
   }
 }

@@ -33,10 +33,8 @@ class Message {
       }
       // TODO: does memory order matter here?
       if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_release) == 1) {
-        logging::debug("Message::Access<READ>: destructing message");
         reset();
       }
-      logging::debug("Message::Access: releasing access");
     }
 
     Access(const Access&) = delete;
@@ -50,7 +48,6 @@ class Message {
     }
 
     void reset() {
-      logging::debug("rt::Message::Access::reset(): index: {}", _message->id());
       _message->_opt_value.reset();
       _message->_message_id = Message<T_p>::invalid_id_v;
     }

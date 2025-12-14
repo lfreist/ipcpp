@@ -38,7 +38,7 @@ class RealTimePublisher {
     if (!e_buffer) {
       e_buffer =
           RealTimeMessageBuffer<message_type>::init_at(e_topic.value()->shm().addr(), e_topic.value()->shm().size(),
-                                                       options.max_num_publishers, options.max_num_observers);
+                                                       options.max_num_observers, options.max_num_publishers);
     }
     if (!e_buffer) {
       return std::unexpected(e_buffer.error());

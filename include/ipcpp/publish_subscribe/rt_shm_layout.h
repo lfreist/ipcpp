@@ -42,7 +42,7 @@ struct RealTimeInstanceData {
     initialized
   };
 
-  RealTimeInstanceData(uint_half_t max_publishers_, uint_half_t max_subscribers_)
+  RealTimeInstanceData(uint_half_t max_subscribers_, uint_half_t max_publishers_)
       : max_publishers(max_publishers_), max_subscribers(max_subscribers_) {}
 
   alignas(std::hardware_destructive_interference_size) std::atomic<uint_half_t> num_subscribers = 0;

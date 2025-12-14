@@ -23,8 +23,7 @@ public:
  typedef typename message_type::Access access_type;
 
 public:
- static std::expected<RealTimeSubscriber, std::error_code> create(const std::string& topic_id,
-                                                                  const subscriber::Options& options = {}) {
+ static std::expected<RealTimeSubscriber, std::error_code> create(const std::string& topic_id) {
    auto e_topic = get_shm_entry(topic_id);
    if (!e_topic) {
      return std::unexpected(e_topic.error());
@@ -34,7 +33,7 @@ public:
      return std::unexpected(e_buffer.error());
    }
 
-   RealTimeSubscriber self(std::move(e_topic.value()), options, std::move(e_buffer.value()));
+   RealTimeSubscriber self(std::move(e_topic.value()), std::move(e_buffer.value()));
 
    return self;
  }
@@ -58,7 +57,7 @@ public:
      auto access = _message_buffer[_m_get_index_from_id(message_id)].acquire_unsafe();
      if (access) {
        _initial_message_info = message_id;
-       return std::move(access.value());
+       return std::move(access);
      }
    }
    return std::nullopt;
@@ -80,8 +79,8 @@ public:
  }
 
 private:
- RealTimeSubscriber(std::shared_ptr<ShmRegistryEntry>&& topic, const subscriber::Options& options, RealTimeMessageBuffer<message_type>&& buffer)
-     : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)) {}
+ RealTimeSubscriber(std::shared_ptr<ShmRegistryEntry>&& topic, RealTimeMessageBuffer<message_type>&& buffer)
+     : _topic(std::move(topic)), _message_buffer(std::move(buffer)) {}
 
 private:
  inline uint_half_t _m_get_index_from_id(uint_t message_id) {
@@ -96,7 +95,6 @@ private:
 private:
  std::shared_ptr<ShmRegistryEntry> _topic = nullptr;
  RealTimeMessageBuffer<message_type> _message_buffer;
- ps::subscriber::Options _options;
  uint_t _initial_message_info = std::numeric_limits<std::uint64_t>::max();
  uint_half_t subscriber_id;
 };
