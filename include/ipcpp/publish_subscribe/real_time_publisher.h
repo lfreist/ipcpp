@@ -81,10 +81,7 @@ class RealTimePublisher {
                                              _message_buffer.per_publisher_pool_size(_message_buffer.common_header()->max_subscribers));
     _wrap_around_value = _assigned_area.size() - 1;
     _pp_header = _message_buffer.per_publisher_header(_publisher_id);
-    _pp_header->creation_timestamp = utils::timestamp();
-    _pp_header->id = _publisher_id;
-    _pp_header->is_online = true;
-    _pp_header->pid = 0;
+    std::construct_at(_pp_header, _publisher_id);
   }
 
  private:

@@ -40,6 +40,7 @@ public:
 
 public:
  bool subscribe() {
+   // TODO: subscriber needs to write to subscriber entry in shm
    auto count = _message_buffer.common_header()->num_subscribers.fetch_add(1);
    if (count >= _message_buffer.common_header()->max_subscribers) {
      _message_buffer.common_header()->num_subscribers.fetch_sub(1);
@@ -94,6 +95,7 @@ private:
 
 private:
  std::shared_ptr<ShmRegistryEntry> _topic = nullptr;
+ RealTimeSubscriberEntry* _subscriber_entry = nullptr;
  RealTimeMessageBuffer<message_type> _message_buffer;
  uint_t _initial_message_info = std::numeric_limits<std::uint64_t>::max();
  uint_half_t subscriber_id;
