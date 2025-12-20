@@ -12,7 +12,7 @@
 #include <iostream>
 
 struct Message {
-  Message() : timestamp(ipcpp::utils::timestamp()) {}
+  explicit Message(ipcpp::vector<char> data) : timestamp(ipcpp::utils::timestamp()), data(std::move(data)) {}
   Message(Message&& other) noexcept : timestamp(ipcpp::utils::timestamp()), data(std::move(other.data)) {}
 
   std::int64_t timestamp;

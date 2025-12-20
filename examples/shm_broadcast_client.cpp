@@ -6,11 +6,16 @@
  */
 
 #include <ipcpp/ipcpp.h>
-#include <ipcpp/publish_subscribe/real_time_subscriber.h>
+#include <ipcpp/publish_subscribe/real_time/real_time_subscriber.h>
 
 #include <iostream>
+#include <print>
+#include <chrono>
+#include <thread>
 
 #include "message.h"
+
+using namespace std::chrono_literals;
 
 std::error_code receive_callback(const Message& msg) {
   const std::int64_t ts = ipcpp::utils::timestamp();
@@ -18,11 +23,11 @@ std::error_code receive_callback(const Message& msg) {
   if (message == "exit") {
     return {1, std::system_category()};
   }
-  std::cout  << "message: " << message << std::endl;
+  std::println("[{}] [{:>6}ns] message: {}", static_cast<const void*>(&msg), ts - msg.timestamp, message);
   return {};
 }
 
-int main() {
+int main(int argc, char** argv) {
   ipcpp::logging::set_level(ipcpp::logging::level::debug);
   if (ipcpp::initialize_runtime()) {
     std::cerr << "Failed to initialize buffer" << std::endl;

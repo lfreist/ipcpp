@@ -67,4 +67,12 @@ inline bool is_process_alive(std::uint64_t pid) {
 #endif
 }
 
+inline std::uint64_t get_pid() {
+#if defined(IPCPP_WINDOWS)
+  return _getpid();
+#else
+  return getpid();
+#endif
+}
+
 }  // namespace ipcpp::utils::system

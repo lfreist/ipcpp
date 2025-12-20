@@ -42,7 +42,7 @@ struct RealTimeSubscriberEntry {
   explicit RealTimeSubscriberEntry(uint_half_t subscriber_id) : RealTimeSubscriberEntry(subscriber_id, 100ms) {}
   RealTimeSubscriberEntry(uint_half_t subscriber_id, std::chrono::milliseconds heartbeat_interval)
       : id(subscriber_id),
-        process_data{.pid = static_cast<std::uint64_t>(_getpid()),
+        process_data{.pid = static_cast<std::uint64_t>(utils::system::get_pid()),
                      .creation_timestamp = utils::timestamp(),
                      .heartbeat_timestamp = utils::timestamp(),
                      .heartbeat_interval_ms = heartbeat_interval.count()} {}
@@ -158,7 +158,7 @@ class RealTimeMessageBuffer {
 
     uint_t capacity = RealTimeMessageBuffer::per_publisher_pool_size(max_subscribers) * max_publishers;
     if (capacity > (std::numeric_limits<uint_half_t>::max())) {
-      // TODO: error is that it is impossible to store the index of all elements in half a uint_t
+      // TODO: error is that it is impossible to store the index of all elements in uint_half_t
       return std::unexpected(std::error_code(1, std::system_category()));
     }
 

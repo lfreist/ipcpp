@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include <ipcpp/publish_subscribe/rt_shm_layout.h>
-#include <ipcpp/publish_subscribe/real_time_message.h>
+#include <ipcpp/publish_subscribe/real_time/rt_shm_layout.h>
+#include <ipcpp/publish_subscribe/real_time/real_time_message.h>
 #include <ipcpp/types.h>
 #include <ipcpp/topic.h>
 

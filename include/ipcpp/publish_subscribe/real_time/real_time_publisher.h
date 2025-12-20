@@ -8,8 +8,8 @@
 #pragma once
 
 #include <ipcpp/publish_subscribe/options.h>
-#include <ipcpp/publish_subscribe/real_time_message.h>
-#include <ipcpp/publish_subscribe/rt_shm_layout.h>
+#include <ipcpp/publish_subscribe/real_time/real_time_message.h>
+#include <ipcpp/publish_subscribe/real_time/rt_shm_layout.h>
 #include <ipcpp/topic.h>
 #include <ipcpp/types.h>
 #include <ipcpp/utils/numeric.h>
@@ -81,15 +81,22 @@ class RealTimePublisher {
  public:
   template <typename... T_Args>
   std::error_code publish(T_Args&&... args) {
-    uint_half_t local_message_id = _pp_header->next_local_message_id++;
-    uint_half_t idx = local_message_id & _wrap_around_value;
-    auto& message = _assigned_area[idx];
+    uint_half_t local_message_id;
+    message_type* message = nullptr;
+    while (true) {
+      local_message_id = _pp_header->next_local_message_id++;
+      uint_half_t idx = local_message_id & _wrap_around_value;
+      message = &_assigned_area[idx];
+      if (message->id() == message->invalid_id_v) {
+        break;
+      }
+    }
     auto message_id = _m_build_message_identifier(_publisher_id, local_message_id);
-    message.emplace(message_id, std::forward<T_Args>(args)...);
+    message->emplace(message_id, std::forward<T_Args>(args)...);
     logging::debug("RealTimePublisher<'{}'>::publish: emplaced message #{} (publisher: {}, local_index: {})",
                    _topic->id(), message_id, _publisher_id, local_message_id);
     _m_notify_subscribers(message_id);
-    _prev_published_message = std::move(message.acquire_unsafe());
+    _prev_published_message = std::move(message->acquire_unsafe());
 
     return {};
   }

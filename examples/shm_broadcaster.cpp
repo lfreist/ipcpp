@@ -6,11 +6,12 @@
  */
 
 #include <ipcpp/ipcpp.h>
-#include <ipcpp/publish_subscribe/real_time_publisher.h>
+#include <ipcpp/publish_subscribe/real_time/real_time_publisher.h>
 #include <ipcpp/utils/logging.h>
 
 #include <chrono>
 #include <iostream>
+#include <print>
 
 #include "message.h"
 
@@ -35,10 +36,12 @@ int main(int argc, char** argv) {
     std::cout << "Enter message: ";
     std::string line;
     std::getline(std::cin, line);
-    Message msg;
-    msg.data = ipcpp::vector<char>{line.begin(), line.end()};
+    ipcpp::vector<char> message{line.begin(), line.end()};
+    Message msg(message);
     if (std::error_code error = publisher.publish(std::move(msg)); error) {
       std::cerr << "Error publishing message: " << error.message() << std::endl;
+    } else {
+      std::println("  > sent: {}", line);
     }
     if (line == "exit") {
       break;

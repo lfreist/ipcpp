@@ -4,9 +4,9 @@
  *
  * This file is part of ipcpp.
  */
-#include <ipcpp/publish_subscribe/rt_shm_layout.h>
-#include <ipcpp/publish_subscribe/real_time_publisher.h>
-#include <ipcpp/publish_subscribe/real_time_subscriber.h>
+#include <ipcpp/publish_subscribe/real_time/rt_shm_layout.h>
+#include <ipcpp/publish_subscribe/real_time/real_time_publisher.h>
+#include <ipcpp/publish_subscribe/real_time/real_time_subscriber.h>
 #include <ipcpp/utils/utils.h>
 
 #include <barrier>
