@@ -7,25 +7,46 @@
 
 #pragma once
 
-#include <unistd.h>
+#include <ipcpp/utils/platform.h>
 
 #include <concepts>
 #include <cstdint>
-#if defined(_WIN32)
+#if defined(IPCPP_WINDOWS)
+#define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#elif defined(__linux__) || defined(__ANDROID__) || defined(__APPLE__)
+#elif defined(IPCPP_UNIX)
 #include <errno.h>
 #include <signal.h>
+#include <unistd.h>
 #endif
 
 namespace ipcpp::utils::system {
 
+namespace internal {
+
+size_t get_page_size(void) {
+  static size_t page_size = 0;
+
+  if (page_size == 0) {
+#if defined(IPCPP_WINDOWS)
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    page_size = (size_t)si.dwPageSize;
+#elif defined(IPCPP_UNIX)
+    page_size = sysconf(_SC_PAGESIZE);
+#endif
+  }
+
+  return page_size;
+}
+
+}  // namespace internal
+
 template <typename T>
   requires std::is_integral_v<T>
 inline T round_up_to_pagesize(T val) {
-  static std::size_t page_size = sysconf(_SC_PAGESIZE);
-  return (val + page_size - 1) & ~(page_size - 1);
+  return (val + internal::get_page_size() - 1) & ~(internal::get_page_size() - 1);
 }
 
 inline bool is_process_alive(std::uint64_t pid) {

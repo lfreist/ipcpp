@@ -13,6 +13,7 @@
 #include <ipcpp/utils/numeric.h>
 #include <ipcpp/utils/system.h>
 #include <ipcpp/utils/utils.h>
+#include <ipcpp/utils/ip_lock.h>
 
 #include <atomic>
 #include <chrono>
@@ -41,7 +42,7 @@ struct RealTimeSubscriberEntry {
   explicit RealTimeSubscriberEntry(uint_half_t subscriber_id) : RealTimeSubscriberEntry(subscriber_id, 100ms) {}
   RealTimeSubscriberEntry(uint_half_t subscriber_id, std::chrono::milliseconds heartbeat_interval)
       : id(subscriber_id),
-        process_data{.pid = static_cast<std::uint64_t>(getpid()),
+        process_data{.pid = static_cast<std::uint64_t>(_getpid()),
                      .creation_timestamp = utils::timestamp(),
                      .heartbeat_timestamp = utils::timestamp(),
                      .heartbeat_interval_ms = heartbeat_interval.count()} {}
@@ -247,8 +248,8 @@ class RealTimeMessageBuffer {
 
   const value_type& operator[](uint_half_t index) const { return _buffer[index]; }
 
-  uint_half_t get_index(uint_half_t publisher_id, uint_half_t local_message_id) {
-    return publisher_id * per_publisher_pool_size(_common_header->max_subscribers) +
+  uint_half_t get_index(uint_half_t publisher_idx, uint_half_t local_message_id) {
+    return publisher_idx * per_publisher_pool_size(_common_header->max_subscribers) +
            (local_message_id & _h_wrap_around_value);
   }
 
@@ -263,28 +264,26 @@ class RealTimeMessageBuffer {
   [[nodiscard]] uint_t size() const { return static_cast<uint_t>(_buffer.size()); }
 
   RealTimeInstanceData* common_header() { return _common_header; }
-  // TODO: assuming id == index is shit!
-  RealTimePublisherEntry* per_publisher_header(uint_half_t publisher_id) {
-    return std::addressof(_pp_headers[publisher_id]);
+  RealTimePublisherEntry* per_publisher_header(uint_half_t publisher_idx) {
+    return std::addressof(_publisher_entries[publisher_idx]);
   }
-  // TODO: assuming id == index is shit!
-  RealTimeSubscriberEntry* per_subscriber_header(uint_half_t subscriber_id) {
-    return std::addressof(_ps_headers[subscriber_id]);
+  RealTimeSubscriberEntry* per_subscriber_header(uint_half_t subscriber_idx) {
+    return std::addressof(_subscriber_entries[subscriber_idx]);
   }
 
  private:
   RealTimeMessageBuffer(RealTimeInstanceData* header, std::span<RealTimePublisherEntry> pp_headers, std::span<RealTimeSubscriberEntry> ps_headers,
                         std::span<value_type> queue_items)
       : _common_header(header),
-        _pp_headers(pp_headers),
-        _ps_headers(ps_headers),
+        _publisher_entries(pp_headers),
+        _subscriber_entries(ps_headers),
         _buffer(queue_items),
         _h_wrap_around_value(RealTimeMessageBuffer::per_publisher_pool_size(header->max_subscribers) - 1) {}
 
  private:
   RealTimeInstanceData* _common_header;
-  std::span<RealTimePublisherEntry> _pp_headers;
-  std::span<RealTimeSubscriberEntry> _ps_headers;
+  std::span<RealTimePublisherEntry> _publisher_entries;
+  std::span<RealTimeSubscriberEntry> _subscriber_entries;
   std::span<value_type> _buffer;
   /// internally used for wrap-around of local message id to index: per_publisher_pool_size(header->num_subscribers) - 1
   // TODO: make const

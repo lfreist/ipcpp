@@ -13,8 +13,29 @@
 #include <ipcpp/topic.h>
 
 #include <optional>
+#include <expected>
 
 namespace ipcpp::ps {
+
+namespace internal {
+
+std::expected<std::pair<uint_half_t, std::unique_ptr<utils::InterProcessLock>>, std::error_code> get_new_subscriber_entry_idx(const std::string& topic_id, uint_half_t max_subscribers) {
+  for (int retries = 0; retries < 100; ++retries) {
+    for (uint_half_t idx = 0; idx < max_subscribers; ++idx) {
+      std::string name = std::format("{}_subscriber_entry_{}", topic_id, idx);
+      auto lock = std::make_unique<utils::InterProcessLock>(name);
+      bool acquired = false;
+      if (lock->try_lock(acquired).value() == 0 && acquired) {
+        return std::make_pair(idx, std::move(lock));
+      }
+    }
+  }
+  return std::unexpected(std::make_error_code(std::errc::no_buffer_space));
+}
+
+}
+
+// TODO: maybe, it would be clean to create a RealTimeSubscriberStream that can read from the shm and on unsubscribe, we invalidate the stream...
 
 template <typename T_p>
 class RealTimeSubscriber {
@@ -39,18 +60,21 @@ public:
  }
 
 public:
- bool subscribe() {
-   // TODO: subscriber needs to write to subscriber entry in shm
-   auto count = _message_buffer.common_header()->num_subscribers.fetch_add(1);
-   if (count >= _message_buffer.common_header()->max_subscribers) {
-     _message_buffer.common_header()->num_subscribers.fetch_sub(1);
-     return false;
+ std::expected<void, std::error_code> subscribe() {
+   if (auto e = internal::get_new_subscriber_entry_idx(_topic->id(), _message_buffer.common_header()->max_subscribers); e.has_value()) {
+     std::tie(_entry_idx, _entry_lock) = std::move(e.value());
+     _initial_message_info = _message_buffer.common_header()->latest_published.load(std::memory_order_acquire);
+     return {};
+   } else {
+     return std::unexpected(e.error());
    }
-   _initial_message_info = _message_buffer.common_header()->latest_published.load(std::memory_order_acquire);
-   return true;
  }
 
- void unsubscribe() { _message_buffer.header()->num_subscribers.fetch_sub(1); }
+
+ void unsubscribe() {
+     _entry_idx = std::numeric_limits<uint_half_t>::max();
+     _entry_lock.reset(nullptr);
+ }
 
  std::optional<access_type> fetch_message() {
    if (auto message_id = _message_buffer.common_header()->latest_published.load(std::memory_order_acquire);
@@ -90,15 +114,17 @@ private:
  }
 
  inline std::pair<uint_half_t, uint_half_t> _m_split_to_indices(uint_t message_id) {
-   return {message_id >> std::numeric_limits<uint_half_t>::digits, message_id};
+   return {message_id >> std::numeric_limits<uint_half_t>::digits, static_cast<uint_half_t>(message_id)};
  }
 
 private:
  std::shared_ptr<ShmRegistryEntry> _topic = nullptr;
  RealTimeSubscriberEntry* _subscriber_entry = nullptr;
  RealTimeMessageBuffer<message_type> _message_buffer;
- uint_t _initial_message_info = std::numeric_limits<std::uint64_t>::max();
- uint_half_t subscriber_id;
+ uint_t _initial_message_info = std::numeric_limits<uint_t>::max();
+ uint_half_t _subscriber_id = std::numeric_limits<uint_half_t>::max();
+ uint_half_t _entry_idx = std::numeric_limits<uint_half_t>::max();
+ std::unique_ptr<utils::InterProcessLock> _entry_lock = nullptr;
 };
 
 }  // namespace ipcpp::ps

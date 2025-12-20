@@ -17,8 +17,26 @@
 
 #include <expected>
 #include <string>
+#include <filesystem>
 
 namespace ipcpp::ps {
+
+namespace internal {
+
+std::pair<uint_half_t, utils::InterProcessLock> get_new_publisher_entry(const std::string& topic_id, uint_half_t max_publishers) {
+  while (true) {
+    for (uint_half_t idx = 0; idx < max_publishers; ++idx) {
+      std::string name = std::format("{}_publisher_entry_{}", topic_id, idx);
+      utils::InterProcessLock lock(name);
+      bool acquired = false;
+      if (lock.try_lock(acquired).value() == 0 && acquired) {
+        return std::make_pair(idx, std::move(lock));
+      }
+    }
+  }
+}
+
+}
 
 template <typename T_p>
 class RealTimePublisher {
@@ -45,14 +63,17 @@ class RealTimePublisher {
     }
 
     RealTimeMessageBuffer<message_type>& buffer = e_buffer.value();
-    auto publisher_id = buffer.common_header()->num_publishers.fetch_add(1);
+    uint_half_t publisher_id = buffer.common_header()->num_publishers.fetch_add(1);
     if (publisher_id >= buffer.common_header()->max_publishers) {
       // TODO: too many publishers
       buffer.common_header()->num_publishers.fetch_sub(1);
       return std::unexpected(std::error_code(2, std::system_category()));
     }
 
-    RealTimePublisher self(std::move(e_topic.value()), options, std::move(e_buffer.value()), publisher_id);
+    // search free publisher_idx
+    auto [idx, lock] = internal::get_new_publisher_entry(topic_id, buffer.common_header()->max_publishers);
+
+    RealTimePublisher self(std::move(e_topic.value()), options, std::move(e_buffer.value()), publisher_id, idx, std::move(lock));
 
     return self;
   }
@@ -75,13 +96,13 @@ class RealTimePublisher {
 
  private:
   RealTimePublisher(std::shared_ptr<ShmRegistryEntry>&& topic, const publisher::Options& options,
-                    RealTimeMessageBuffer<message_type>&& buffer, uint_half_t publisher_id)
-      : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)), _publisher_id(publisher_id) {
-    _assigned_area = std::span<message_type>(&_message_buffer[_message_buffer.get_index(_publisher_id, 0)],
+                    RealTimeMessageBuffer<message_type>&& buffer, uint_half_t publisher_id, uint_half_t entry_idx, utils::InterProcessLock&& lock)
+      : _topic(std::move(topic)), _options(options), _message_buffer(std::move(buffer)), _publisher_id(publisher_id), _entry_idx(entry_idx), _entry_lock(std::move(lock)) {
+    _assigned_area = std::span<message_type>(&_message_buffer[_message_buffer.get_index(_entry_idx, 0)],
                                              _message_buffer.per_publisher_pool_size(_message_buffer.common_header()->max_subscribers));
     _wrap_around_value = _assigned_area.size() - 1;
-    _pp_header = _message_buffer.per_publisher_header(_publisher_id);
-    std::construct_at(_pp_header, _publisher_id);
+    _pp_header = _message_buffer.per_publisher_header(_entry_idx);
+    std::construct_at(_pp_header, _entry_idx);
   }
 
  private:
@@ -113,6 +134,10 @@ class RealTimePublisher {
   access_type _prev_published_message;
   /// wrap around value for fast modulo
   uint_half_t _wrap_around_value;
+  /// publisher entry idx in shm
+  uint_half_t _entry_idx;
+  /// lock for the entry idx
+  utils::InterProcessLock _entry_lock;
 };
 
 }  // namespace ipcpp::ps

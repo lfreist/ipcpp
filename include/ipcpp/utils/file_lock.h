@@ -212,7 +212,7 @@ class file_lock {
 
  private:
   std::string filePath_;
-  int fd_;
+  int _fd;
 };
 
 class unique_file_lock {

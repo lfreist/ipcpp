@@ -9,13 +9,15 @@
 
 #if defined(unix) || defined(__unix) || defined(__unix__) || defined(__LINUX__)
 #define IPCPP_UNIX
-#endif
-#if defined(__APPLE__)
+#elif defined(__APPLE__)
 #define IPCPP_APPLE
-#endif
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#define IPCPP_UNIX
+#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 #define IPCPP_WINDOWS
+#else
+#error "UNSUPPORTED PLATFORM"
 #endif
+
 
 #ifdef IPCPP_WINDOWS
 #ifdef IPCPP_EXPORTS
