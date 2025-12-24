@@ -4,7 +4,7 @@
  *
  * This file is part of ipcpp.
  */
-#include <ipcpp/publish_subscribe/real_time/rt_shm_layout.h>
+#include <ipcpp/publish_subscribe/real_time/real_time_memory_layout.h>
 #include <ipcpp/publish_subscribe/real_time/real_time_publisher.h>
 #include <ipcpp/publish_subscribe/real_time/real_time_subscriber.h>
 #include <ipcpp/utils/utils.h>
@@ -40,7 +40,6 @@ void a2b() {
     std::cerr << "subscriber_b2a: " << subscriber_b2a.error().message() << std::endl;
     exit(1);
   }
-  subscriber_b2a->subscribe();
 
   std::uint64_t sum = 0;
   std::uint64_t expected_sum = 0;
@@ -77,7 +76,6 @@ void b2a() {
     std::cerr << "subscriber_a2b: " << subscriber_a2b.error().message() << std::endl;
     exit(1);
   }
-  subscriber_a2b->subscribe();
 
   sync_point.arrive_and_wait();
   benchmark_start_barrier.arrive_and_wait();

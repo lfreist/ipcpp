@@ -28,11 +28,19 @@ shared_memory_file::shared_memory_file(shared_memory_file&& other) noexcept {
 
 // _____________________________________________________________________________________________________________________
 shared_memory_file& shared_memory_file::operator=(shared_memory_file&& other) noexcept {
-  _path = std::move(other._path);
-  _access_mode = other._access_mode;
-  std::swap(_size, other._size);
-  std::swap(_native_handle, other._native_handle);
-  std::swap(_was_created, other._was_created);
+  if (this != &other) {
+    if (_native_handle != 0) {
+      close(_native_handle);
+    }
+    if (_was_created) {
+      unlink();
+    }
+    _path = std::move(other._path);
+    _access_mode = other._access_mode;
+    std::swap(_size, other._size);
+    std::swap(_native_handle, other._native_handle);
+    std::swap(_was_created, other._was_created);
+  }
   return *this;
 }
 

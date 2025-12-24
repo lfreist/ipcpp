@@ -3,6 +3,7 @@
 #include <memory>
 #include <system_error>
 #include <string>
+#include <filesystem>
 
 #include <ipcpp/utils/platform.h>
 

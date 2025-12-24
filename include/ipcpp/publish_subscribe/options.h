@@ -16,24 +16,33 @@ using namespace std::chrono_literals;
 
 namespace ipcpp::ps {
 
-namespace publisher {
+enum class Mode {
+  RealTime,      // only latest message is available to all subscribers
+  Sequence,      // all messages are published to all subscribers
+  MessageQueue,  // each message is published to exactly/at most one subscriber (depending on BackpressurePolicy)
+};
 
-/**
- * BackpressurePolicy defines how message buffer overflows are handled. Message buffer overflows may occur when a
- *  subscriber is too slow and uses the subscriber::ReceivePolicy::ALL.
- */
+enum class RealTimeSubscriptionMode {
+  Volatile,  // subscriber receives first message published *after* subscription
+  Latched,   // subscriber receives latest published message *at* subscription
+};
+
 enum class BackpressurePolicy {
-  block,  // the publisher blocks until the next slot is free
-  error,  // an error value is returned
+  Blocking,       // the publisher blocks until the next slot is free
+  ReturnError,    // an error value is returned
+  ReplaceOldest,  // oldest message not occupied is overwritten
 };
 
-struct Options {
-  BackpressurePolicy backpressure_policy = BackpressurePolicy::error;
-  uint_half_t max_num_observers = 1;
-  uint_half_t max_num_publishers = 1;
+template <Mode T_p>
+struct Options;
+
+template <>
+struct Options<Mode::RealTime> {
+  uint_half_t max_publishers = 1;
+  uint_half_t max_subscribers = 1;
+  uint_half_t max_concurrent_acquires = 1;
 };
 
-}  // namespace publisher
-
+enum class InitializationState : uint_t { uninitialized = 0, in_initialization, initialized };
 
 }  // namespace ipcpp::ps

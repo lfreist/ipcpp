@@ -21,6 +21,8 @@ namespace ipcpp {
 
 typedef atomic::largest_lock_free_uint_t uint_t;
 typedef numeric::half_size_int_t<uint_t> uint_half_t;
+typedef atomic::largest_lock_free_int_t int_t;
+typedef numeric::half_size_int_t<int_t> int_half_t;
 
 static_assert(std::atomic<uint_t>::is_always_lock_free, "uint_t must be lock free");
 static_assert(std::atomic<uint_half_t>::is_always_lock_free, "uint_half_t must be lock free");

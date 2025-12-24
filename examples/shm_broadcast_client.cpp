@@ -40,15 +40,18 @@ int main(int argc, char** argv) {
     return 1;
   }
   auto& subscriber = e_subscriber.value();
-  if (!subscriber.subscribe()) {
-    std::cerr << "Failed to subscribe"<< std::endl;
-    return 1;
-  }
   while (true) {
     if (auto message = subscriber.await_message(); message) {
       if (receive_callback(*message)) {
         break;
       }
+      if (argc > 1) {
+        std::cout << "Press any key to continue";
+        std::cin.get();
+        std::cout << "  > released: ";
+        receive_callback(*message);
+      }
     }
   }
+  std::println("bye");
 }

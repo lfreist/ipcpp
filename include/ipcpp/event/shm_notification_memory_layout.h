@@ -59,12 +59,6 @@ struct shm_notification_memory_layout {
     std::swap(header, other.header);
   }
 
-  shm_notification_memory_layout& operator=(shm_notification_memory_layout&& other) noexcept {
-    message_buffer = std::move(other.message_buffer);
-    std::swap(header, other.header);
-    return *this;
-  }
-
   header_type* header = nullptr;
   shm::ring_buffer<message_type> message_buffer;
 };

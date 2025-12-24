@@ -109,9 +109,20 @@ struct half_size_int<uint16_t> {
 };
 
 template <>
-struct half_size_int<uint8_t> {
-  using type = uint8_t;
+struct half_size_int<int64_t> {
+  using type = int32_t;
 };
+
+template <>
+struct half_size_int<int32_t> {
+  using type = int16_t;
+};
+
+template <>
+struct half_size_int<int16_t> {
+  using type = int8_t;
+};
+
 
 template <typename T>
 using half_size_int_t = typename half_size_int<T>::type;

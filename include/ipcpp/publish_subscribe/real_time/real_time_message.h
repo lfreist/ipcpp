@@ -20,6 +20,7 @@ namespace ipcpp::ps::rt {
 template <typename T_p>
 class Message {
  public:
+  typedef T_p value_type;
   static constexpr uint_t invalid_id_v = std::numeric_limits<uint_t>::max();
 
  public:
@@ -28,23 +29,30 @@ class Message {
     Access() = default;
     explicit Access(Message<T_p>* message) : _message(message) {}
     ~Access() {
-      if (_message == nullptr) {
-        return;
-      }
-      // TODO: does memory order matter here?
-      if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_release) == 1) {
-        reset();
-      }
+      release();
     }
 
     Access(const Access&) = delete;
     Access& operator=(const Access&) = delete;
 
-    Access(Access&& other) noexcept { std::swap(other._message, _message); }
-
+    Access(Access&& other) noexcept : _message(other._message) { other._message = nullptr; }
     Access& operator=(Access&& other) noexcept {
-      std::swap(other._message, _message);
+      if (this != &other) {
+        release();
+        _message = other._message;
+        other._message = nullptr;
+      }
       return *this;
+    }
+
+    void release() {
+      if (_message == nullptr) {
+        return;
+      }
+      if (_message->_active_reference_counter.fetch_sub(1, std::memory_order_release) == 1) {
+        reset();
+      }
+      _message = nullptr;
     }
 
     void reset() {
@@ -58,7 +66,7 @@ class Message {
     T_p& operator*() { return _message->_opt_value.value(); }
     const T_p& operator*() const { return _message->_opt_value.value(); }
 
-    operator bool() const { return _message->_opt_value.has_value(); }
+    explicit operator bool() const { return _message->_opt_value.has_value(); }
 
    private:
     Message<T_p>* _message = nullptr;
