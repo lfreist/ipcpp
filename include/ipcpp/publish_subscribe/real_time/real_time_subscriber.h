@@ -135,8 +135,8 @@ class RealTimeSubscriber {
   std::expected<MessageWrapper, std::error_code> fetch_message() {
     if (auto message_id = _message_buffer.common_header()->next_message_id.load(std::memory_order_acquire);
         message_id != _next_message_id) {
-      uint_t message_idx = _message_buffer.common_header()->latest_published_idx;
-      auto access = _message_buffer[_m_get_index_from_id(message_idx)].acquire_unsafe();
+      uint_t message_idx = _message_buffer.common_header()->latest_published_idx.load(std::memory_order_acquire);
+      auto access = _message_buffer[message_idx].acquire_unsafe();
       if (access) {
         _next_message_id = message_id;
         auto available_acquires = _available_acquires->fetch_sub(1, std::memory_order_acquire);
@@ -189,11 +189,6 @@ class RealTimeSubscriber {
         _next_message_id(last_message_id) {}
 
  private:
-  inline uint_half_t _m_get_index_from_id(uint_t message_id) {
-    auto [publisher_id, local_id] = _m_split_to_indices(message_id);
-    return _message_buffer.get_index(publisher_id, local_id);
-  }
-
   inline std::pair<uint_half_t, uint_half_t> _m_split_to_indices(uint_t message_id) {
     return {message_id >> std::numeric_limits<uint_half_t>::digits, static_cast<uint_half_t>(message_id)};
   }

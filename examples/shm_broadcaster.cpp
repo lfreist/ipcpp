@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  auto e_publisher = ipcpp::ps::RealTimePublisher<Message>::create("pub_sub", {.max_subscribers=3});
+  auto e_publisher = ipcpp::ps::RealTimePublisher<Message>::create("pub_sub", {.max_publishers=2, .max_subscribers=3});
   if (!e_publisher) {
     std::cerr << "Error creating publisher" << std::endl;
     return 1;
